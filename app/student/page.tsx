@@ -1,3 +1,5 @@
+import RequireRole from "@/components/RequireRole";
+
 const subjects = [
   { name: "Математика", percent: 82 },
   { name: "Ағылшын тілі", percent: 74 },
@@ -5,6 +7,14 @@ const subjects = [
 ];
 
 export default function StudentDashboard() {
+  return (
+    <RequireRole allow={["student"]}>
+      <StudentDashboardContent />
+    </RequireRole>
+  );
+}
+
+function StudentDashboardContent() {
   return (
     <section className="mx-auto max-w-6xl px-6 py-14">
       <div className="flex flex-wrap items-center justify-between gap-4">
