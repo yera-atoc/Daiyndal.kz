@@ -1,4 +1,3 @@
-
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
@@ -20,5 +19,18 @@ export type Material = {
   description: string | null;
   file_url: string | null;
   file_name: string | null;
+  created_at: string;
+};
+
+export type Role = "student" | "teacher";
+
+export type Profile = {
+  id: string;
+  full_name: string | null;
+  role: Role;
+  grade: string | null;
+  program: string | null;
+  subject: string | null;
+  email: string | null;
   created_at: string;
 };
