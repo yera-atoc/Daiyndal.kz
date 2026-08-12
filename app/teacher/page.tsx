@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase, type Material } from "@/lib/supabaseClient";
+import RequireRole from "@/components/RequireRole";
 
 const SUBJECTS = [
   "Математика",
@@ -21,6 +22,14 @@ const students = [
 const STORAGE_BUCKET = "materials";
 
 export default function TeacherDashboard() {
+  return (
+    <RequireRole allow={["teacher"]}>
+      <TeacherDashboardContent />
+    </RequireRole>
+  );
+}
+
+function TeacherDashboardContent() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
