@@ -236,7 +236,8 @@ function TeacherDashboardContent() {
             {editingId ? "Материалды өңдеу" : "Материал жүктеу"}
           </h2>
           <p className="mt-1 text-[13px] text-ink-soft">
-            PDF, презентация немесе тапсырмалар файлын қосыңыз.
+            PDF, презентация немесе тапсырмалар файлын қосыңыз. AI сабақ
+            жасау үшін файл міндетті түрде PDF форматында болуы керек.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
