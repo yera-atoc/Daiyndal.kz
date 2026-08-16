@@ -166,6 +166,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
+  // --- Авторизация: тек аутентификацияланған, өз материалын иеленген
+  // мұғалім ғана AI сабақ генерациясын іске қоса алады. Бұл тексеріссіз
+  // service-role клиент кез келген адамға materialId арқылы ақылы Gemini
+  // сұранысын шексіз шақыруға (cost/DoS) және бөтен деректерді жазуға
+  // мүмкіндік беретін еді.
+  const authHeader = req.headers.get("authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+
+  if (!token) {
+    return NextResponse.json(
+      { error: "Авторизация қажет (токен жіберілмеген)." },
+      { status: 401 }
+    );
+  }
+
+  const { data: userData, error: userError } = await supabase.auth.getUser(
+    token
+  );
+
+  if (userError || !userData?.user) {
+    return NextResponse.json(
+      { error: "Токен жарамсыз немесе мерзімі өтіп кеткен." },
+      { status: 401 }
+    );
+  }
+
+  const requesterId = userData.user.id;
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", requesterId)
+    .single();
+
+  if (profileError || profile?.role !== "teacher") {
+    return NextResponse.json(
+      { error: "Бұл әрекетке тек мұғалімдерге рұқсат етілген." },
+      { status: 403 }
+    );
+  }
+
   const { data: material, error: fetchError } = await supabase
     .from("materials")
     .select("*")
@@ -176,6 +217,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Материал табылмады: " + (fetchError?.message ?? "") },
       { status: 404 }
+    );
+  }
+
+  if (material.teacher_id && material.teacher_id !== requesterId) {
+    return NextResponse.json(
+      { error: "Бұл материал сізге тиесілі емес." },
+      { status: 403 }
     );
   }
 
