@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { CanvasFactory } from "pdf-parse/worker";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
+import JSZip from "jszip";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -13,9 +14,19 @@ export const maxDuration = 60;
 const MAX_CHARS = 18000;
 
 const SYSTEM_PROMPT = `Сен — қазақ тілінде сабақ дайындайтын білім беру көмекшісісің.
-Саған оқулық/материал мәтіні беріледі. Осы мәтін негізінде оқушыға арналған
-құрылымды сабақ жаса: қысқаша түсіндірме бөлімдер (лекция) және соңында
-білімін тексеретін тапсырмалар.
+Саған оқулық/материал мәтіні беріледі, кейде оған қоса материалдан алынған
+суреттер де тіркеледі (мысалы, логикалық жұмбақ, геометриялық фигура, кесте,
+формула суреті). Осы мәтін мен суреттер негізінде оқушыға арналған құрылымды
+сабақ жаса: қысқаша түсіндірме бөлімдер (лекция) және соңында білімін
+тексеретін тапсырмалар.
+
+Егер саған суреттер тіркелген болса (олар "Сурет 1", "Сурет 2" деп нөмірленген,
+0-ден бастап индекстеледі), әр маңызды суретті мұқият қара және сол суретте
+көрсетілген есепті/жұмбақты нақты шеш. Сол суретке негізделген тапсырма
+жасағанда, тапсырма объектісіне "image_index" өрісін қос (0-негізделген сан,
+суреттің реттік нөмірі). Тапсырманың "answer" өрісінде — сол суреттегі есепті
+өзің шешіп, дұрыс жауапты жаз (болжамай, нақты есептеп). Мәтінге негізделген
+(суретсіз) тапсырмаларда "image_index" өрісін қоспа немесе null қой.
 
 Тек төмендегі JSON форматында жауап бер, басқа ешбір мәтін қоспа
 (түсініктеме, markdown белгілері \`\`\` да болмасын):
@@ -30,7 +41,8 @@ const SYSTEM_PROMPT = `Сен — қазақ тілінде сабақ дайы�
       "question": "Сұрақ мәтіні",
       "type": "choice",
       "options": ["A нұсқасы", "B нұсқасы", "C нұсқасы", "D нұсқасы"],
-      "answer": "Дұрыс жауап (options ішіндегі бір нұсқа)"
+      "answer": "Дұрыс жауап (options ішіндегі бір нұсқа)",
+      "image_index": 0
     },
     {
       "question": "Ашық сұрақ мәтіні",
@@ -43,19 +55,68 @@ const SYSTEM_PROMPT = `Сен — қазақ тілінде сабақ дайы�
 Талаптар:
 - "sections" кемінде 2, көбінде 5 бөлімнен тұрсын.
 - "tasks" кемінде 4, көбінде 8 тапсырмадан тұрсын, choice және open түрлерін араластыр.
+- Суреттер тіркелген болса, кемінде әр суретке 1 тапсырма арнауға тырыс (маңызды, мазмұнды суреттер үшін).
 - Мәтін нақты материалдың мазмұнына негізделсін, ойдан шығарма.
 - Барлығы қазақ тілінде болсын.`;
 
+const MAX_IMAGES = 8;
+const IMAGE_EXT_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+};
+
+type ExtractedImage = {
+  ext: string;
+  mimeType: string;
+  buffer: Buffer;
+  base64: string;
+};
+
+async function extractDocxImages(buffer: Buffer): Promise<ExtractedImage[]> {
+  const zip = await JSZip.loadAsync(buffer);
+  const mediaFiles = Object.keys(zip.files)
+    .filter((name) => name.startsWith("word/media/"))
+    .sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ""), 10) || 0;
+      const numB = parseInt(b.replace(/\D/g, ""), 10) || 0;
+      return numA - numB;
+    });
+
+  const images: ExtractedImage[] = [];
+  for (const name of mediaFiles) {
+    const ext = (name.split(".").pop() || "").toLowerCase();
+    const mimeType = IMAGE_EXT_MIME[ext];
+    if (!mimeType) continue; // emf/wmf сияқты қолдау көрсетілмейтін форматтарды өткізіп жіберу
+
+    const fileBuffer = await zip.files[name].async("nodebuffer");
+    images.push({
+      ext,
+      mimeType,
+      buffer: fileBuffer,
+      base64: fileBuffer.toString("base64"),
+    });
+
+    if (images.length >= MAX_IMAGES) break;
+  }
+
+  return images;
+}
+
 const SUPPORTED_EXTENSIONS = [".pdf", ".docx"];
 
-async function extractTextFromFile(fileUrl: string): Promise<string> {
+async function extractContentFromFile(
+  fileUrl: string
+): Promise<{ text: string; images: ExtractedImage[] }> {
   const lowerUrl = fileUrl.toLowerCase();
 
   if (lowerUrl.endsWith(".pdf")) {
     const parser = new PDFParse({ url: fileUrl, CanvasFactory });
     try {
       const parsed = await parser.getText();
-      return (parsed.text || "").trim();
+      return { text: (parsed.text || "").trim(), images: [] };
     } finally {
       await parser.destroy();
     }
@@ -68,8 +129,13 @@ async function extractTextFromFile(fileUrl: string): Promise<string> {
     }
     const arrayBuffer = await fileRes.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const result = await mammoth.extractRawText({ buffer });
-    return (result.value || "").trim();
+
+    const [textResult, images] = await Promise.all([
+      mammoth.extractRawText({ buffer }),
+      extractDocxImages(buffer),
+    ]);
+
+    return { text: (textResult.value || "").trim(), images };
   }
 
   throw new Error("Қолдау көрсетілмейтін файл форматы");
@@ -142,15 +208,37 @@ export async function POST(req: NextRequest) {
     .eq("id", materialId);
 
   try {
-    // 1) Файлдан мәтінді алу (PDF немесе DOCX)
-    const text = await extractTextFromFile(material.file_url);
+    // 1) Файлдан мәтін мен суреттерді алу (PDF немесе DOCX)
+    const { text, images } = await extractContentFromFile(material.file_url);
 
-    if (!text) {
+    if (!text && images.length === 0) {
       throw new Error(
-        "Файлдан мәтін алынбады (мүмкін, ол сканерленген сурет форматында)."
+        "Файлдан мазмұн алынбады (мүмкін, ол сканерленген сурет форматында)."
       );
     }
     const truncated = text.slice(0, MAX_CHARS);
+
+    // Суреттерді Supabase Storage-ке жүктеп, жария сілтемелерін аламыз
+    const imageUrls: string[] = [];
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      const path = `lesson-images/${materialId}/${i}.${img.ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("materials")
+        .upload(path, img.buffer, {
+          contentType: img.mimeType,
+          upsert: true,
+        });
+      if (uploadError) {
+        // Жүктеу сәтсіз болса, сол суретті өткізіп жібереміз (тапсырма мәтінге негізделеді)
+        imageUrls.push("");
+        continue;
+      }
+      const { data: publicData } = supabase.storage
+        .from("materials")
+        .getPublicUrl(path);
+      imageUrls.push(publicData.publicUrl);
+    }
 
     // 2) Gemini арқылы құрылымдау
     const apiKey = process.env.GEMINI_API_KEY;
@@ -159,6 +247,22 @@ export async function POST(req: NextRequest) {
     }
 
     const modelName = process.env.GEMINI_MODEL || "gemini-3.7-flash";
+
+    const userParts: Array
+      { text: string } | { inline_data: { mime_type: string; data: string } }
+    > = [
+      {
+        text: `Пән: ${material.subject}\nТақырып: ${material.title}\n\nМатериал мәтіні:\n${truncated}`,
+      },
+    ];
+
+    images.forEach((img, i) => {
+      userParts.push({ text: `Сурет ${i}:` });
+      userParts.push({
+        inline_data: { mime_type: img.mimeType, data: img.base64 },
+      });
+    });
+
     const aiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
       {
@@ -171,11 +275,7 @@ export async function POST(req: NextRequest) {
           contents: [
             {
               role: "user",
-              parts: [
-                {
-                  text: `Пән: ${material.subject}\nТақырып: ${material.title}\n\nМатериал мәтіні:\n${truncated}`,
-                },
-              ],
+              parts: userParts,
             },
           ],
           generationConfig: {
@@ -215,6 +315,21 @@ export async function POST(req: NextRequest) {
       structured = JSON.parse(cleaned);
     } catch {
       throw new Error("AI жауабын JSON ретінде оқу мүмкін болмады.");
+    }
+
+    // "image_index" өрісін нақты жүктелген сурет сілтемесіне (image_url) ауыстыру
+    if (Array.isArray(structured?.tasks)) {
+      structured.tasks = structured.tasks.map((task: any) => {
+        const { image_index, ...rest } = task ?? {};
+        if (
+          typeof image_index === "number" &&
+          imageUrls[image_index] &&
+          imageUrls[image_index].length > 0
+        ) {
+          return { ...rest, image_url: imageUrls[image_index] };
+        }
+        return rest;
+      });
     }
 
     await supabase
