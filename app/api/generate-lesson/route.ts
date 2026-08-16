@@ -248,7 +248,7 @@ export async function POST(req: NextRequest) {
 
     const modelName = process.env.GEMINI_MODEL || "gemini-3.7-flash";
 
-    const userParts: Array
+    const userParts: Array<
       { text: string } | { inline_data: { mime_type: string; data: string } }
     > = [
       {
