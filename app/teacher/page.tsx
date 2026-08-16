@@ -174,9 +174,20 @@ function TeacherDashboardContent() {
     setGeneratingId(id);
     setError(null);
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        throw new Error("Сессия аяқталған. Қайта кіріңіз.");
+      }
+
       const res = await fetch("/api/generate-lesson", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ materialId: id }),
       });
       const data = await res.json();
