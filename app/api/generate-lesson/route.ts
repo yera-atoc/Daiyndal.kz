@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+// ВАЖНО: импорт "pdf-parse/worker" должен идти ДО импорта "pdf-parse" —
+// он настраивает canvas-полифиллы (DOMMatrix и т.д.), без которых
+// pdf-parse падает на Vercel serverless при загрузке модуля.
+import { CanvasFactory } from "pdf-parse/worker";
 import { PDFParse } from "pdf-parse";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -106,7 +110,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // 1) PDF-тен мәтінді алу
-    const parser = new PDFParse({ url: material.file_url });
+    const parser = new PDFParse({ url: material.file_url, CanvasFactory });
     const parsed = await parser.getText();
     await parser.destroy();
 
