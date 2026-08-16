@@ -30,6 +30,7 @@ export type LessonTask = {
   type: "choice" | "open";
   options?: string[];
   answer: string;
+  image_url?: string;
 };
 
 export type LessonSection = {
