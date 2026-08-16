@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.53",
     "@supabase/supabase-js": "^2.45.4",
     "next": "14.2.5",
     "pdf-parse": "^2.4.5",
