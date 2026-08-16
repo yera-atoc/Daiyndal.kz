@@ -33,6 +33,13 @@ export default function LessonView({ lesson }: { lesson: StructuredLesson }) {
           <ol className="mt-3 space-y-4">
             {lesson.tasks.map((t, i) => (
               <li key={i} className="rounded-xl border border-line p-4">
+                {t.image_url && (
+                  <img
+                    src={t.image_url}
+                    alt={`Тапсырма ${i + 1} суреті`}
+                    className="mb-3 max-h-64 w-auto rounded-lg border border-line object-contain"
+                  />
+                )}
                 <p className="text-[13px] font-medium text-ink">
                   {i + 1}. {t.question}
                 </p>
