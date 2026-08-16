@@ -58,7 +58,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const supabase = getSupabaseAdmin();
+  let supabase;
+  try {
+    supabase = getSupabaseAdmin();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   const { data: material, error: fetchError } = await supabase
     .from("materials")
@@ -76,6 +82,19 @@ export async function POST(req: NextRequest) {
   if (!material.file_url) {
     return NextResponse.json(
       { error: "Бұл материалда файл жоқ" },
+      { status: 400 }
+    );
+  }
+
+  const lowerUrl = material.file_url.toLowerCase();
+  if (!lowerUrl.endsWith(".pdf")) {
+    return NextResponse.json(
+      {
+        error:
+          "Қазірше тек PDF файлдар қолдау табады. Бұл файл — " +
+          (material.file_name ?? "белгісіз формат") +
+          ". PDF-ке айналдырып қайта жүктеңіз.",
+      },
       { status: 400 }
     );
   }
