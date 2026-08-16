@@ -192,3 +192,48 @@ export async function POST(req: NextRequest) {
     }
 
     const aiData = await aiResponse.json();
+    const rawText =
+      aiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+    if (!rawText) {
+      const blockReason = aiData.promptFeedback?.blockReason;
+      throw new Error(
+        blockReason
+          ? `Gemini жауап бермеді (себебі: ${blockReason})`
+          : "Gemini бос жауап қайтарды."
+      );
+    }
+
+    const cleaned = rawText
+      .trim()
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/```\s*$/i, "");
+
+    let structured;
+    try {
+      structured = JSON.parse(cleaned);
+    } catch {
+      throw new Error("AI жауабын JSON ретінде оқу мүмкін болмады.");
+    }
+
+    await supabase
+      .from("materials")
+      .update({
+        structured_content: structured,
+        structuring_status: "done",
+        structuring_error: null,
+      })
+      .eq("id", materialId);
+
+    return NextResponse.json({ ok: true, structured });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await supabase
+      .from("materials")
+      .update({ structuring_status: "error", structuring_error: message })
+      .eq("id", materialId);
+
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
