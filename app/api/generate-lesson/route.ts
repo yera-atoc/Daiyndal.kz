@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 // pdf-parse падает на Vercel serverless при загрузке модуля.
 import { CanvasFactory } from "pdf-parse/worker";
 import { PDFParse } from "pdf-parse";
+import mammoth from "mammoth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -44,6 +45,35 @@ const SYSTEM_PROMPT = `Сен — қазақ тілінде сабақ дайы�
 - "tasks" кемінде 4, көбінде 8 тапсырмадан тұрсын, choice және open түрлерін араластыр.
 - Мәтін нақты материалдың мазмұнына негізделсін, ойдан шығарма.
 - Барлығы қазақ тілінде болсын.`;
+
+const SUPPORTED_EXTENSIONS = [".pdf", ".docx"];
+
+async function extractTextFromFile(fileUrl: string): Promise<string> {
+  const lowerUrl = fileUrl.toLowerCase();
+
+  if (lowerUrl.endsWith(".pdf")) {
+    const parser = new PDFParse({ url: fileUrl, CanvasFactory });
+    try {
+      const parsed = await parser.getText();
+      return (parsed.text || "").trim();
+    } finally {
+      await parser.destroy();
+    }
+  }
+
+  if (lowerUrl.endsWith(".docx")) {
+    const fileRes = await fetch(fileUrl);
+    if (!fileRes.ok) {
+      throw new Error(`Файлды жүктеу мүмкін болмады: ${fileRes.status}`);
+    }
+    const arrayBuffer = await fileRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const result = await mammoth.extractRawText({ buffer });
+    return (result.value || "").trim();
+  }
+
+  throw new Error("Қолдау көрсетілмейтін файл форматы");
+}
 
 export async function POST(req: NextRequest) {
   let materialId: string | undefined;
@@ -91,13 +121,16 @@ export async function POST(req: NextRequest) {
   }
 
   const lowerUrl = material.file_url.toLowerCase();
-  if (!lowerUrl.endsWith(".pdf")) {
+  const isSupported = SUPPORTED_EXTENSIONS.some((ext) =>
+    lowerUrl.endsWith(ext)
+  );
+  if (!isSupported) {
     return NextResponse.json(
       {
         error:
-          "Қазірше тек PDF файлдар қолдау табады. Бұл файл — " +
+          "Қазірше тек PDF және DOCX файлдар қолдау табады. Бұл файл — " +
           (material.file_name ?? "белгісіз формат") +
-          ". PDF-ке айналдырып қайта жүктеңіз.",
+          ". Ескі .doc форматын .docx немесе PDF-ке айналдырып қайта жүктеңіз.",
       },
       { status: 400 }
     );
@@ -109,15 +142,12 @@ export async function POST(req: NextRequest) {
     .eq("id", materialId);
 
   try {
-    // 1) PDF-тен мәтінді алу
-    const parser = new PDFParse({ url: material.file_url, CanvasFactory });
-    const parsed = await parser.getText();
-    await parser.destroy();
+    // 1) Файлдан мәтінді алу (PDF немесе DOCX)
+    const text = await extractTextFromFile(material.file_url);
 
-    const text = (parsed.text || "").trim();
     if (!text) {
       throw new Error(
-        "PDF-тен мәтін алынбады (мүмкін, ол сканерленген сурет форматында)."
+        "Файлдан мәтін алынбады (мүмкін, ол сканерленген сурет форматында)."
       );
     }
     const truncated = text.slice(0, MAX_CHARS);
@@ -161,49 +191,4 @@ export async function POST(req: NextRequest) {
       throw new Error(`Gemini API қатесі: ${aiResponse.status} ${errText}`);
     }
 
-    const aiData = await aiResponse.json();
-    const rawText =
-      aiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-    if (!rawText) {
-      const blockReason = aiData.promptFeedback?.blockReason;
-      throw new Error(
-        blockReason
-          ? `Gemini жауап бермеді (себебі: ${blockReason})`
-          : "Gemini бос жауап қайтарды."
-      );
-    }
-
-    const cleaned = rawText
-      .trim()
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/```\s*$/i, "");
-
-    let structured;
-    try {
-      structured = JSON.parse(cleaned);
-    } catch {
-      throw new Error("AI жауабын JSON ретінде оқу мүмкін болмады.");
-    }
-
-    await supabase
-      .from("materials")
-      .update({
-        structured_content: structured,
-        structuring_status: "done",
-        structuring_error: null,
-      })
-      .eq("id", materialId);
-
-    return NextResponse.json({ ok: true, structured });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    await supabase
-      .from("materials")
-      .update({ structuring_status: "error", structuring_error: message })
-      .eq("id", materialId);
-
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    const aiData
