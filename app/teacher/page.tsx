@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase, type Material } from "@/lib/supabaseClient";
 import RequireRole from "@/components/RequireRole";
+import LessonView from "@/components/LessonView";
 
 const SUBJECTS = [
   "Математика",
@@ -41,6 +42,8 @@ function TeacherDashboardContent() {
   const [file, setFile] = useState<File | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [keepExistingFile, setKeepExistingFile] = useState(true);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -164,6 +167,29 @@ function TeacherDashboardContent() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleGenerateLesson(id: string) {
+    setGeneratingId(id);
+    setError(null);
+    try {
+      const res = await fetch("/api/generate-lesson", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ materialId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Белгісіз қате");
+      setExpandedId(id);
+      await fetchMaterials();
+    } catch (err) {
+      setError(
+        "AI сабақ жасау кезінде қате шықты: " +
+          (err instanceof Error ? err.message : String(err))
+      );
+    } finally {
+      setGeneratingId(null);
     }
   }
 
@@ -344,47 +370,96 @@ function TeacherDashboardContent() {
           ) : (
             <ul className="mt-5 divide-y divide-line/60">
               {materials.map((m) => (
-                <li
-                  key={m.id}
-                  className="flex flex-wrap items-start justify-between gap-3 py-4"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[11px] font-medium text-accent-deep">
-                        {m.subject}
-                      </span>
-                      <p className="font-medium text-ink">{m.title}</p>
+                <li key={m.id} className="py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[11px] font-medium text-accent-deep">
+                          {m.subject}
+                        </span>
+                        <p className="font-medium text-ink">{m.title}</p>
+                        {m.structuring_status === "done" && (
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700">
+                            AI сабақ дайын
+                          </span>
+                        )}
+                        {m.structuring_status === "processing" && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                            Өңделуде...
+                          </span>
+                        )}
+                        {m.structuring_status === "error" && (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">
+                            Қате
+                          </span>
+                        )}
+                      </div>
+                      {m.description && (
+                        <p className="mt-1 text-[13px] text-ink-soft">
+                          {m.description}
+                        </p>
+                      )}
+                      {m.file_url && (
+                        <a
+                          href={m.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-block text-[12px] text-accent hover:underline"
+                        >
+                          {m.file_name ?? "Файлды ашу"}
+                        </a>
+                      )}
+                      {m.structuring_status === "error" &&
+                        m.structuring_error && (
+                          <p className="mt-1 text-[12px] text-red-600">
+                            {m.structuring_error}
+                          </p>
+                        )}
                     </div>
-                    {m.description && (
-                      <p className="mt-1 text-[13px] text-ink-soft">
-                        {m.description}
-                      </p>
-                    )}
-                    {m.file_url && (
-                      <a
-                        href={m.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 inline-block text-[12px] text-accent hover:underline"
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      {m.file_url && (
+                        <button
+                          onClick={() => handleGenerateLesson(m.id)}
+                          disabled={generatingId === m.id}
+                          className="rounded-full bg-ink px-3.5 py-1.5 text-[12px] font-medium text-white hover:bg-ink/90 disabled:opacity-60"
+                        >
+                          {generatingId === m.id
+                            ? "Дайындалуда..."
+                            : m.structuring_status === "done"
+                            ? "Қайта жасау"
+                            : "AI сабақ жасау"}
+                        </button>
+                      )}
+                      {m.structuring_status === "done" && (
+                        <button
+                          onClick={() =>
+                            setExpandedId(expandedId === m.id ? null : m.id)
+                          }
+                          className="rounded-full border border-line px-3.5 py-1.5 text-[12px] font-medium text-ink hover:bg-paper-tint"
+                        >
+                          {expandedId === m.id ? "Жасыру" : "Қарау"}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => startEdit(m)}
+                        className="rounded-full border border-line px-3.5 py-1.5 text-[12px] font-medium text-ink hover:bg-paper-tint"
                       >
-                        {m.file_name ?? "Файлды ашу"}
-                      </a>
-                    )}
+                        Өңдеу
+                      </button>
+                      <button
+                        onClick={() => handleDelete(m.id)}
+                        className="rounded-full border border-red-200 px-3.5 py-1.5 text-[12px] font-medium text-red-600 hover:bg-red-50"
+                      >
+                        Жою
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      onClick={() => startEdit(m)}
-                      className="rounded-full border border-line px-3.5 py-1.5 text-[12px] font-medium text-ink hover:bg-paper-tint"
-                    >
-                      Өңдеу
-                    </button>
-                    <button
-                      onClick={() => handleDelete(m.id)}
-                      className="rounded-full border border-red-200 px-3.5 py-1.5 text-[12px] font-medium text-red-600 hover:bg-red-50"
-                    >
-                      Жою
-                    </button>
-                  </div>
+
+                  {expandedId === m.id && m.structured_content && (
+                    <div className="mt-4 rounded-xl bg-paper-tint p-4">
+                      <LessonView lesson={m.structured_content} />
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
