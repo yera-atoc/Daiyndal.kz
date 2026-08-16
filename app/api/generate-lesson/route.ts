@@ -191,4 +191,4 @@ export async function POST(req: NextRequest) {
       throw new Error(`Gemini API қатесі: ${aiResponse.status} ${errText}`);
     }
 
-    const aiData
+    const aiData = await aiResponse.json();
