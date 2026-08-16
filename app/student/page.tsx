@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import RequireRole from "@/components/RequireRole";
 import { useAuth } from "@/components/AuthProvider";
+import LessonView from "@/components/LessonView";
 import { supabase, type Material } from "@/lib/supabaseClient";
 
 const progressSubjects = [
@@ -35,6 +36,7 @@ function StudentDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("Барлығы");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMaterials();
@@ -159,19 +161,39 @@ function StudentDashboardContent() {
                     {m.description}
                   </p>
                 )}
-                {m.file_url ? (
-                  <a
-                    href={m.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1 inline-block text-[12px] text-accent hover:underline"
-                  >
-                    Жүктеп алу — {m.file_name ?? "файл"}
-                  </a>
-                ) : (
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  {m.file_url && (
+                    <a
+                      href={m.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[12px] text-accent hover:underline"
+                    >
+                      Жүктеп алу — {m.file_name ?? "файл"}
+                    </a>
+                  )}
+                  {m.structuring_status === "done" && m.structured_content && (
+                    <button
+                      onClick={() =>
+                        setExpandedId(expandedId === m.id ? null : m.id)
+                      }
+                      className="rounded-full bg-ink px-3 py-1 text-[12px] font-medium text-white hover:bg-ink/90"
+                    >
+                      {expandedId === m.id
+                        ? "Сабақты жасыру"
+                        : "Сабақты қарау"}
+                    </button>
+                  )}
+                </div>
+                {!m.file_url && (
                   <p className="mt-1 text-[12px] text-ink-faint">
                     Файл қосылмаған
                   </p>
+                )}
+                {expandedId === m.id && m.structured_content && (
+                  <div className="mt-4 rounded-xl bg-paper-tint p-4">
+                    <LessonView lesson={m.structured_content} />
+                  </div>
                 )}
               </li>
             ))}
