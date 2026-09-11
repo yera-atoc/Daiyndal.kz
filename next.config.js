@@ -1,9 +1,4 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
-  experimental: {
-    serverComponentsExternalPackages: ["pdf-parse", "@napi-rs/canvas"],
-  },
-};
+const nextConfig = {}
 
-module.exports = nextConfig;
+module.exports = nextConfig

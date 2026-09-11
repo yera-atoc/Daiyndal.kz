@@ -1,36 +1,45 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { AuthProvider } from "@/components/AuthProvider";
+import type { Metadata } from 'next'
+import { PT_Serif, Inter, Caveat } from 'next/font/google'
+import './globals.css'
+
+const ptSerif = PT_Serif({
+  subsets: ['cyrillic', 'latin'],
+  weight: ['400', '700'],
+  variable: '--font-pt-serif',
+  display: 'swap',
+})
 
 const inter = Inter({
-  subsets: ["latin", "cyrillic", "cyrillic-ext"],
-  variable: "--font-inter",
-  weight: ["400", "500", "600", "700"],
-});
+  subsets: ['cyrillic', 'latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const caveat = Caveat({
+  subsets: ['cyrillic', 'latin'],
+  weight: ['600', '700'],
+  variable: '--font-caveat',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
-  title: "Daiyndal.kz — НИШ, КТЛ, РФМШ дайындық платформасы",
+  title: 'Beles — НИШ(НЗМ), БІЛ, РФМШ, ЕНТ(ҰБТ) дайындық платформасы',
   description:
-    "5-6 сынып оқушыларына арналған онлайн дайындық платформасы. Апта сайынғы тест, жеке рейтинг, қазақ тіліндегі материалдар.",
-};
+    '5-6 сынып оқушыларына арналған көп пәнді дайындық платформасы. НИШ(НЗМ), БІЛ, РФМШ, ЕНТ(ҰБТ) емтихандарына апта сайын — сәрсенбі мен жексенбіде — тесттер.',
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
-    <html lang="kk" className={inter.variable}>
-      <body>
-        <AuthProvider>
-          <Navbar />
-          <main>{children}</main>
-          <Footer />
-        </AuthProvider>
+    <html lang="kk">
+      <body
+        className={`${ptSerif.variable} ${inter.variable} ${caveat.variable} font-sans bg-paper text-ink antialiased`}
+      >
+        {children}
       </body>
     </html>
-  );
+  )
 }

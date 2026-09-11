@@ -1,48 +1,32 @@
-import type { Config } from "tailwindcss";
+import type { Config } from 'tailwindcss'
 
 const config: Config = {
-  content: [
-    "./app/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-  ],
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        ink: {
-          DEFAULT: "#1D1D1F",
-          soft: "#6E6E73",
-          faint: "#86868B",
+        board: {
+          DEFAULT: '#1F3D34',
+          light: '#2C5044',
+          dark: '#152B24',
         },
-        line: "#D2D2D7",
-        paper: {
-          DEFAULT: "#FFFFFF",
-          tint: "#F5F5F7",
-          card: "#FFFFFF",
-        },
-        accent: {
-          DEFAULT: "#0071E3",
-          hover: "#0077ED",
-          soft: "#E8F1FE",
-          deep: "#0058B0",
-        },
+        paper: '#EFF3EA',
+        card: '#F8F7F0',
+        ink: '#16241F',
+        mustard: '#E7A94C',
+        coral: '#D65F4C',
+        sky: '#5B93A3',
       },
       fontFamily: {
-        display: ["var(--font-inter)", "sans-serif"],
-        body: ["var(--font-inter)", "sans-serif"],
+        serif: ['var(--font-pt-serif)', 'Georgia', 'serif'],
+        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        hand: ['var(--font-caveat)', 'cursive'],
       },
-      boxShadow: {
-        soft: "0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06)",
-        card: "0 1px 3px rgba(0,0,0,0.04)",
-      },
-      borderRadius: {
-        "4xl": "2rem",
-      },
-      letterSpacing: {
-        tightest: "-0.045em",
+      backgroundImage: {
+        chalk: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.05), transparent 45%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04), transparent 40%)',
       },
     },
   },
   plugins: [],
-};
-
-export default config;
+}
+export default config
