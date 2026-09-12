@@ -12,7 +12,7 @@ export default function HeroSchedule() {
       <text
         x="0"
         y="24"
-        className="fill-paper font-hand text-2xl"
+        className="fill-ink font-hand text-2xl"
         style={{ fontSize: '22px' }}
       >
         Апталық кесте
@@ -36,7 +36,7 @@ export default function HeroSchedule() {
               x={x}
               y={y}
               textAnchor="middle"
-              className="fill-paper/80"
+              className="fill-ink/70"
               style={{ fontSize: '13px', fontFamily: 'var(--font-inter)' }}
             >
               {day}
@@ -77,15 +77,15 @@ export default function HeroSchedule() {
         y1="140"
         x2="360"
         y2="140"
-        stroke="#F8F7F0"
-        strokeOpacity="0.15"
+        stroke="#16241F"
+        strokeOpacity="0.12"
         strokeWidth="1"
       />
 
       <text
         x="0"
         y="170"
-        className="fill-paper/70"
+        className="fill-ink/60"
         style={{ fontSize: '13px', fontFamily: 'var(--font-inter)' }}
       >
         Сәрсенбі мен жексенбі сайын — жаңа тест, жеке нәтиже.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { isAdmin } from '@/lib/requireAdmin'
+import { generateSalt, hashTeacherPassword } from '@/lib/teacherAuth'
 
 export async function PUT(
   req: NextRequest,
@@ -19,7 +20,39 @@ export async function PUT(
     .from('teachers')
     .update({ name: body.name, subject: body.subject ?? null })
     .eq('id', params.id)
-    .select()
+    .select('id, name, subject, username, created_at')
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
+}
+
+// Sets or resets a teacher's login (username/password) separately from
+// their name/subject — lets an admin issue or change credentials at any
+// time, not just when first creating the teacher.
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  if (!(await isAdmin())) {
+    return NextResponse.json({ error: 'Рұқсат жоқ' }, { status: 401 })
+  }
+
+  const body = await req.json().catch(() => null)
+  if (!body?.username || !body?.password) {
+    return NextResponse.json({ error: 'Логин мен құпия сөз міндетті' }, { status: 400 })
+  }
+
+  const salt = generateSalt()
+  const { data, error } = await supabaseAdmin
+    .from('teachers')
+    .update({
+      username: body.username,
+      password_salt: salt,
+      password_hash: await hashTeacherPassword(body.password, salt),
+    })
+    .eq('id', params.id)
+    .select('id, name, subject, username, created_at')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

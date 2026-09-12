@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Teacher = { id: string; name: string; subject: string | null }
+type Teacher = { id: string; name: string; subject: string | null; username: string | null }
 type Student = {
   id: string
   full_name: string
@@ -87,14 +87,14 @@ export default function AdminDashboard() {
 
   return (
     <main className="min-h-screen bg-paper">
-      <header className="border-b border-ink/10 bg-board">
+      <header className="border-b border-ink/10 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-          <p className="font-serif text-xl font-bold text-paper">
+          <p className="font-serif text-xl font-bold text-ink">
             Beles · Әкімші панелі
           </p>
           <button
             onClick={handleLogout}
-            className="border border-paper/30 px-4 py-2 text-sm text-paper transition hover:border-paper"
+            className="border border-ink/20 px-4 py-2 text-sm text-ink transition hover:border-ink"
           >
             Шығу
           </button>
@@ -371,7 +371,10 @@ function TeachersTab({
 }) {
   const [name, setName] = useState('')
   const [subject, setSubject] = useState('')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
+  const [credentialsEditingId, setCredentialsEditingId] = useState<string | null>(null)
 
   async function addTeacher(e: React.FormEvent) {
     e.preventDefault()
@@ -380,10 +383,17 @@ function TeachersTab({
     await fetch('/api/teachers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, subject: subject || null }),
+      body: JSON.stringify({
+        name,
+        subject: subject || null,
+        username: username || undefined,
+        password: password || undefined,
+      }),
     })
     setName('')
     setSubject('')
+    setUsername('')
+    setPassword('')
     await reload()
     setSaving(false)
   }
@@ -395,41 +405,92 @@ function TeachersTab({
 
   return (
     <section className="mt-8">
-      <form onSubmit={addTeacher} className="flex flex-wrap gap-3 border border-ink/10 bg-card p-4">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Оқытушының аты-жөні"
-          className="flex-1 min-w-[180px] border border-ink/20 bg-paper px-3 py-2 text-sm"
-        />
-        <input
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          placeholder="Пәні"
-          className="w-52 border border-ink/20 bg-paper px-3 py-2 text-sm"
-        />
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-ink px-5 py-2 text-sm font-medium text-paper transition hover:bg-ink/80 disabled:opacity-60"
-        >
-          Қосу
-        </button>
+      <form onSubmit={addTeacher} className="border border-ink/10 bg-card p-4">
+        <div className="flex flex-wrap gap-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Оқытушының аты-жөні"
+            className="flex-1 min-w-[180px] border border-ink/20 bg-paper px-3 py-2 text-sm"
+          />
+          <input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="Пәні"
+            className="w-52 border border-ink/20 bg-paper px-3 py-2 text-sm"
+          />
+        </div>
+        <p className="mt-3 text-xs text-ink/50">
+          Логин мен құпия сөз — егер оқытушыға материалдар мен тесттер қосу
+          мүмкіндігін бірден бергіңіз келсе (кейінірек те қоюға болады)
+        </p>
+        <div className="mt-2 flex flex-wrap gap-3">
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Логин (міндетті емес)"
+            className="w-48 border border-ink/20 bg-paper px-3 py-2 text-sm"
+          />
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Құпия сөз (міндетті емес)"
+            className="w-48 border border-ink/20 bg-paper px-3 py-2 text-sm"
+          />
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-ink px-5 py-2 text-sm font-medium text-paper transition hover:bg-ink/80 disabled:opacity-60"
+          >
+            Қосу
+          </button>
+        </div>
       </form>
 
       <div className="mt-6 divide-y divide-ink/10 border border-ink/10 bg-card">
         {teachers.map((t) => (
-          <div key={t.id} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <p className="font-medium">{t.name}</p>
-              {t.subject && <p className="text-xs text-ink/50">{t.subject}</p>}
+          <div key={t.id} className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">{t.name}</p>
+                <p className="text-xs text-ink/50">
+                  {t.subject ? `${t.subject} · ` : ''}
+                  {t.username ? (
+                    <>
+                      Логин: <span className="font-medium text-ink/70">{t.username}</span>
+                    </>
+                  ) : (
+                    'Кіру орнатылмаған'
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() =>
+                    setCredentialsEditingId(credentialsEditingId === t.id ? null : t.id)
+                  }
+                  className="text-sm text-sky hover:underline"
+                >
+                  {t.username ? 'Құпия сөзді ауыстыру' : 'Кіру орнату'}
+                </button>
+                <button
+                  onClick={() => removeTeacher(t.id)}
+                  className="text-sm text-coral hover:underline"
+                >
+                  Жою
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => removeTeacher(t.id)}
-              className="text-sm text-coral hover:underline"
-            >
-              Жою
-            </button>
+            {credentialsEditingId === t.id && (
+              <TeacherCredentialsForm
+                teacherId={t.id}
+                initialUsername={t.username ?? ''}
+                onDone={async () => {
+                  setCredentialsEditingId(null)
+                  await reload()
+                }}
+              />
+            )}
           </div>
         ))}
         {teachers.length === 0 && (
@@ -437,5 +498,56 @@ function TeachersTab({
         )}
       </div>
     </section>
+  )
+}
+
+function TeacherCredentialsForm({
+  teacherId,
+  initialUsername,
+  onDone,
+}: {
+  teacherId: string
+  initialUsername: string
+  onDone: () => Promise<void>
+}) {
+  const [username, setUsername] = useState(initialUsername)
+  const [password, setPassword] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    if (!username.trim() || !password.trim()) return
+    setSaving(true)
+    await fetch(`/api/teachers/${teacherId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+    setSaving(false)
+    await onDone()
+  }
+
+  return (
+    <form onSubmit={save} className="mt-3 flex flex-wrap gap-2 border-t border-ink/10 pt-3">
+      <input
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        placeholder="Логин"
+        className="w-40 border border-ink/20 bg-white px-3 py-1.5 text-sm"
+      />
+      <input
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Жаңа құпия сөз"
+        className="w-40 border border-ink/20 bg-white px-3 py-1.5 text-sm"
+      />
+      <button
+        type="submit"
+        disabled={saving}
+        className="bg-mustard px-4 py-1.5 text-sm font-medium text-board transition hover:bg-card disabled:opacity-60"
+      >
+        Сақтау
+      </button>
+    </form>
   )
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { ADMIN_COOKIE_NAME, hashPassword } from '@/lib/adminAuth'
+import { TEACHER_COOKIE_NAME, verifyTeacherSession } from '@/lib/teacherAuth'
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -19,9 +20,18 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  if (pathname.startsWith('/teacher') && pathname !== '/teacher/login') {
+    const token = req.cookies.get(TEACHER_COOKIE_NAME)?.value
+    const teacherId = await verifyTeacherSession(token)
+
+    if (!teacherId) {
+      return NextResponse.redirect(new URL('/teacher/login', req.url))
+    }
+  }
+
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/teacher/:path*'],
 }

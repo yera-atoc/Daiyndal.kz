@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { isAdmin } from '@/lib/requireAdmin'
+import { generateSalt, hashTeacherPassword } from '@/lib/teacherAuth'
 
 export async function GET() {
+  // password_hash/password_salt are never selected here — this list is
+  // also used by public-ish pages (attendance grouping), so credentials
+  // must never leave the server in this response.
   const { data, error } = await supabaseAdmin
     .from('teachers')
-    .select('*')
+    .select('id, name, subject, username, created_at')
     .order('name')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -22,10 +26,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Аты-жөні міндетті' }, { status: 400 })
   }
 
+  const insert: Record<string, unknown> = {
+    name: body.name,
+    subject: body.subject ?? null,
+  }
+
+  // Username/password are optional at creation time — an admin can add a
+  // teacher first and set up their login later via PATCH.
+  if (body.username && body.password) {
+    const salt = generateSalt()
+    insert.username = body.username
+    insert.password_salt = salt
+    insert.password_hash = await hashTeacherPassword(body.password, salt)
+  }
+
   const { data, error } = await supabaseAdmin
     .from('teachers')
-    .insert({ name: body.name, subject: body.subject ?? null })
-    .select()
+    .insert(insert)
+    .select('id, name, subject, username, created_at')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

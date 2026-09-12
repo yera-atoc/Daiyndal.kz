@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function AdminLoginPage() {
+export default function TeacherLoginPage() {
   const router = useRouter()
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -14,10 +15,10 @@ export default function AdminLoginPage() {
     setLoading(true)
     setError(null)
 
-    const res = await fetch('/api/admin/login', {
+    const res = await fetch('/api/teacher/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
     })
 
     setLoading(false)
@@ -28,7 +29,7 @@ export default function AdminLoginPage() {
       return
     }
 
-    router.push('/admin')
+    router.push('/teacher')
     router.refresh()
   }
 
@@ -39,20 +40,29 @@ export default function AdminLoginPage() {
         className="w-full max-w-sm border border-ink/10 bg-white p-8 shadow-sm"
       >
         <p className="font-serif text-2xl font-bold text-ink">
-          Beles · Әкімші кіруі
+          Beles · Оқытушы кіруі
         </p>
         <p className="mt-2 text-sm text-ink/60">
-          Оқытушылар мен оқушылар тізімін басқару және қатысуды белгілеу үшін
-          кіріңіз.
+          Материалдар мен тесттер қосу үшін логин мен құпия сөзіңізді
+          енгізіңіз. Оларды әкімші береді.
         </p>
 
         <label className="mt-6 block text-sm text-ink/70">
+          Логин
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoFocus
+            className="mt-2 w-full border border-ink/20 bg-paper px-4 py-2 text-ink outline-none focus:border-mustard"
+          />
+        </label>
+
+        <label className="mt-4 block text-sm text-ink/70">
           Құпия сөз
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoFocus
             className="mt-2 w-full border border-ink/20 bg-paper px-4 py-2 text-ink outline-none focus:border-mustard"
           />
         </label>

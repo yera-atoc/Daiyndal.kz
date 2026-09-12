@@ -19,12 +19,12 @@ export default function TestsPage() {
     <>
       <Header />
 
-      <section className="bg-board">
+      <section className="border-b border-ink/10 bg-card">
         <div className="mx-auto max-w-6xl px-6 py-16">
-          <h1 className="font-serif text-4xl font-bold text-paper">
+          <h1 className="font-serif text-4xl font-bold text-ink">
             Тест банкі
           </h1>
-          <p className="mt-3 max-w-xl text-paper/70">
+          <p className="mt-3 max-w-xl text-ink/70">
             Барлық пән бойынша дайын тесттер. Пәнді таңдап, тиісті тапсырмаларды
             көріңіз.
           </p>

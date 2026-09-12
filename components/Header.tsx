@@ -2,12 +2,12 @@ import Link from 'next/link'
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-board/95 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-ink/10 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="font-serif text-xl font-bold text-paper">
+        <Link href="/" className="font-serif text-xl font-bold text-ink">
           Beles
         </Link>
-        <nav className="hidden items-center gap-8 text-sm text-paper/80 sm:flex">
+        <nav className="hidden items-center gap-8 text-sm text-ink/70 sm:flex">
           <a href="/#pans" className="transition hover:text-mustard">
             Пәндер
           </a>

@@ -45,35 +45,35 @@ export default function Home() {
     <>
       <Header />
 
-      <section className="bg-chalk bg-board">
+      <section className="bg-white">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 sm:py-28 lg:grid-cols-2">
           <div>
             <p className="text-sm font-medium text-mustard">
               5-6 сынып оқушыларына арналған
             </p>
-            <h1 className="mt-4 font-serif text-4xl font-bold leading-tight text-paper sm:text-5xl">
+            <h1 className="mt-4 font-serif text-4xl font-bold leading-tight text-ink sm:text-5xl">
               НИШ(НЗМ), БІЛ, РФМШ, ЕНТ(ҰБТ) емтихандарына дайындал
             </h1>
-            <p className="mt-5 max-w-md text-paper/75">
+            <p className="mt-5 max-w-md text-ink/70">
               Алты пән бойынша апта сайынғы тесттер. Барлық материал қазақ
               тілінде, нәтижелер бірден көрінеді.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
                 href="/tests"
-                className="bg-mustard px-6 py-3 text-sm font-semibold text-board transition hover:bg-paper"
+                className="bg-mustard px-6 py-3 text-sm font-semibold text-board transition hover:bg-card"
               >
                 Тест банкін көру
               </Link>
               <a
                 href="#bagdarlama"
-                className="border border-paper/40 px-6 py-3 text-sm font-medium text-paper transition hover:border-paper"
+                className="border border-ink/20 px-6 py-3 text-sm font-medium text-ink transition hover:border-ink"
               >
                 Бағдарламалар
               </a>
             </div>
           </div>
-          <div className="flex justify-center lg:justify-end">
+          <div className="flex justify-center border border-ink/10 bg-card p-6 lg:justify-end">
             <HeroSchedule />
           </div>
         </div>
@@ -128,17 +128,17 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-board">
+      <section className="border-t border-ink/10 bg-card">
         <div className="mx-auto max-w-3xl px-6 py-20 text-center">
-          <h2 className="font-serif text-3xl font-bold text-paper">
+          <h2 className="font-serif text-3xl font-bold text-ink">
             Дайындықты бүгіннен бастаңыз
           </h2>
-          <p className="mt-3 text-paper/70">
+          <p className="mt-3 text-ink/70">
             Осы сәрсенбіден бастап апталық тесттерге қатысыңыз.
           </p>
           <Link
             href="/tests"
-            className="mt-8 inline-block bg-mustard px-8 py-3 text-sm font-semibold text-board transition hover:bg-paper"
+            className="mt-8 inline-block bg-mustard px-8 py-3 text-sm font-semibold text-board transition hover:bg-white"
           >
             Тест банкіне өту
           </Link>
