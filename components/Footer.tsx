@@ -14,7 +14,7 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Бағыттар */}
+          {/* Навигация */}
           <div>
             <h4 className="font-semibold text-black mb-3 text-xs uppercase tracking-wider">Навигация</h4>
             <ul className="space-y-2 text-xs">
@@ -42,7 +42,7 @@ export default function Footer() {
               </li>
               <li>
                 <span className="text-zinc-400 block">Мекенжай:</span>
-                <span>Алматы қ., Абай даңғылы, 150</span>
+                <span className="font-medium text-black">Жезқазған қ., Анарқұлова көшесі, 12</span>
               </li>
             </ul>
           </div>
@@ -50,7 +50,7 @@ export default function Footer() {
           {/* Әлеуметтік желілер & 2GIS */}
           <div>
             <h4 className="font-semibold text-black mb-3 text-xs uppercase tracking-wider">Біз әлеуметтік желіде</h4>
-            <div className="flex flex-col gap-2 text-xs">
+            <div className="flex flex-col gap-2.5 text-xs">
               <a
                 href="https://instagram.com"
                 target="_blank"
@@ -62,12 +62,12 @@ export default function Footer() {
               </a>
 
               <a
-                href="https://2gis.kz"
+                href="https://go.2gis.com/SgduX"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 font-medium text-emerald-600 hover:underline transition"
               >
-                <span>🗺️ 2GIS картада көру</span>
+                <span>🗺️ 2GIS картадан ашу</span>
               </a>
             </div>
           </div>
@@ -78,7 +78,7 @@ export default function Footer() {
         <div className="border-t border-zinc-200 pt-6 flex flex-col sm:flex-row justify-between items-center text-xs text-zinc-400">
           <p>© {new Date().getFullYear()} Beles Education. Барлық құқықтар қорғалған.</p>
           <div className="flex gap-4 mt-2 sm:mt-0">
-            <Link href="/privacy" className="hover:underline">Купиялылық саясаты</Link>
+            <Link href="/privacy" className="hover:underline">Құпиялылық саясаты</Link>
             <Link href="/terms" className="hover:underline">Қолдану шарттары</Link>
           </div>
         </div>
