@@ -1,24 +1,22 @@
 import Link from 'next/link'
-import Image from 'next/image'
 
 export default function LoginPage() {
   return (
     <div className="min-h-screen bg-white text-zinc-900 flex flex-col justify-center items-center px-4 py-12">
       <div className="w-full max-w-md space-y-8 bg-zinc-50 p-8 rounded-2xl border border-zinc-200 shadow-sm">
         
-        {/* Логотип */}
+        {/* Суретсіз, кодпен жасалған таза Логотип */}
         <div className="flex flex-col items-center">
-          <Link href="/">
-            <Image 
-              src="/logo.png" 
-              alt="Beles Education Logo" 
-              width={180} 
-              height={50} 
-              priority
-              className="h-auto w-auto"
-            />
+          <Link href="/" className="flex flex-col items-center group mb-2">
+            <span className="text-3xl font-black tracking-tight text-black leading-none group-hover:opacity-80 transition-opacity">
+              BELES
+            </span>
+            <span className="text-xs font-bold tracking-widest text-sky-500 uppercase leading-tight">
+              education
+            </span>
           </Link>
-          <h2 className="mt-6 text-2xl font-extrabold text-black tracking-tight">
+
+          <h2 className="mt-4 text-2xl font-extrabold text-black tracking-tight">
             Жүйеге кіру
           </h2>
           <p className="mt-2 text-sm text-zinc-600 text-center">
@@ -40,19 +38,19 @@ export default function LoginPage() {
         <form className="mt-8 space-y-5">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1">
-              Email
+              EMAIL
             </label>
             <input
               type="email"
               required
-              placeholder="мысалы: user@gmail.com"
+              placeholder="ernar123123@gmail.com"
               className="w-full px-4 py-3 bg-white border border-zinc-300 rounded-lg text-sm text-black placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1">
-              Құпия сөз
+              ҚҰПИЯ СӨЗ
             </label>
             <input
               type="password"
