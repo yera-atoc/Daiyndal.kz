@@ -1,151 +1,85 @@
-import Link from 'next/link'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
-import HeroSchedule from '@/components/HeroSchedule'
-import SubjectCard from '@/components/SubjectCard'
-import { subjects } from '@/lib/subjects'
+import Link from 'next/link';
+import Header from '@/components/Header';
 
-const programs = [
-  {
-    name: 'НИШ (НЗМ)',
-    tagline: 'Назарбаев Зияткерлік мектептеріне толық дайындық',
-    subjectList: ['Математика', 'Ағылшын тілі', 'Жаратылыстану'],
-    rotate: '-rotate-1',
-    accent: 'border-mustard',
-    featured: true,
-  },
-  {
-    name: 'БІЛ',
-    tagline: 'Білім-инновация лицейіне түсу емтиханына дайындық',
-    subjectList: ['Математика', 'Ағылшын тілі', 'Қазақ тілі'],
-    rotate: 'rotate-1',
-    accent: 'border-sky',
-    featured: false,
-  },
-  {
-    name: 'РФМШ',
-    tagline: 'Республикалық физика-математика мектебіне дайындық',
-    subjectList: ['Математика', 'Орыс тілі'],
-    rotate: '-rotate-1',
-    accent: 'border-coral',
-    featured: false,
-  },
-  {
-    name: 'ЕНТ (ҰБТ)',
-    tagline: 'Ұлттық бірыңғай тестілеуге дайындық',
-    subjectList: ['Математика', 'Тарих', 'Таңдау пәндері'],
-    rotate: 'rotate-1',
-    accent: 'border-mustard',
-    featured: false,
-  },
-]
-
-export default function Home() {
+export default function HomePage() {
   return (
-    <>
+    <div className="min-h-screen bg-white text-zinc-900 flex flex-col font-sans">
       <Header />
 
-      <section className="bg-white">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 sm:py-28 lg:grid-cols-2">
-          <div>
-            <p className="text-sm font-medium text-mustard">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          
+          {/* Сол жақ: Текст пен Батырмалар */}
+          <div className="lg:col-span-7 space-y-6">
+            <span className="inline-block px-3 py-1 bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-semibold rounded-full tracking-wide">
               5-6 сынып оқушыларына арналған
-            </p>
-            <h1 className="mt-4 font-serif text-4xl font-bold leading-tight text-ink sm:text-5xl">
-              НИШ(НЗМ), БІЛ, РФМШ, ЕНТ(ҰБТ) емтихандарына дайындал
+            </span>
+
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-black tracking-tight leading-tight">
+              НИШ(НЗМ), БИЛ, РФМШ, ЕНТ(ҰБТ) емтихандарына дайындал
             </h1>
-            <p className="mt-5 max-w-md text-ink/70">
-              Алты пән бойынша апта сайынғы тесттер. Барлық материал қазақ
-              тілінде, нәтижелер бірден көрінеді.
+
+            <p className="text-base sm:text-lg text-zinc-600 max-w-xl leading-relaxed">
+              Алты пән бойынша апта сайынғы тесттер. Барлық материал қазақ тілінде, нәтижелер бірден көрінеді.
             </p>
-            <div className="mt-8 flex flex-wrap gap-4">
+
+            <div className="flex flex-wrap gap-4 pt-2">
               <Link
                 href="/tests"
-                className="bg-mustard px-6 py-3 text-sm font-semibold text-board transition hover:bg-card"
+                className="px-6 py-3.5 bg-black text-white text-sm font-semibold rounded-lg hover:bg-zinc-800 transition-all shadow-sm"
               >
                 Тест банкін көру
               </Link>
-              <a
-                href="#bagdarlama"
-                className="border border-ink/20 px-6 py-3 text-sm font-medium text-ink transition hover:border-ink"
+              <Link
+                href="#courses"
+                className="px-6 py-3.5 border border-zinc-300 text-black text-sm font-semibold rounded-lg hover:border-black transition-all bg-white"
               >
                 Бағдарламалар
-              </a>
+              </Link>
             </div>
           </div>
-          <div className="flex justify-center border border-ink/10 bg-card p-6 lg:justify-end">
-            <HeroSchedule />
-          </div>
-        </div>
-      </section>
 
-      <section id="pans" className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="font-serif text-3xl font-bold">
-          Бір платформада — алты пән
-        </h2>
-        <p className="mt-2 max-w-xl text-ink/70">
-          Әр пән бойынша дайын тесттер мен жаттығулар, оқушының жасына және
-          мектеп талабына сай.
-        </p>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {subjects.map((subject) => (
-            <SubjectCard key={subject.id} subject={subject} />
-          ))}
-        </div>
-      </section>
+          {/* Оң жақ: Апталық кесте карточкасы */}
+          <div className="lg:col-span-5">
+            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 sm:p-8 shadow-sm">
+              <h3 className="text-lg font-bold text-black mb-6">
+                Апталық кесте
+              </h3>
 
-      <section id="bagdarlama" className="bg-card">
-        <div className="mx-auto max-w-6xl px-6 py-20">
-          <h2 className="font-serif text-3xl font-bold">
-            НИШ(НЗМ), БІЛ, РФМШ, ЕНТ(ҰБТ) — өз бағытыңызды таңдаңыз
-          </h2>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {programs.map((program) => (
-              <div
-                key={program.name}
-                className={`${program.rotate} border-2 ${program.accent} bg-paper p-6 shadow-sm transition hover:rotate-0`}
-              >
-                {program.featured && (
-                  <span className="text-xs font-semibold uppercase tracking-normal text-mustard">
-                    Ұсынылады
-                  </span>
-                )}
-                <p className="mt-2 font-serif text-2xl font-bold">
-                  {program.name}
-                </p>
-                <p className="mt-2 text-sm text-ink/70">{program.tagline}</p>
-                <ul className="mt-4 space-y-1 text-sm text-ink/80">
-                  {program.subjectList.map((s) => (
-                    <li key={s}>— {s}</li>
-                  ))}
-                </ul>
-                <p className="mt-5 text-sm text-ink/50">
-                  Бағасы: сұраныс бойынша
-                </p>
+              <div className="flex justify-between items-center py-4 border-b border-zinc-200">
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-xs text-zinc-400">Дс</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-xs text-zinc-400">Сс</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-xs font-bold text-black uppercase tracking-wider">тест</span>
+                  <span className="text-sm font-bold text-black border-2 border-black rounded-full w-9 h-9 flex items-center justify-center bg-white">Ср</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-xs text-zinc-400">Бс</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-xs text-zinc-400">Жм</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-xs text-zinc-400">Сб</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-xs font-bold text-black uppercase tracking-wider">тест</span>
+                  <span className="text-sm font-bold text-black border-2 border-black rounded-full w-9 h-9 flex items-center justify-center bg-white">Жс</span>
+                </div>
               </div>
-            ))}
+
+              <p className="text-xs text-zinc-500 mt-6 leading-relaxed">
+                Сәрсенбі мен жексенбі сайын — жаңа тест, жеке нәтиже.
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
 
-      <section className="border-t border-ink/10 bg-card">
-        <div className="mx-auto max-w-3xl px-6 py-20 text-center">
-          <h2 className="font-serif text-3xl font-bold text-ink">
-            Дайындықты бүгіннен бастаңыз
-          </h2>
-          <p className="mt-3 text-ink/70">
-            Осы сәрсенбіден бастап апталық тесттерге қатысыңыз.
-          </p>
-          <Link
-            href="/tests"
-            className="mt-8 inline-block bg-mustard px-8 py-3 text-sm font-semibold text-board transition hover:bg-white"
-          >
-            Тест банкіне өту
-          </Link>
         </div>
-      </section>
-
-      <Footer />
-    </>
-  )
+      </main>
+    </div>
+  );
 }
