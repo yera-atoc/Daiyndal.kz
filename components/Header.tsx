@@ -9,16 +9,22 @@ export default function Header() {
         </Link>
         
         <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-zinc-600">
-          <Link href="/ пәндер" className="hover:text-black transition-colors">Пәндер</Link>
-          <Link href="/#courses" className="hover:text-black transition-colors">НИШ(НЗМ) · БИЛ · РФМШ · ЕНТ(ҰБТ)</Link>
+          <Link href="/ #pans" className="hover:text-black transition-colors">Пәндер</Link>
+          <Link href="/#bagdarlama" className="hover:text-black transition-colors">Бағдарламалар</Link>
           <Link href="/tests" className="hover:text-black transition-colors">Тест банкі</Link>
           <Link href="/materials" className="hover:text-black transition-colors">Материалдар</Link>
         </nav>
 
-        <div>
+        <div className="flex items-center gap-3">
+          <Link 
+            href="/login" 
+            className="px-4 py-2 text-sm font-semibold text-black hover:text-zinc-600 transition-colors"
+          >
+            Кіру
+          </Link>
           <Link 
             href="/tests" 
-            className="px-4 py-2 text-sm font-medium text-black border border-black rounded-lg hover:bg-black hover:text-white transition-all duration-200"
+            className="px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-zinc-800 transition-all duration-200"
           >
             Тесттерді көру
           </Link>
