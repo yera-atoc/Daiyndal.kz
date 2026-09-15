@@ -32,12 +32,12 @@ export default function Footer() {
               <li>
                 <span className="text-zinc-400 block">WhatsApp:</span>
                 <a 
-                  href="https://wa.me/77001234567" 
+                  href="https://wa.me/77772739248" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="font-medium text-black hover:underline"
                 >
-                  +7 (700) 123-45-67
+                  +7 (777) 273-92-48
                 </a>
               </li>
               <li>
