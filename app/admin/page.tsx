@@ -12,7 +12,6 @@ type Student = {
 }
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-// Добавили новую вкладку 'sheets'
 type Tab = 'attendance' | 'students' | 'teachers' | 'sheets'
 
 function todayISO() {
@@ -109,7 +108,7 @@ export default function AdminDashboard() {
               ['attendance', 'Қатысу'],
               ['students', 'Оқушылар'],
               ['teachers', 'Оқытушылар'],
-              ['sheets', 'Таблица'], // <--- Новая вкладка!
+              ['sheets', 'Таблица'],
             ] as [Tab, string][]
           ).map(([key, label]) => (
             <button
@@ -149,17 +148,16 @@ export default function AdminDashboard() {
           <TeachersTab teachers={teachers} reload={loadCore} />
         )}
 
-        {/* Отображение Google Таблицы */}
         {tab === 'sheets' && <GoogleSheetTab />}
       </div>
     </main>
   )
 }
 
-// Компонент для отображения Google Таблицы
 function GoogleSheetTab() {
-  const [rows, setRows] = useState<any[]>([])
+  const [rows, setRows] = useState<string[][]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const SHEET_ID = '1QzGRgsX0AA8-vuacc_B9Gcbn0PK79Xju'
   const GID = '1094055913'
@@ -169,17 +167,24 @@ function GoogleSheetTab() {
       try {
         const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${GID}`
         const res = await fetch(url)
+        if (!res.ok) throw new Error('Деректерді алу мүмкін болмады')
+        
         const text = await res.text()
+        const jsonMatch = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);/)
+        
+        if (!jsonMatch || !jsonMatch[1]) {
+          throw new Error('Таблица деректерін өңдеу қатесі')
+        }
 
-        const jsonData = JSON.parse(text.substring(47, text.length - 2))
-
-        const formattedData = jsonData.table.rows.map((row: any) =>
-          row.c ? row.c.map((cell: any) => cell?.v || '') : []
+        const jsonData = JSON.parse(jsonMatch[1])
+        const formattedData: string[][] = jsonData.table.rows.map((row: { c: Array<{ v?: any } | null> }) =>
+          row.c ? row.c.map((cell) => (cell && cell.v !== undefined && cell.v !== null ? String(cell.v) : '')) : []
         )
 
         setRows(formattedData)
-      } catch (error) {
-        console.error('Кате чыкты:', error)
+      } catch (err: any) {
+        console.error('Кесте жүктеу қатесі:', err)
+        setError('Google Таблицаны жүктеу кезінде қате шықты. Таблица ашық (public) екенін тексеріңіз.')
       } finally {
         setLoading(false)
       }
@@ -190,6 +195,10 @@ function GoogleSheetTab() {
 
   if (loading) {
     return <p className="mt-8 text-sm text-ink/60">Кесте жүктелуде...</p>
+  }
+
+  if (error) {
+    return <p className="mt-8 text-sm text-coral">{error}</p>
   }
 
   return (
@@ -206,9 +215,9 @@ function GoogleSheetTab() {
                     : 'border-b border-ink/10 hover:bg-paper/50'
                 }
               >
-                {row.map((cell: any, colIndex: number) => (
+                {row.map((cell, colIndex) => (
                   <td key={colIndex} className="p-3 border-r border-ink/10 last:border-0 whitespace-nowrap">
-                    {String(cell)}
+                    {cell}
                   </td>
                 ))}
               </tr>
