@@ -1,21 +1,18 @@
 import Link from 'next/link';
-import Image from 'next/image';
 
 export default function Header() {
   return (
     <header className="w-full border-b border-zinc-200 bg-white sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         
-        {/* Жаңа Логотип */}
-        <Link href="/" className="flex items-center">
-          <Image 
-            src="/logo.png" 
-            alt="Beles Education Logo" 
-            width={140} 
-            height={40} 
-            priority
-            className="h-9 w-auto object-contain"
-          />
+        {/* Кодпен жасалған минималистик Логотип */}
+        <Link href="/" className="flex flex-col group">
+          <span className="text-2xl font-black tracking-tight text-black leading-none group-hover:opacity-80 transition-opacity">
+            BELES
+          </span>
+          <span className="text-[10px] font-bold tracking-widest text-sky-500 uppercase leading-tight">
+            education
+          </span>
         </Link>
         
         <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-zinc-600">
