@@ -17,6 +17,9 @@ export default function Header() {
           <Link href="/tests" className="transition hover:text-mustard">
             Тест банкі
           </Link>
+          <Link href="/materials" className="transition hover:text-mustard">
+            Материалдар
+          </Link>
         </nav>
         <Link
           href="/tests"

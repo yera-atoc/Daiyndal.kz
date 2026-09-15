@@ -274,6 +274,7 @@ function StudentsTab({
   const [grade, setGrade] = useState('')
   const [teacherId, setTeacherId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   async function addStudent(e: React.FormEvent) {
     e.preventDefault()
@@ -338,20 +339,40 @@ function StudentsTab({
 
       <div className="mt-6 divide-y divide-ink/10 border border-ink/10 bg-card">
         {students.map((s) => (
-          <div key={s.id} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <p className="font-medium">{s.full_name}</p>
-              <p className="text-xs text-ink/50">
-                {s.grade ? `${s.grade}-сынып · ` : ''}
-                {teachers.find((t) => t.id === s.teacher_id)?.name ?? 'Топсыз'}
-              </p>
+          <div key={s.id} className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">{s.full_name}</p>
+                <p className="text-xs text-ink/50">
+                  {s.grade ? `${s.grade}-сынып · ` : ''}
+                  {teachers.find((t) => t.id === s.teacher_id)?.name ?? 'Топсыз'}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setEditingId(editingId === s.id ? null : s.id)}
+                  className="text-sm text-sky hover:underline"
+                >
+                  {editingId === s.id ? 'Жабу' : 'Өзгерту'}
+                </button>
+                <button
+                  onClick={() => removeStudent(s.id)}
+                  className="text-sm text-coral hover:underline"
+                >
+                  Жою
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => removeStudent(s.id)}
-              className="text-sm text-coral hover:underline"
-            >
-              Жою
-            </button>
+            {editingId === s.id && (
+              <StudentEditForm
+                student={s}
+                teachers={teachers}
+                onDone={async () => {
+                  setEditingId(null)
+                  await reload()
+                }}
+              />
+            )}
           </div>
         ))}
         {students.length === 0 && (
@@ -359,6 +380,74 @@ function StudentsTab({
         )}
       </div>
     </section>
+  )
+}
+
+function StudentEditForm({
+  student,
+  teachers,
+  onDone,
+}: {
+  student: Student
+  teachers: Teacher[]
+  onDone: () => Promise<void>
+}) {
+  const [fullName, setFullName] = useState(student.full_name)
+  const [grade, setGrade] = useState(student.grade ? String(student.grade) : '')
+  const [teacherId, setTeacherId] = useState(student.teacher_id ?? '')
+  const [saving, setSaving] = useState(false)
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    if (!fullName.trim()) return
+    setSaving(true)
+    await fetch(`/api/students/${student.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName,
+        grade: grade ? Number(grade) : null,
+        teacherId: teacherId || null,
+      }),
+    })
+    setSaving(false)
+    await onDone()
+  }
+
+  return (
+    <form onSubmit={save} className="mt-3 flex flex-wrap gap-2 border-t border-ink/10 pt-3">
+      <input
+        value={fullName}
+        onChange={(e) => setFullName(e.target.value)}
+        placeholder="Аты-жөні"
+        className="flex-1 min-w-[180px] border border-ink/20 bg-white px-3 py-1.5 text-sm"
+      />
+      <input
+        value={grade}
+        onChange={(e) => setGrade(e.target.value)}
+        placeholder="Сынып"
+        className="w-28 border border-ink/20 bg-white px-3 py-1.5 text-sm"
+      />
+      <select
+        value={teacherId}
+        onChange={(e) => setTeacherId(e.target.value)}
+        className="border border-ink/20 bg-white px-3 py-1.5 text-sm"
+      >
+        <option value="">Оқытушысыз</option>
+        {teachers.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </select>
+      <button
+        type="submit"
+        disabled={saving}
+        className="bg-mustard px-4 py-1.5 text-sm font-medium text-board transition hover:bg-card disabled:opacity-60"
+      >
+        Сақтау
+      </button>
+    </form>
   )
 }
 
