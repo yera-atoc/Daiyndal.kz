@@ -1,138 +1,83 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { supabase, type Role } from "@/lib/supabaseClient";
+import Link from 'next/link'
+import Image from 'next/image'
 
 export default function LoginPage() {
-  const router = useRouter();
-
-  const [role, setRole] = useState<Role>("student");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    if (!email.trim() || !password) {
-      setError("Email және құпия сөзді енгізіңіз.");
-      return;
-    }
-
-    setLoading(true);
-
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-
-    if (signInError) {
-      setLoading(false);
-      setError(
-        signInError.message === "Invalid login credentials"
-          ? "Email немесе құпия сөз қате."
-          : signInError.message
-      );
-      return;
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", data.user.id)
-      .single();
-
-    setLoading(false);
-
-    const actualRole = (profile?.role as Role) ?? role;
-    router.push(actualRole === "teacher" ? "/teacher" : "/student");
-    router.refresh();
-  }
-
   return (
-    <section className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center px-6 py-16">
-      <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-        Жүйеге кіру
-      </h1>
-      <p className="mt-2 text-[14px] text-ink-soft">
-        Аккаунтыңызға кіріп, оқуды жалғастырыңыз.
-      </p>
+    <div className="min-h-screen bg-white text-zinc-900 flex flex-col justify-center items-center px-4 py-12">
+      <div className="w-full max-w-md space-y-8 bg-zinc-50 p-8 rounded-2xl border border-zinc-200 shadow-sm">
+        
+        {/* Логотип */}
+        <div className="flex flex-col items-center">
+          <Link href="/">
+            <Image 
+              src="/logo.png" 
+              alt="Beles Education Logo" 
+              width={180} 
+              height={50} 
+              priority
+              className="h-auto w-auto"
+            />
+          </Link>
+          <h2 className="mt-6 text-2xl font-extrabold text-black tracking-tight">
+            Жүйеге кіру
+          </h2>
+          <p className="mt-2 text-sm text-zinc-600 text-center">
+            Аккаунтыңызға кіріп, оқуды жалғастырыңыз.
+          </p>
+        </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-1 rounded-full bg-paper-tint p-1">
-        <button
-          type="button"
-          onClick={() => setRole("student")}
-          className={`rounded-full py-2 text-[13px] font-medium transition ${
-            role === "student"
-              ? "bg-white text-ink shadow-card"
-              : "text-ink-faint"
-          }`}
-        >
-          Оқушы
-        </button>
-        <button
-          type="button"
-          onClick={() => setRole("teacher")}
-          className={`rounded-full py-2 text-[13px] font-medium transition ${
-            role === "teacher"
-              ? "bg-white text-ink shadow-card"
-              : "text-ink-faint"
-          }`}
-        >
-          Мұғалім
-        </button>
+        {/* Оқушы / Мұғалім табуляциясы */}
+        <div className="grid grid-cols-2 gap-1 bg-zinc-200/60 p-1 rounded-xl text-center text-sm font-semibold">
+          <button type="button" className="py-2 rounded-lg bg-white text-black shadow-sm">
+            Оқушы
+          </button>
+          <button type="button" className="py-2 rounded-lg text-zinc-600 hover:text-black transition-colors">
+            Мұғалім
+          </button>
+        </div>
+
+        {/* Форма */}
+        <form className="mt-8 space-y-5">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              required
+              placeholder="мысалы: user@gmail.com"
+              className="w-full px-4 py-3 bg-white border border-zinc-300 rounded-lg text-sm text-black placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1">
+              Құпия сөз
+            </label>
+            <input
+              type="password"
+              required
+              placeholder="••••••••"
+              className="w-full px-4 py-3 bg-white border border-zinc-300 rounded-lg text-sm text-black placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-3.5 px-4 bg-black text-white text-sm font-semibold rounded-lg hover:bg-zinc-800 transition-all shadow-sm"
+          >
+            Кіру
+          </button>
+        </form>
+
+        <p className="text-center text-sm text-zinc-600 pt-2">
+          Аккаунтыңыз жоқ па?{' '}
+          <Link href="/register" className="font-semibold text-black hover:underline">
+            Тіркелу
+          </Link>
+        </p>
+
       </div>
-
-      {error && (
-        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-        <div>
-          <label className="text-[13px] font-medium text-ink-soft">
-            Email
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="mt-1.5 w-full rounded-xl border border-line bg-white px-4 py-3 text-[14px] outline-none focus:border-accent"
-          />
-        </div>
-        <div>
-          <label className="text-[13px] font-medium text-ink-soft">
-            Құпия сөз
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="mt-1.5 w-full rounded-xl border border-line bg-white px-4 py-3 text-[14px] outline-none focus:border-accent"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-full bg-accent py-3 text-[14px] font-medium text-white transition hover:bg-accent-hover disabled:opacity-60"
-        >
-          {loading ? "Кіруде..." : "Кіру"}
-        </button>
-      </form>
-
-      <p className="mt-6 text-center text-[13px] text-ink-faint">
-        Аккаунтыңыз жоқ па?{" "}
-        <Link href="/register" className="font-medium text-accent">
-          Тіркелу
-        </Link>
-      </p>
-    </section>
-  );
+    </div>
+  )
 }
