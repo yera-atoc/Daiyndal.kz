@@ -3,8 +3,7 @@
 import React from 'react'
 
 export default function WhatsAppButton() {
-  // Өзіңіздің WhatsApp нөміріңізді халықаралық форматта жазыңыз (плюссыз, мысалы: 77001234567)
-  const phoneNumber = '77001234567' 
+  const phoneNumber = '77772739248' 
   const message = 'Сәлеметсіз бе! Beles платформасы бойынша сұрағым бар еді.'
 
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(
