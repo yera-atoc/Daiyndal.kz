@@ -50,7 +50,6 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadAttendance(date)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date])
 
   async function handleLogout() {
@@ -244,17 +243,15 @@ function AttendanceTab({
   attendance: AttendanceRecord[]
   onToggle: (studentId: string, present: boolean) => void
 }) {
-  const teacherName = (id: string | null) =>
-    teachers.find((t) => t.id === id)?.name ?? 'Топсыз'
-
   const grouped = useMemo(() => {
+    const teacherMap = new Map(teachers.map((t) => [t.id, t.name]))
     const map = new Map<string, Student[]>()
+    
     for (const s of students) {
-      const key = teacherName(s.teacher_id)
+      const key = s.teacher_id ? teacherMap.get(s.teacher_id) ?? 'Топсыз' : 'Топсыз'
       map.set(key, [...(map.get(key) ?? []), s])
     }
     return Array.from(map.entries())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [students, teachers])
 
   const presentCount = attendance.filter((a) => a.present).length
@@ -541,6 +538,7 @@ function TeachersTab({
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
+  const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null)
   const [credentialsEditingId, setCredentialsEditingId] = useState<string | null>(null)
 
   async function addTeacher(e: React.FormEvent) {
@@ -633,12 +631,22 @@ function TeachersTab({
               </div>
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() =>
-                    setCredentialsEditingId(credentialsEditingId === t.id ? null : t.id)
-                  }
+                  onClick={() => {
+                    setEditingTeacherId(editingTeacherId === t.id ? null : t.id)
+                    setCredentialsEditingId(null)
+                  }}
                   className="text-sm text-sky hover:underline"
                 >
-                  {t.username ? 'Құпия сөзді ауыстыру' : 'Кіру орнату'}
+                  {editingTeacherId === t.id ? 'Жабу' : 'Өзгерту'}
+                </button>
+                <button
+                  onClick={() => {
+                    setCredentialsEditingId(credentialsEditingId === t.id ? null : t.id)
+                    setEditingTeacherId(null)
+                  }}
+                  className="text-sm text-sky hover:underline"
+                >
+                  {t.username ? 'Құпия сөз' : 'Кіру орнату'}
                 </button>
                 <button
                   onClick={() => removeTeacher(t.id)}
@@ -648,6 +656,17 @@ function TeachersTab({
                 </button>
               </div>
             </div>
+
+            {editingTeacherId === t.id && (
+              <TeacherEditForm
+                teacher={t}
+                onDone={async () => {
+                  setEditingTeacherId(null)
+                  await reload()
+                }}
+              />
+            )}
+
             {credentialsEditingId === t.id && (
               <TeacherCredentialsForm
                 teacherId={t.id}
@@ -665,6 +684,58 @@ function TeachersTab({
         )}
       </div>
     </section>
+  )
+}
+
+function TeacherEditForm({
+  teacher,
+  onDone,
+}: {
+  teacher: Teacher
+  onDone: () => Promise<void>
+}) {
+  const [name, setName] = useState(teacher.name)
+  const [subject, setSubject] = useState(teacher.subject ?? '')
+  const [saving, setSaving] = useState(false)
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) return
+    setSaving(true)
+    await fetch(`/api/teachers/${teacher.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        subject: subject || null,
+      }),
+    })
+    setSaving(false)
+    await onDone()
+  }
+
+  return (
+    <form onSubmit={save} className="mt-3 flex flex-wrap gap-2 border-t border-ink/10 pt-3">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Аты-жөні"
+        className="flex-1 min-w-[180px] border border-ink/20 bg-white px-3 py-1.5 text-sm"
+      />
+      <input
+        value={subject}
+        onChange={(e) => setSubject(e.target.value)}
+        placeholder="Пәні"
+        className="w-48 border border-ink/20 bg-white px-3 py-1.5 text-sm"
+      />
+      <button
+        type="submit"
+        disabled={saving}
+        className="bg-mustard px-4 py-1.5 text-sm font-medium text-board transition hover:bg-card disabled:opacity-60"
+      >
+        Сақтау
+      </button>
+    </form>
   )
 }
 
