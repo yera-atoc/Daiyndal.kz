@@ -1,33 +1,29 @@
-import Link from 'next/link'
+import Link from 'next/link';
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-ink/10 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="font-serif text-xl font-bold text-ink">
+    <header className="w-full border-b border-zinc-200 bg-white sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <Link href="/" className="font-bold text-xl tracking-tight text-black">
           Beles
         </Link>
-        <nav className="hidden items-center gap-8 text-sm text-ink/70 sm:flex">
-          <a href="/#pans" className="transition hover:text-mustard">
-            Пәндер
-          </a>
-          <a href="/#bagdarlama" className="transition hover:text-mustard">
-            НИШ(НЗМ) · БІЛ · РФМШ · ЕНТ(ҰБТ)
-          </a>
-          <Link href="/tests" className="transition hover:text-mustard">
-            Тест банкі
-          </Link>
-          <Link href="/materials" className="transition hover:text-mustard">
-            Материалдар
-          </Link>
+        
+        <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-zinc-600">
+          <Link href="/ пәндер" className="hover:text-black transition-colors">Пәндер</Link>
+          <Link href="/#courses" className="hover:text-black transition-colors">НИШ(НЗМ) · БИЛ · РФМШ · ЕНТ(ҰБТ)</Link>
+          <Link href="/tests" className="hover:text-black transition-colors">Тест банкі</Link>
+          <Link href="/materials" className="hover:text-black transition-colors">Материалдар</Link>
         </nav>
-        <Link
-          href="/tests"
-          className="rounded-none border border-mustard px-4 py-2 text-sm font-medium text-mustard transition hover:bg-mustard hover:text-board"
-        >
-          Тесттерді көру
-        </Link>
+
+        <div>
+          <Link 
+            href="/tests" 
+            className="px-4 py-2 text-sm font-medium text-black border border-black rounded-lg hover:bg-black hover:text-white transition-all duration-200"
+          >
+            Тесттерді көру
+          </Link>
+        </div>
       </div>
     </header>
-  )
+  );
 }
