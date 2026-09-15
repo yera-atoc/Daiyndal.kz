@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { PT_Serif, Inter, Caveat } from 'next/font/google'
 import './globals.css'
-import Footer from '@/components/Footer'
 
 const ptSerif = PT_Serif({
   subsets: ['cyrillic', 'latin'],
@@ -37,10 +36,9 @@ export default function RootLayout({
   return (
     <html lang="kk">
       <body
-        className={`${ptSerif.variable} ${inter.variable} ${caveat.variable} font-sans bg-paper text-ink antialiased flex flex-col min-h-screen`}
+        className={`${ptSerif.variable} ${inter.variable} ${caveat.variable} font-sans bg-paper text-ink antialiased`}
       >
-        <main className="flex-grow">{children}</main>
-        <Footer />
+        {children}
       </body>
     </html>
   )
