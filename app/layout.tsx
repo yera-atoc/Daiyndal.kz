@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { PT_Serif, Inter, Caveat } from 'next/font/google'
+import WhatsAppButton from '@/components/WhatsAppButton' // <-- 1. Импорттаймыз
 import './globals.css'
 
 const ptSerif = PT_Serif({
@@ -39,6 +40,7 @@ export default function RootLayout({
         className={`${ptSerif.variable} ${inter.variable} ${caveat.variable} font-sans bg-paper text-ink antialiased`}
       >
         {children}
+        <WhatsAppButton /> {/* <-- 2. Осы жерге қосамыз */}
       </body>
     </html>
   )
