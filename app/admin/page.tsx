@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Teacher = { id: string; name: string; subject: string | null; username: string | null }
+type Teacher = { 
+  id: string; 
+  name: string; 
+  subject: string | null; 
+  username: string | null;
+  schedule?: string | null; // Сабақ уақыты үшін
+}
 type Student = {
   id: string
   full_name: string
@@ -78,45 +84,53 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-paper">
-        <p className="text-ink/60">Жүктелуде...</p>
+      <main className="flex min-h-screen items-center justify-center bg-[#0a0a0a] text-white">
+        <div className="flex items-center gap-3">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          <p className="text-sm font-light tracking-wide text-zinc-400">Жүктелуде...</p>
+        </div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-paper">
-      <header className="border-b border-ink/10 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-          <p className="font-serif text-xl font-bold text-ink">
-            Beles · Әкімші панелі
-          </p>
+    <main className="min-h-screen bg-[#050505] text-zinc-100 selection:bg-white selection:text-black">
+      {/* Apple-style minimalist header */}
+      <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-[#050505]/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
+            <h1 className="text-sm font-medium tracking-tight text-white">
+              Администратор Ақниет
+            </h1>
+          </div>
           <button
             onClick={handleLogout}
-            className="border border-ink/20 px-4 py-2 text-sm text-ink transition hover:border-ink"
+            className="rounded-full border border-zinc-800 bg-zinc-900/50 px-4 py-1.5 text-xs font-medium text-zinc-300 transition-all hover:border-zinc-600 hover:bg-zinc-800 hover:text-white"
           >
             Шығу
           </button>
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-6 py-8">
-        <div className="flex gap-2">
+      <div className="mx-auto max-w-6xl px-6 py-10">
+        {/* Navigation Tabs */}
+        <div className="flex flex-wrap gap-1.5 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-1.5 backdrop-blur-md">
           {(
             [
               ['attendance', 'Қатысу'],
               ['students', 'Оқушылар'],
-              ['teachers', 'Оқытушылар'],
+              ['teachers', 'Оқытушылар & Сабақ уақыты'],
               ['sheets', 'Таблица'],
             ] as [Tab, string][]
           ).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`border px-4 py-2 text-sm font-medium transition ${
+              className={`flex-1 rounded-xl px-4 py-2.5 text-xs font-medium transition-all ${
                 tab === key
-                  ? 'border-ink bg-ink text-paper'
-                  : 'border-ink/20 text-ink/70 hover:border-ink/50'
+                  ? 'bg-white text-black shadow-sm'
+                  : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-white'
               }`}
             >
               {label}
@@ -193,29 +207,29 @@ function GoogleSheetTab() {
   }, [])
 
   if (loading) {
-    return <p className="mt-8 text-sm text-ink/60">Кесте жүктелуде...</p>
+    return <div className="mt-10 text-center text-xs text-zinc-500">Google Кесте жүктелуде...</div>
   }
 
   if (error) {
-    return <p className="mt-8 text-sm text-coral">{error}</p>
+    return <div className="mt-10 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-center text-xs text-red-400">{error}</div>
   }
 
   return (
     <section className="mt-8">
-      <div className="overflow-x-auto border border-ink/10 bg-card">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-xl">
+        <table className="w-full text-left text-xs">
           <tbody>
             {rows.map((row, rowIndex) => (
               <tr
                 key={rowIndex}
                 className={
                   rowIndex === 0
-                    ? 'border-b border-ink/20 bg-paper font-semibold text-ink'
-                    : 'border-b border-ink/10 hover:bg-paper/50'
+                    ? 'border-b border-zinc-800 bg-zinc-900 font-medium text-white'
+                    : 'border-b border-zinc-800/50 hover:bg-zinc-800/20'
                 }
               >
                 {row.map((cell, colIndex) => (
-                  <td key={colIndex} className="p-3 border-r border-ink/10 last:border-0 whitespace-nowrap">
+                  <td key={colIndex} className="p-4 border-r border-zinc-800/50 last:border-0 whitespace-nowrap text-zinc-300">
                     {cell}
                   </td>
                 ))}
@@ -244,12 +258,18 @@ function AttendanceTab({
   onToggle: (studentId: string, present: boolean) => void
 }) {
   const grouped = useMemo(() => {
-    const teacherMap = new Map(teachers.map((t) => [t.id, t.name]))
-    const map = new Map<string, Student[]>()
+    const teacherMap = new Map(teachers.map((t) => [t.id, { name: t.name, schedule: t.schedule }]))
+    const map = new Map<string, { students: Student[]; schedule?: string | null }>()
     
     for (const s of students) {
-      const key = s.teacher_id ? teacherMap.get(s.teacher_id) ?? 'Топсыз' : 'Топсыз'
-      map.set(key, [...(map.get(key) ?? []), s])
+      const teacherInfo = s.teacher_id ? teacherMap.get(s.teacher_id) : null
+      const key = teacherInfo ? teacherInfo.name : 'Топсыз оқушылар'
+      const schedule = teacherInfo?.schedule ?? null
+
+      if (!map.has(key)) {
+        map.set(key, { students: [], schedule })
+      }
+      map.get(key)!.students.push(s)
     }
     return Array.from(map.entries())
   }, [students, teachers])
@@ -257,72 +277,74 @@ function AttendanceTab({
   const presentCount = attendance.filter((a) => a.present).length
 
   return (
-    <section className="mt-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <section className="mt-8 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <label className="text-sm text-ink/70">Күні:</label>
+          <label className="text-xs text-zinc-400">Күні:</label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="border border-ink/20 bg-card px-3 py-1.5 text-sm"
+            className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white"
           />
         </div>
-        <p className="text-sm text-ink/60">
-          Келді: <span className="font-semibold text-ink">{presentCount}</span> /{' '}
-          {students.length}
-        </p>
+        <div className="text-xs text-zinc-400">
+          Келді: <span className="font-semibold text-white">{presentCount}</span> / {students.length}
+        </div>
       </div>
 
       {students.length === 0 && (
-        <p className="mt-10 text-ink/50">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-8 text-center text-xs text-zinc-500">
           Әзірге оқушы қосылмаған. «Оқушылар» бөлімінен қосыңыз.
-        </p>
+        </div>
       )}
 
-      <div className="mt-6 space-y-8">
-        {grouped.map(([teacher, group]) => (
-          <div key={teacher}>
-            <p className="text-sm font-semibold uppercase tracking-normal text-ink/50">
-              {teacher}
-            </p>
-            <div className="mt-3 divide-y divide-ink/10 border border-ink/10 bg-card">
-              {group.map((student) => {
+      <div className="space-y-6">
+        {grouped.map(([groupName, data]) => (
+          <div key={groupName} className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 backdrop-blur-xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-white">
+                {groupName}
+              </h3>
+              {data.schedule && (
+                <span className="rounded-md bg-zinc-800 px-2.5 py-1 text-[10px] text-zinc-300">
+                  Сабақ уақыты: {data.schedule}
+                </span>
+              )}
+            </div>
+            
+            <div className="mt-4 divide-y divide-zinc-800/60">
+              {data.students.map((student) => {
                 const record = attendance.find((a) => a.student_id === student.id)
                 const present = record?.present ?? false
                 return (
-                  <div
-                    key={student.id}
-                    className="flex items-center justify-between px-4 py-3"
-                  >
+                  <div key={student.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
                     <div>
-                      <p className="font-medium">{student.full_name}</p>
+                      <p className="text-xs font-medium text-white">{student.full_name}</p>
                       {student.grade && (
-                        <p className="text-xs text-ink/50">
-                          {student.grade}-сынып
-                        </p>
+                        <p className="text-[10px] text-zinc-500">{student.grade}-сынып</p>
                       )}
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => onToggle(student.id, true)}
-                        className={`px-3 py-1.5 text-sm font-medium transition ${
+                        className={`rounded-lg px-3 py-1 text-xs font-medium transition-all ${
                           present
-                            ? 'bg-sky text-board'
-                            : 'border border-ink/20 text-ink/60 hover:border-sky'
+                            ? 'bg-white text-black shadow'
+                            : 'border border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-white'
                         }`}
                       >
-                        Келді
+                        Бар
                       </button>
                       <button
                         onClick={() => onToggle(student.id, false)}
-                        className={`px-3 py-1.5 text-sm font-medium transition ${
+                        className={`rounded-lg px-3 py-1 text-xs font-medium transition-all ${
                           record && !present
-                            ? 'bg-coral text-paper'
-                            : 'border border-ink/20 text-ink/60 hover:border-coral'
+                            ? 'bg-zinc-700 text-white shadow'
+                            : 'border border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-white'
                         }`}
                       >
-                        Келмеді
+                        Жоқ
                       </button>
                     </div>
                   </div>
@@ -377,26 +399,26 @@ function StudentsTab({
   }
 
   return (
-    <section className="mt-8">
-      <form onSubmit={addStudent} className="flex flex-wrap gap-3 border border-ink/10 bg-card p-4">
+    <section className="mt-8 space-y-6">
+      <form onSubmit={addStudent} className="flex flex-wrap gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4 backdrop-blur-xl">
         <input
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          placeholder="Аты-жөні"
-          className="flex-1 min-w-[180px] border border-ink/20 bg-paper px-3 py-2 text-sm"
+          placeholder="Оқушының аты-жөні"
+          className="flex-1 min-w-[180px] rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:border-zinc-600 focus:outline-none"
         />
         <input
           value={grade}
           onChange={(e) => setGrade(e.target.value)}
-          placeholder="Сынып (5 немесе 6)"
-          className="w-40 border border-ink/20 bg-paper px-3 py-2 text-sm"
+          placeholder="Сынып (мысалы: 7)"
+          className="w-36 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:border-zinc-600 focus:outline-none"
         />
         <select
           value={teacherId}
           onChange={(e) => setTeacherId(e.target.value)}
-          className="border border-ink/20 bg-paper px-3 py-2 text-sm"
+          className="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-white focus:border-zinc-600 focus:outline-none"
         >
-          <option value="">Оқытушысыз</option>
+          <option value="">Оқытушысыз (Топсыз)</option>
           {teachers.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -406,33 +428,33 @@ function StudentsTab({
         <button
           type="submit"
           disabled={saving}
-          className="bg-ink px-5 py-2 text-sm font-medium text-paper transition hover:bg-ink/80 disabled:opacity-60"
+          className="rounded-xl bg-white px-5 py-2 text-xs font-medium text-black transition-all hover:bg-zinc-200 disabled:opacity-50"
         >
           Қосу
         </button>
       </form>
 
-      <div className="mt-6 divide-y divide-ink/10 border border-ink/10 bg-card">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 divide-y divide-zinc-800 backdrop-blur-xl">
         {students.map((s) => (
-          <div key={s.id} className="px-4 py-3">
+          <div key={s.id} className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">{s.full_name}</p>
-                <p className="text-xs text-ink/50">
+                <p className="text-xs font-medium text-white">{s.full_name}</p>
+                <p className="text-[10px] text-zinc-500">
                   {s.grade ? `${s.grade}-сынып · ` : ''}
                   {teachers.find((t) => t.id === s.teacher_id)?.name ?? 'Топсыз'}
                 </p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => setEditingId(editingId === s.id ? null : s.id)}
-                  className="text-sm text-sky hover:underline"
+                  className="text-xs text-zinc-400 hover:text-white"
                 >
                   {editingId === s.id ? 'Жабу' : 'Өзгерту'}
                 </button>
                 <button
                   onClick={() => removeStudent(s.id)}
-                  className="text-sm text-coral hover:underline"
+                  className="text-xs text-red-400 hover:text-red-300"
                 >
                   Жою
                 </button>
@@ -451,7 +473,7 @@ function StudentsTab({
           </div>
         ))}
         {students.length === 0 && (
-          <p className="px-4 py-6 text-sm text-ink/50">Тізім бос</p>
+          <p className="p-6 text-center text-xs text-zinc-500">Тізім бос</p>
         )}
       </div>
     </section>
@@ -490,23 +512,23 @@ function StudentEditForm({
   }
 
   return (
-    <form onSubmit={save} className="mt-3 flex flex-wrap gap-2 border-t border-ink/10 pt-3">
+    <form onSubmit={save} className="mt-3 flex flex-wrap gap-2 border-t border-zinc-800 pt-3">
       <input
         value={fullName}
         onChange={(e) => setFullName(e.target.value)}
         placeholder="Аты-жөні"
-        className="flex-1 min-w-[180px] border border-ink/20 bg-white px-3 py-1.5 text-sm"
+        className="flex-1 min-w-[160px] rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-white"
       />
       <input
         value={grade}
         onChange={(e) => setGrade(e.target.value)}
         placeholder="Сынып"
-        className="w-28 border border-ink/20 bg-white px-3 py-1.5 text-sm"
+        className="w-24 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-white"
       />
       <select
         value={teacherId}
         onChange={(e) => setTeacherId(e.target.value)}
-        className="border border-ink/20 bg-white px-3 py-1.5 text-sm"
+        className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-white"
       >
         <option value="">Оқытушысыз</option>
         {teachers.map((t) => (
@@ -518,7 +540,7 @@ function StudentEditForm({
       <button
         type="submit"
         disabled={saving}
-        className="bg-mustard px-4 py-1.5 text-sm font-medium text-board transition hover:bg-card disabled:opacity-60"
+        className="rounded-lg bg-zinc-800 px-4 py-1.5 text-xs font-medium text-white transition-all hover:bg-zinc-700"
       >
         Сақтау
       </button>
@@ -535,6 +557,7 @@ function TeachersTab({
 }) {
   const [name, setName] = useState('')
   const [subject, setSubject] = useState('')
+  const [schedule, setSchedule] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
@@ -551,12 +574,14 @@ function TeachersTab({
       body: JSON.stringify({
         name,
         subject: subject || null,
+        schedule: schedule || null,
         username: username || undefined,
         password: password || undefined,
       }),
     })
     setName('')
     setSubject('')
+    setSchedule('')
     setUsername('')
     setPassword('')
     await reload()
@@ -569,73 +594,70 @@ function TeachersTab({
   }
 
   return (
-    <section className="mt-8">
-      <form onSubmit={addTeacher} className="border border-ink/10 bg-card p-4">
+    <section className="mt-8 space-y-6">
+      <form onSubmit={addTeacher} className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4 backdrop-blur-xl">
         <div className="flex flex-wrap gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Оқытушының аты-жөні"
-            className="flex-1 min-w-[180px] border border-ink/20 bg-paper px-3 py-2 text-sm"
+            className="flex-1 min-w-[180px] rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none"
           />
           <input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            placeholder="Пәні"
-            className="w-52 border border-ink/20 bg-paper px-3 py-2 text-sm"
+            placeholder="Пәні (мысалы: IELTS / Math)"
+            className="w-48 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none"
+          />
+          <input
+            value={schedule}
+            onChange={(e) => setSchedule(e.target.value)}
+            placeholder="Сабақ уақыты (мысалы: Дүйсенбі 15:00)"
+            className="w-56 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none"
           />
         </div>
-        <p className="mt-3 text-xs text-ink/50">
-          Логин мен құпия сөз — егер оқытушыға материалдар мен тесттер қосу
-          мүмкіндігін бірден бергіңіз келсе (кейінірек те қоюға болады)
-        </p>
-        <div className="mt-2 flex flex-wrap gap-3">
+        <div className="mt-3 flex flex-wrap gap-3">
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Логин (міндетті емес)"
-            className="w-48 border border-ink/20 bg-paper px-3 py-2 text-sm"
+            className="w-44 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none"
           />
           <input
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Құпия сөз (міндетті емес)"
-            className="w-48 border border-ink/20 bg-paper px-3 py-2 text-sm"
+            className="w-44 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none"
           />
           <button
             type="submit"
             disabled={saving}
-            className="bg-ink px-5 py-2 text-sm font-medium text-paper transition hover:bg-ink/80 disabled:opacity-60"
+            className="rounded-xl bg-white px-5 py-2 text-xs font-medium text-black transition-all hover:bg-zinc-200 disabled:opacity-50"
           >
             Қосу
           </button>
         </div>
       </form>
 
-      <div className="mt-6 divide-y divide-ink/10 border border-ink/10 bg-card">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 divide-y divide-zinc-800 backdrop-blur-xl">
         {teachers.map((t) => (
-          <div key={t.id} className="px-4 py-3">
+          <div key={t.id} className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">{t.name}</p>
-                <p className="text-xs text-ink/50">
+                <p className="text-xs font-medium text-white">{t.name}</p>
+                <p className="text-[10px] text-zinc-500">
                   {t.subject ? `${t.subject} · ` : ''}
-                  {t.username ? (
-                    <>
-                      Логин: <span className="font-medium text-ink/70">{t.username}</span>
-                    </>
-                  ) : (
-                    'Кіру орнатылмаған'
-                  )}
+                  {t.schedule ? `Уақыты: ${t.schedule} · ` : ''}
+                  {t.username ? `Логин: ${t.username}` : 'Кіру орнатылмаған'}
                 </p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => {
                     setEditingTeacherId(editingTeacherId === t.id ? null : t.id)
                     setCredentialsEditingId(null)
                   }}
-                  className="text-sm text-sky hover:underline"
+                  className="text-xs text-zinc-400 hover:text-white"
                 >
                   {editingTeacherId === t.id ? 'Жабу' : 'Өзгерту'}
                 </button>
@@ -644,13 +666,13 @@ function TeachersTab({
                     setCredentialsEditingId(credentialsEditingId === t.id ? null : t.id)
                     setEditingTeacherId(null)
                   }}
-                  className="text-sm text-sky hover:underline"
+                  className="text-xs text-zinc-400 hover:text-white"
                 >
                   {t.username ? 'Құпия сөз' : 'Кіру орнату'}
                 </button>
                 <button
                   onClick={() => removeTeacher(t.id)}
-                  className="text-sm text-coral hover:underline"
+                  className="text-xs text-red-400 hover:text-red-300"
                 >
                   Жою
                 </button>
@@ -680,7 +702,7 @@ function TeachersTab({
           </div>
         ))}
         {teachers.length === 0 && (
-          <p className="px-4 py-6 text-sm text-ink/50">Тізім бос</p>
+          <p className="p-6 text-center text-xs text-zinc-500">Тізім бос</p>
         )}
       </div>
     </section>
@@ -696,6 +718,7 @@ function TeacherEditForm({
 }) {
   const [name, setName] = useState(teacher.name)
   const [subject, setSubject] = useState(teacher.subject ?? '')
+  const [schedule, setSchedule] = useState(teacher.schedule ?? '')
   const [saving, setSaving] = useState(false)
 
   async function save(e: React.FormEvent) {
@@ -708,6 +731,7 @@ function TeacherEditForm({
       body: JSON.stringify({
         name,
         subject: subject || null,
+        schedule: schedule || null,
       }),
     })
     setSaving(false)
@@ -715,23 +739,29 @@ function TeacherEditForm({
   }
 
   return (
-    <form onSubmit={save} className="mt-3 flex flex-wrap gap-2 border-t border-ink/10 pt-3">
+    <form onSubmit={save} className="mt-3 flex flex-wrap gap-2 border-t border-zinc-800 pt-3">
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Аты-жөні"
-        className="flex-1 min-w-[180px] border border-ink/20 bg-white px-3 py-1.5 text-sm"
+        className="flex-1 min-w-[160px] rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-white"
       />
       <input
         value={subject}
         onChange={(e) => setSubject(e.target.value)}
         placeholder="Пәні"
-        className="w-48 border border-ink/20 bg-white px-3 py-1.5 text-sm"
+        className="w-36 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-white"
+      />
+      <input
+        value={schedule}
+        onChange={(e) => setSchedule(e.target.value)}
+        placeholder="Сабақ уақыты"
+        className="w-48 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-white"
       />
       <button
         type="submit"
         disabled={saving}
-        className="bg-mustard px-4 py-1.5 text-sm font-medium text-board transition hover:bg-card disabled:opacity-60"
+        className="rounded-lg bg-zinc-800 px-4 py-1.5 text-xs font-medium text-white transition-all hover:bg-zinc-700"
       >
         Сақтау
       </button>
@@ -766,23 +796,23 @@ function TeacherCredentialsForm({
   }
 
   return (
-    <form onSubmit={save} className="mt-3 flex flex-wrap gap-2 border-t border-ink/10 pt-3">
+    <form onSubmit={save} className="mt-3 flex flex-wrap gap-2 border-t border-zinc-800 pt-3">
       <input
         value={username}
         onChange={(e) => setUsername(e.target.value)}
         placeholder="Логин"
-        className="w-40 border border-ink/20 bg-white px-3 py-1.5 text-sm"
+        className="w-36 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-white"
       />
       <input
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Жаңа құпия сөз"
-        className="w-40 border border-ink/20 bg-white px-3 py-1.5 text-sm"
+        className="w-36 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-white"
       />
       <button
         type="submit"
         disabled={saving}
-        className="bg-mustard px-4 py-1.5 text-sm font-medium text-board transition hover:bg-card disabled:opacity-60"
+        classNames="rounded-lg bg-zinc-800 px-4 py-1.5 text-xs font-medium text-white transition-all hover:bg-zinc-700"
       >
         Сақтау
       </button>
