@@ -2,10 +2,10 @@ import Link from 'next/link'
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-white text-zinc-900 flex flex-col justify-center items-center px-4 py-12">
+    <div className="w-full flex justify-center items-center px-4 py-12">
       <div className="w-full max-w-md space-y-8 bg-zinc-50 p-8 rounded-2xl border border-zinc-200 shadow-sm">
         
-        {/* Суретсіз, кодпен жасалған таза Логотип */}
+        {/* Логотип */}
         <div className="flex flex-col items-center">
           <Link href="/" className="flex flex-col items-center group mb-2">
             <span className="text-3xl font-black tracking-tight text-black leading-none group-hover:opacity-80 transition-opacity">
@@ -24,7 +24,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Оқушы / Мұғалім табуляциясы */}
+        {/* Табуляция */}
         <div className="grid grid-cols-2 gap-1 bg-zinc-200/60 p-1 rounded-xl text-center text-sm font-semibold">
           <button type="button" className="py-2 rounded-lg bg-white text-black shadow-sm">
             Оқушы
