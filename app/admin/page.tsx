@@ -8,7 +8,7 @@ type Teacher = {
   name: string; 
   subject: string | null; 
   username: string | null;
-  schedule?: string | null; // Сабақ уақыты үшін
+  schedule?: string | null; 
 }
 type Student = {
   id: string
@@ -750,7 +750,7 @@ function TeacherEditForm({
         value={subject}
         onChange={(e) => setSubject(e.target.value)}
         placeholder="Пәні"
-        className="w-36 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-white"
+        className="w-36 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py.5 text-xs text-white"
       />
       <input
         value={schedule}
@@ -812,7 +812,7 @@ function TeacherCredentialsForm({
       <button
         type="submit"
         disabled={saving}
-        classNames="rounded-lg bg-zinc-800 px-4 py-1.5 text-xs font-medium text-white transition-all hover:bg-zinc-700"
+        className="rounded-lg bg-zinc-800 px-4 py-1.5 text-xs font-medium text-white transition-all hover:bg-zinc-700"
       >
         Сақтау
       </button>
