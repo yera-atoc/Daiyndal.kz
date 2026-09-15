@@ -12,7 +12,8 @@ type Student = {
 }
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-type Tab = 'attendance' | 'students' | 'teachers'
+// Добавили новую вкладку 'sheets'
+type Tab = 'attendance' | 'students' | 'teachers' | 'sheets'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -108,6 +109,7 @@ export default function AdminDashboard() {
               ['attendance', 'Қатысу'],
               ['students', 'Оқушылар'],
               ['teachers', 'Оқытушылар'],
+              ['sheets', 'Таблица'], // <--- Новая вкладка!
             ] as [Tab, string][]
           ).map(([key, label]) => (
             <button
@@ -146,8 +148,75 @@ export default function AdminDashboard() {
         {tab === 'teachers' && (
           <TeachersTab teachers={teachers} reload={loadCore} />
         )}
+
+        {/* Отображение Google Таблицы */}
+        {tab === 'sheets' && <GoogleSheetTab />}
       </div>
     </main>
+  )
+}
+
+// Компонент для отображения Google Таблицы
+function GoogleSheetTab() {
+  const [rows, setRows] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const SHEET_ID = '1QzGRgsX0AA8-vuacc_B9Gcbn0PK79Xju'
+  const GID = '1094055913'
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${GID}`
+        const res = await fetch(url)
+        const text = await res.text()
+
+        const jsonData = JSON.parse(text.substring(47, text.length - 2))
+
+        const formattedData = jsonData.table.rows.map((row: any) =>
+          row.c ? row.c.map((cell: any) => cell?.v || '') : []
+        )
+
+        setRows(formattedData)
+      } catch (error) {
+        console.error('Кате чыкты:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <p className="mt-8 text-sm text-ink/60">Кесте жүктелуде...</p>
+  }
+
+  return (
+    <section className="mt-8">
+      <div className="overflow-x-auto border border-ink/10 bg-card">
+        <table className="w-full text-left text-sm">
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr
+                key={rowIndex}
+                className={
+                  rowIndex === 0
+                    ? 'border-b border-ink/20 bg-paper font-semibold text-ink'
+                    : 'border-b border-ink/10 hover:bg-paper/50'
+                }
+              >
+                {row.map((cell: any, colIndex: number) => (
+                  <td key={colIndex} className="p-3 border-r border-ink/10 last:border-0 whitespace-nowrap">
+                    {String(cell)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
 }
 
