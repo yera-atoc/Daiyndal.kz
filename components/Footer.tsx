@@ -1,85 +1,81 @@
-import Link from 'next/link';
-import Image from 'next/image';
+import Link from 'next/link'
 
-export default function Footer() {
+export default function LoginPage() {
   return (
-    <footer className="w-full border-t border-zinc-200 bg-white py-12 text-zinc-600">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          
-          {/* 1. Логотип & Сипаттама */}
-          <div className="space-y-4 md:col-span-1">
-            <Link href="/">
-              <Image 
-                src="/logo.png" 
-                alt="Beles Education Logo" 
-                width={130} 
-                height={40} 
-                className="h-8 w-auto object-contain"
-              />
-            </Link>
-            <p className="text-xs text-zinc-500 leading-relaxed">
-              НИШ, БИЛ, РФМШ және ҰБТ емтихандарына сапалы онлайн дайындық платформасы.
-            </p>
-          </div>
+    <div className="min-h-screen bg-white text-zinc-900 flex flex-col justify-center items-center px-4 py-12">
+      <div className="w-full max-w-md space-y-8 bg-zinc-50 p-8 rounded-2xl border border-zinc-200 shadow-sm">
+        
+        {/* Суретсіз, кодпен жасалған таза Логотип */}
+        <div className="flex flex-col items-center">
+          <Link href="/" className="flex flex-col items-center group mb-2">
+            <span className="text-3xl font-black tracking-tight text-black leading-none group-hover:opacity-80 transition-opacity">
+              BELES
+            </span>
+            <span className="text-xs font-bold tracking-widest text-sky-500 uppercase leading-tight">
+              education
+            </span>
+          </Link>
 
-          {/* 2. Навигация */}
-          <div>
-            <h4 className="text-sm font-bold text-black uppercase tracking-wider mb-4">Бөлімдер</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/#pans" className="hover:text-black transition-colors">Пәндер</Link></li>
-              <li><Link href="/#bagdarlama" className="hover:text-black transition-colors">Бағдарламалар</Link></li>
-              <li><Link href="/tests" className="hover:text-black transition-colors">Тест банкі</Link></li>
-              <li><Link href="/materials" className="hover:text-black transition-colors">Материалдар</Link></li>
-            </ul>
-          </div>
-
-          {/* 3. Бағыттар */}
-          <div>
-            <h4 className="text-sm font-bold text-black uppercase tracking-wider mb-4">Дайындық</h4>
-            <ul className="space-y-2 text-sm text-zinc-500">
-              <li>НИШ (5-6 сынып)</li>
-              <li>БИЛ (5-6 сынып)</li>
-              <li>РФМШ (5-6 сынып)</li>
-              <li>ҰБТ / ЕНТ (9-11 сынып)</li>
-            </ul>
-          </div>
-
-          {/* 4. Байланыс (WhatsApp & Instagram) */}
-          <div>
-            <h4 className="text-sm font-bold text-black uppercase tracking-wider mb-4">Байланыс</h4>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <span className="block text-xs text-zinc-400">WhatsApp / Администратор:</span>
-                <a 
-                  href="https://wa.me/77772739248" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="font-semibold text-black hover:underline flex items-center gap-1.5 mt-0.5"
-                >
-                  +7 777 273 92 48
-                </a>
-              </li>
-              <li>
-                <span className="block text-xs text-zinc-400">Instagram:</span>
-                <a 
-                  href="https://instagram.com/beleseducation" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="font-semibold text-black hover:underline flex items-center gap-1.5 mt-0.5"
-                >
-                  @beleseducation
-                </a>
-              </li>
-            </ul>
-          </div>
-
+          <h2 className="mt-4 text-2xl font-extrabold text-black tracking-tight">
+            Жүйеге кіру
+          </h2>
+          <p className="mt-2 text-sm text-zinc-600 text-center">
+            Аккаунтыңызға кіріп, оқуды жалғастырыңыз.
+          </p>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-zinc-100 flex flex-col sm:flex-row justify-between items-center text-xs text-zinc-400">
-          <p>© {new Date().getFullYear()} Beles Education. Барлық құқықтар қорғалған.</p>
+        {/* Оқушы / Мұғалім табуляциясы */}
+        <div className="grid grid-cols-2 gap-1 bg-zinc-200/60 p-1 rounded-xl text-center text-sm font-semibold">
+          <button type="button" className="py-2 rounded-lg bg-white text-black shadow-sm">
+            Оқушы
+          </button>
+          <button type="button" className="py-2 rounded-lg text-zinc-600 hover:text-black transition-colors">
+            Мұғалім
+          </button>
         </div>
+
+        {/* Форма */}
+        <form className="mt-8 space-y-5">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1">
+              EMAIL
+            </label>
+            <input
+              type="email"
+              required
+              placeholder="ernar123123@gmail.com"
+              className="w-full px-4 py-3 bg-white border border-zinc-300 rounded-lg text-sm text-black placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1">
+              ҚҰПИЯ СӨЗ
+            </label>
+            <input
+              type="password"
+              required
+              placeholder="••••••••"
+              className="w-full px-4 py-3 bg-white border border-zinc-300 rounded-lg text-sm text-black placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-3.5 px-4 bg-black text-white text-sm font-semibold rounded-lg hover:bg-zinc-800 transition-all shadow-sm"
+          >
+            Кіру
+          </button>
+        </form>
+
+        <p className="text-center text-sm text-zinc-600 pt-2">
+          Аккаунтыңыз жоқ па?{' '}
+          <Link href="/register" className="font-semibold text-black hover:underline">
+            Тіркелу
+          </Link>
+        </p>
+
       </div>
-    </footer>
-  );
+    </div>
+  )
 }
