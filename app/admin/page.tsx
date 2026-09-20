@@ -750,7 +750,7 @@ function TeachersTab({
 
     const got: Credential[] = Array.isArray(data.credentials) ? data.credentials : []
     if (got.length > 0) setCreds(got)
-    if (!res.ok) setCredMessage(data.error ?? 'Қате шықты')
+    if (!res.ok) setCredMessage(data.error ?? `Қате шықты (код ${res.status})`)
     else if (got.length === 0) setCredMessage('Барлық мұғалімде логин бар')
     await reload()
     return res.ok
