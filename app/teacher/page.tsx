@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { subjects } from '@/lib/subjects'
 import { WEEKDAYS, hhmm, slotGroupName, type ScheduleSlot } from '@/lib/schedule'
 
-type Teacher = { id: string; name: string; subject: string | null }
+type Teacher = { id: string; name: string; subject: string | null; username?: string | null }
 type Material = {
   id: string
   subject: string
@@ -22,7 +22,7 @@ type Test = {
   test_questions: { count: number }[]
 }
 
-type Tab = 'schedule' | 'materials' | 'tests'
+type Tab = 'schedule' | 'materials' | 'tests' | 'profile'
 
 export default function TeacherDashboard() {
   const router = useRouter()
@@ -91,6 +91,7 @@ export default function TeacherDashboard() {
               ['schedule', 'Менің кестем'],
               ['materials', 'Материалдар'],
               ['tests', 'Тесттер'],
+              ['profile', 'Профиль'],
             ] as [Tab, string][]
           ).map(([key, label]) => (
             <button
@@ -115,8 +116,70 @@ export default function TeacherDashboard() {
           />
         )}
         {tab === 'tests' && <TestsTab tests={tests} reload={loadAll} />}
+        {tab === 'profile' && <ProfileTab me={me} onSaved={loadAll} />}
       </div>
     </main>
+  )
+}
+
+function ProfileTab({ me, onSaved }: { me: Teacher | null; onSaved: () => Promise<void> }) {
+  const [name, setName] = useState(me?.name ?? '')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+
+  if (!me) return null
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setMessage(null)
+    if (!name.trim()) return
+    setSaving(true)
+    const res = await fetch('/api/teacher/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    setSaving(false)
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setMessage({ ok: false, text: data.error ?? 'Қате шықты' })
+      return
+    }
+    setMessage({ ok: true, text: 'Сақталды' })
+    await onSaved()
+  }
+
+  return (
+    <section className="mt-8">
+      <form onSubmit={save} className="max-w-md space-y-4 border border-ink/10 bg-card p-4">
+        <label className="block text-sm text-ink/70">
+          Аты-жөні
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-2 w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink"
+          />
+        </label>
+        <div className="text-sm text-ink/60">
+          <p>Логин: <span className="font-medium text-ink">{me.username ?? '—'}</span></p>
+          {me.subject && <p>Пәні: <span className="font-medium text-ink">{me.subject}</span></p>}
+          <p className="mt-1 text-xs text-ink/40">Логин мен пәнді әкімші өзгертеді.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-ink px-5 py-2 text-sm font-medium text-paper transition hover:bg-ink/80 disabled:opacity-60"
+          >
+            {saving ? 'Сақталуда...' : 'Сақтау'}
+          </button>
+          {message && (
+            <p className={`text-sm ${message.ok ? 'text-ink/60' : 'text-coral'}`}>{message.text}</p>
+          )}
+        </div>
+      </form>
+    </section>
   )
 }
 
