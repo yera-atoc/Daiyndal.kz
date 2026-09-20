@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       full_name: body.fullName,
       grade: body.grade ?? null,
       teacher_id: body.teacherId ?? null,
+      group_id: body.groupId || null,
     })
     .select()
     .single()
