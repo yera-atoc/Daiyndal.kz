@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { subjects } from '@/lib/subjects'
+import { WEEKDAYS, hhmm, type ScheduleSlot } from '@/lib/schedule'
 
 type Teacher = { id: string; name: string; subject: string | null }
 type Material = {
@@ -21,25 +22,28 @@ type Test = {
   test_questions: { count: number }[]
 }
 
-type Tab = 'materials' | 'tests'
+type Tab = 'schedule' | 'materials' | 'tests'
 
 export default function TeacherDashboard() {
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>('materials')
+  const [tab, setTab] = useState<Tab>('schedule')
   const [me, setMe] = useState<Teacher | null>(null)
   const [materials, setMaterials] = useState<Material[]>([])
   const [tests, setTests] = useState<Test[]>([])
+  const [slots, setSlots] = useState<ScheduleSlot[]>([])
   const [loading, setLoading] = useState(true)
 
   async function loadAll() {
-    const [meRes, materialsRes, testsRes] = await Promise.all([
+    const [meRes, materialsRes, testsRes, scheduleRes] = await Promise.all([
       fetch('/api/teacher/me'),
       fetch('/api/materials'),
       fetch('/api/tests'),
+      fetch('/api/schedule?mine=1'),
     ])
     if (meRes.ok) setMe(await meRes.json())
     if (materialsRes.ok) setMaterials(await materialsRes.json())
     if (testsRes.ok) setTests(await testsRes.json())
+    if (scheduleRes.ok) setSlots(await scheduleRes.json())
   }
 
   useEffect(() => {
@@ -84,6 +88,7 @@ export default function TeacherDashboard() {
         <div className="flex gap-2">
           {(
             [
+              ['schedule', 'Менің кестем'],
               ['materials', 'Материалдар'],
               ['tests', 'Тесттер'],
             ] as [Tab, string][]
@@ -102,6 +107,7 @@ export default function TeacherDashboard() {
           ))}
         </div>
 
+        {tab === 'schedule' && <ScheduleTab slots={slots} />}
         {tab === 'materials' && (
           <MaterialsTab
             materials={materials}
@@ -111,6 +117,42 @@ export default function TeacherDashboard() {
         {tab === 'tests' && <TestsTab tests={tests} reload={loadAll} />}
       </div>
     </main>
+  )
+}
+
+function ScheduleTab({ slots }: { slots: ScheduleSlot[] }) {
+  // Read-only: the schedule is set by the admin.
+  return (
+    <section className="mt-8">
+      {slots.length === 0 ? (
+        <div className="border border-ink/10 bg-card px-4 py-6 text-sm text-ink/50">
+          Әзірге кесте қойылмаған. Сабақ кестесін әкімші қосады.
+        </div>
+      ) : (
+        <div className="divide-y divide-ink/10 border border-ink/10 bg-card">
+          {WEEKDAYS.map((d) => {
+            const daySlots = slots.filter((s) => s.day_of_week === d.id)
+            if (daySlots.length === 0) return null
+            return (
+              <div key={d.id} className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:gap-6">
+                <p className="w-32 shrink-0 font-medium">{d.name}</p>
+                <div className="flex-1 space-y-2">
+                  {daySlots.map((s) => (
+                    <div key={s.id}>
+                      <p className="font-medium">
+                        {hhmm(s.start_time)}–{hhmm(s.end_time)}
+                        {s.title && <span className="ml-2 font-normal text-ink/70">{s.title}</span>}
+                      </p>
+                      {s.note && <p className="text-sm text-ink/50">{s.note}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </section>
   )
 }
 
