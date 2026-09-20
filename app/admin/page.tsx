@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { WEEKDAYS, hhmm, summarizeSlots, type ScheduleSlot } from '@/lib/schedule'
 
-type Teacher = { 
-  id: string; 
-  name: string; 
-  subject: string | null; 
-  username: string | null;
-  schedule?: string | null; 
+type Teacher = {
+  id: string
+  name: string
+  subject: string | null
+  username: string | null
 }
 
 type Student = {
@@ -23,7 +23,7 @@ type Student = {
 
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-type Tab = 'attendance' | 'students' | 'teachers' | 'stats' | 'sheets'
+type Tab = 'attendance' | 'students' | 'teachers' | 'schedule' | 'stats' | 'sheets'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -35,17 +35,21 @@ export default function AdminDashboard() {
 
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [students, setStudents] = useState<Student[]>([])
+  const [slots, setSlots] = useState<ScheduleSlot[]>([])
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [date, setDate] = useState(todayISO())
   const [loading, setLoading] = useState(true)
 
   async function loadCore() {
-    const [teachersRes, studentsRes] = await Promise.all([
+    const [teachersRes, studentsRes, scheduleRes] = await Promise.all([
       fetch('/api/teachers'),
       fetch('/api/students'),
+      fetch('/api/schedule'),
     ])
     setTeachers(await teachersRes.json())
     setStudents(await studentsRes.json())
+    // If the schedule table isn't created yet, keep the rest of the panel working.
+    setSlots(scheduleRes.ok ? await scheduleRes.json() : [])
   }
 
   async function loadAttendance(forDate: string) {
@@ -125,6 +129,7 @@ export default function AdminDashboard() {
               ['attendance', 'Қатысу'],
               ['students', 'Оқушылар & CRM'],
               ['teachers', 'Мұғалімдер'],
+              ['schedule', 'Мұғалімдер кестесі'],
               ['stats', 'Айлық статистика'],
               ['sheets', 'Таблица'],
             ] as [Tab, string][]
@@ -149,6 +154,7 @@ export default function AdminDashboard() {
             setDate={setDate}
             students={students}
             teachers={teachers}
+            slots={slots}
             attendance={attendance}
             onToggle={toggleAttendance}
           />
@@ -163,7 +169,11 @@ export default function AdminDashboard() {
         )}
 
         {tab === 'teachers' && (
-          <TeachersTab teachers={teachers} reload={loadCore} />
+          <TeachersTab teachers={teachers} slots={slots} reload={loadCore} />
+        )}
+
+        {tab === 'schedule' && (
+          <ScheduleTab teachers={teachers} slots={slots} reload={loadCore} />
         )}
 
         {tab === 'stats' && <StatsTab students={students} attendance={attendance} />}
@@ -249,6 +259,7 @@ function AttendanceTab({
   setDate,
   students,
   teachers,
+  slots,
   attendance,
   onToggle,
 }: {
@@ -256,17 +267,23 @@ function AttendanceTab({
   setDate: (d: string) => void
   students: Student[]
   teachers: Teacher[]
+  slots: ScheduleSlot[]
   attendance: AttendanceRecord[]
   onToggle: (studentId: string, present: boolean) => void
 }) {
   const grouped = useMemo(() => {
-    const teacherMap = new Map(teachers.map((t) => [t.id, { name: t.name, schedule: t.schedule }]))
+    const teacherMap = new Map(
+      teachers.map((t) => [
+        t.id,
+        { name: t.name, schedule: summarizeSlots(slots.filter((sl) => sl.teacher_id === t.id)) },
+      ])
+    )
     const map = new Map<string, { students: Student[]; schedule?: string | null }>()
     
     for (const s of students) {
       const teacherInfo = s.teacher_id ? teacherMap.get(s.teacher_id) : null
       const key = teacherInfo ? teacherInfo.name : 'Топсыз оқушылар'
-      const schedule = teacherInfo?.schedule ?? null
+      const schedule = teacherInfo?.schedule || null
 
       if (!map.has(key)) {
         map.set(key, { students: [], schedule })
@@ -274,7 +291,7 @@ function AttendanceTab({
       map.get(key)!.students.push(s)
     }
     return Array.from(map.entries())
-  }, [students, teachers])
+  }, [students, teachers, slots])
 
   const presentCount = attendance.filter((a) => a.present).length
 
@@ -608,14 +625,15 @@ function StudentEditForm({
 
 function TeachersTab({
   teachers,
+  slots,
   reload,
 }: {
   teachers: Teacher[]
+  slots: ScheduleSlot[]
   reload: () => Promise<void>
 }) {
   const [name, setName] = useState('')
   const [subject, setSubject] = useState('')
-  const [schedule, setSchedule] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
@@ -628,11 +646,10 @@ function TeachersTab({
     await fetch('/api/teachers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, subject, schedule, username, password }),
+      body: JSON.stringify({ name, subject, username, password }),
     })
     setName('')
     setSubject('')
-    setSchedule('')
     setUsername('')
     setPassword('')
     await reload()
@@ -660,12 +677,6 @@ function TeachersTab({
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Пәні (мысалы: IELTS)"
             className="w-44 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
-          />
-          <input
-            value={schedule}
-            onChange={(e) => setSchedule(e.target.value)}
-            placeholder="Сабақ уақыты (мысалы: 15:00)"
-            className="w-48 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
           />
         </div>
         <div className="flex flex-wrap gap-3">
@@ -698,7 +709,9 @@ function TeachersTab({
               <p className="text-xs font-semibold text-zinc-900">{t.name}</p>
               <p className="text-[10px] text-zinc-500 mt-0.5">
                 {t.subject ? `${t.subject} · ` : ''}
-                {t.schedule ? `Уақыты: ${t.schedule} · ` : ''}
+                {summarizeSlots(slots.filter((sl) => sl.teacher_id === t.id))
+                  ? `Кесте: ${summarizeSlots(slots.filter((sl) => sl.teacher_id === t.id))} · `
+                  : ''}
                 {t.username ? `Логин: ${t.username}` : 'Кіру жоқ'}
               </p>
             </div>
@@ -713,6 +726,355 @@ function TeachersTab({
         {teachers.length === 0 && <p className="p-6 text-center text-xs text-zinc-400">Тізім бос</p>}
       </div>
     </section>
+  )
+}
+
+function ScheduleTab({
+  teachers,
+  slots,
+  reload,
+}: {
+  teachers: Teacher[]
+  slots: ScheduleSlot[]
+  reload: () => Promise<void>
+}) {
+  const [teacherId, setTeacherId] = useState('')
+  const [days, setDays] = useState<number[]>([])
+  const [startTime, setStartTime] = useState('15:00')
+  const [endTime, setEndTime] = useState('16:00')
+  const [title, setTitle] = useState('')
+  const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // '' = show every teacher's slots
+  const [filterTeacherId, setFilterTeacherId] = useState('')
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null)
+
+  const teacherName = useMemo(
+    () => new Map(teachers.map((t) => [t.id, t.name])),
+    [teachers]
+  )
+
+  const visibleSlots = filterTeacherId
+    ? slots.filter((s) => s.teacher_id === filterTeacherId)
+    : slots
+
+  function toggleDay(id: number) {
+    setDays((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]))
+  }
+
+  async function addSlots(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    if (!teacherId) return setError('Мұғалімді таңдаңыз')
+    if (days.length === 0) return setError('Кемінде бір күнді таңдаңыз')
+
+    setSaving(true)
+    const res = await fetch('/api/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacherId, days, startTime, endTime, title, note }),
+    })
+    setSaving(false)
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error ?? 'Қате шықты')
+      return
+    }
+
+    setDays([])
+    setTitle('')
+    setNote('')
+    await reload()
+  }
+
+  async function removeSlot(id: string) {
+    await fetch(`/api/schedule/${id}`, { method: 'DELETE' })
+    await reload()
+  }
+
+  return (
+    <section className="mt-8 space-y-6">
+      <form
+        onSubmit={addSlots}
+        className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
+      >
+        <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-800">
+          Мұғалімге сабақ уақытын қою
+        </h3>
+
+        <div className="flex flex-wrap gap-3">
+          <select
+            value={teacherId}
+            onChange={(e) => setTeacherId(e.target.value)}
+            className="min-w-[200px] rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 focus:outline-none"
+          >
+            <option value="">Мұғалімді таңдаңыз</option>
+            {teachers.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+                {t.subject ? ` (${t.subject})` : ''}
+              </option>
+            ))}
+          </select>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Топ / пән (міндетті емес)"
+            className="min-w-[180px] flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[10px] text-zinc-500">Күндер:</span>
+          {WEEKDAYS.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => toggleDay(d.id)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                days.includes(d.id)
+                  ? 'bg-zinc-900 text-white shadow-sm'
+                  : 'border border-zinc-200 text-zinc-600 hover:border-zinc-400 hover:text-zinc-900'
+              }`}
+              title={d.name}
+            >
+              {d.short}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-zinc-500">Басталуы:</span>
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-zinc-500">Аяқталуы:</span>
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+            />
+          </div>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Ескертпе, кабинет (міндетті емес)"
+            className="min-w-[200px] flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
+          />
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-xl bg-zinc-900 px-5 py-2 text-xs font-medium text-white transition-all hover:bg-zinc-800 disabled:opacity-50"
+          >
+            {saving ? 'Сақталуда...' : 'Қосу'}
+          </button>
+        </div>
+
+        {error && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+            {error}
+          </p>
+        )}
+      </form>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
+        <span className="px-2 text-[10px] text-zinc-500">Көрсету:</span>
+        <button
+          onClick={() => setFilterTeacherId('')}
+          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+            filterTeacherId === ''
+              ? 'bg-zinc-900 text-white shadow-sm'
+              : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'
+          }`}
+        >
+          Барлығы
+        </button>
+        {teachers.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setFilterTeacherId(t.id)}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              filterTeacherId === t.id
+                ? 'bg-zinc-900 text-white shadow-sm'
+                : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'
+            }`}
+          >
+            {t.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        {WEEKDAYS.map((d) => {
+          const daySlots = visibleSlots.filter((s) => s.day_of_week === d.id)
+          return (
+            <div key={d.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:gap-6">
+              <p className="w-28 shrink-0 text-xs font-semibold text-zinc-800">{d.name}</p>
+              <div className="flex-1 space-y-2">
+                {daySlots.length === 0 && <p className="text-[11px] text-zinc-300">—</p>}
+                {daySlots.map((s) => (
+                  <div key={s.id}>
+                  <div className="flex items-start justify-between gap-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2">
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-900">
+                        {hhmm(s.start_time)}–{hhmm(s.end_time)}
+                        <span className="ml-2 font-medium text-zinc-600">
+                          {teacherName.get(s.teacher_id) ?? 'Белгісіз мұғалім'}
+                        </span>
+                      </p>
+                      {(s.title || s.note) && (
+                        <p className="mt-0.5 text-[10px] text-zinc-500">
+                          {[s.title, s.note].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <button
+                        onClick={() => setEditingSlotId(editingSlotId === s.id ? null : s.id)}
+                        className="text-xs text-zinc-500 hover:text-zinc-900"
+                      >
+                        {editingSlotId === s.id ? 'Жабу' : 'Өзгерту'}
+                      </button>
+                      <button
+                        onClick={() => removeSlot(s.id)}
+                        className="text-xs text-red-500 hover:text-red-700"
+                      >
+                        Жою
+                      </button>
+                    </div>
+                  </div>
+                  {editingSlotId === s.id && (
+                    <SlotEditForm
+                      slot={s}
+                      teachers={teachers}
+                      onDone={async () => {
+                        setEditingSlotId(null)
+                        await reload()
+                      }}
+                    />
+                  )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function SlotEditForm({
+  slot,
+  teachers,
+  onDone,
+}: {
+  slot: ScheduleSlot
+  teachers: Teacher[]
+  onDone: () => Promise<void>
+}) {
+  const [teacherId, setTeacherId] = useState(slot.teacher_id)
+  const [day, setDay] = useState(slot.day_of_week)
+  const [startTime, setStartTime] = useState(hhmm(slot.start_time))
+  const [endTime, setEndTime] = useState(hhmm(slot.end_time))
+  const [title, setTitle] = useState(slot.title ?? '')
+  const [note, setNote] = useState(slot.note ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setSaving(true)
+    const res = await fetch(`/api/schedule/${slot.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacherId, days: [day], startTime, endTime, title, note }),
+    })
+    setSaving(false)
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error ?? 'Қате шықты')
+      return
+    }
+    await onDone()
+  }
+
+  return (
+    <form onSubmit={save} className="mt-2 space-y-2 rounded-xl border border-zinc-200 bg-white p-3">
+      <div className="flex flex-wrap gap-2">
+        <select
+          value={teacherId}
+          onChange={(e) => setTeacherId(e.target.value)}
+          className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+        >
+          {teachers.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={day}
+          onChange={(e) => setDay(Number(e.target.value))}
+          className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+        >
+          {WEEKDAYS.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+        <input
+          type="time"
+          value={startTime}
+          onChange={(e) => setStartTime(e.target.value)}
+          className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+        />
+        <input
+          type="time"
+          value={endTime}
+          onChange={(e) => setEndTime(e.target.value)}
+          className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Топ / пән"
+          className="min-w-[140px] flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900 placeholder-zinc-400"
+        />
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Ескертпе, кабинет"
+          className="min-w-[140px] flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900 placeholder-zinc-400"
+        />
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+        >
+          {saving ? 'Сақталуда...' : 'Сақтау'}
+        </button>
+      </div>
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-600">
+          {error}
+        </p>
+      )}
+    </form>
   )
 }
 
