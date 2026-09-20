@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { subjects } from '@/lib/subjects'
-import { WEEKDAYS, hhmm, type ScheduleSlot } from '@/lib/schedule'
+import { WEEKDAYS, hhmm, slotGroupName, type ScheduleSlot } from '@/lib/schedule'
 
 type Teacher = { id: string; name: string; subject: string | null }
 type Material = {
@@ -141,6 +141,11 @@ function ScheduleTab({ slots }: { slots: ScheduleSlot[] }) {
                     <div key={s.id}>
                       <p className="font-medium">
                         {hhmm(s.start_time)}–{hhmm(s.end_time)}
+                        {slotGroupName(s) && (
+                          <span className="ml-2 border border-ink/20 px-2 py-0.5 text-xs font-medium">
+                            {slotGroupName(s)}
+                          </span>
+                        )}
                         {s.title && <span className="ml-2 font-normal text-ink/70">{s.title}</span>}
                       </p>
                       {s.note && <p className="text-sm text-ink/50">{s.note}</p>}
