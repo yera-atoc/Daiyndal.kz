@@ -3,6 +3,11 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { isAdmin } from '@/lib/requireAdmin'
 
 export async function GET(req: NextRequest) {
+  // Student names are personal data: admin only.
+  if (!(await isAdmin())) {
+    return NextResponse.json({ error: 'Рұқсат жоқ' }, { status: 401 })
+  }
+
   const teacherId = req.nextUrl.searchParams.get('teacherId')
 
   let query = supabaseAdmin.from('students').select('*').order('full_name')
