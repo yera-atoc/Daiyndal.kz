@@ -13,14 +13,6 @@ type Teacher = {
 
 type Group = { id: string; name: string }
 
-type Credential = {
-  id: string
-  name: string
-  subject: string | null
-  username: string
-  password: string
-}
-
 type Student = {
   id: string
   full_name: string
@@ -727,72 +719,30 @@ function TeachersTab({
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
-  const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null)
-  const [creds, setCreds] = useState<Credential[] | null>(null)
-  const [credMessage, setCredMessage] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [bulkText, setBulkText] = useState('')
-
-  const missingCount = teachers.filter((t) => !t.username).length
-
-  // Asks the server to issue logins/passwords. Passwords come back in plain
-  // text only in this response — the database keeps just a hash.
-  async function requestCredentials(payload: Record<string, unknown>): Promise<boolean> {
-    setBusy(true)
-    setCredMessage(null)
-    const res = await fetch('/api/teachers/credentials', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const data = await res.json().catch(() => ({}))
-    setBusy(false)
-
-    const got: Credential[] = Array.isArray(data.credentials) ? data.credentials : []
-    if (got.length > 0) setCreds(got)
-    if (!res.ok) setCredMessage(data.error ?? `Қате шықты (код ${res.status})`)
-    else if (got.length === 0) setCredMessage('Барлық мұғалімде логин бар')
-    await reload()
-    return res.ok
-  }
-
-  async function addBulk() {
-    // One teacher per line: "Аты-жөні, Пәні"
-    const people = bulkText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const i = line.lastIndexOf(',')
-        return i === -1
-          ? { name: line, subject: '' }
-          : { name: line.slice(0, i).trim(), subject: line.slice(i + 1).trim() }
-      })
-      .filter((p) => p.name)
-    if (people.length === 0) return
-    if (await requestCredentials({ mode: 'create', people })) setBulkText('')
-  }
-
-  async function resetPassword(t: Teacher) {
-    if (!window.confirm(`${t.name} үшін жаңа пароль жасау керек пе? Ескі пароль істемей қалады.`)) return
-    await requestCredentials({ mode: 'reset', teacherId: t.id })
-  }
+  const [addError, setAddError] = useState<string | null>(null)
+  const [loginEditId, setLoginEditId] = useState<string | null>(null)
 
   async function addTeacher(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
-    await fetch('/api/teachers', {
+    setAddError(null)
+    const res = await fetch('/api/teachers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, subject, username, password }),
     })
+    const data = await res.json().catch(() => ({}))
+    setSaving(false)
+    if (!res.ok) {
+      setAddError(data.error ?? `Қате шықты (код ${res.status})`)
+      return
+    }
     setName('')
     setSubject('')
     setUsername('')
     setPassword('')
     await reload()
-    setSaving(false)
   }
 
   async function removeTeacher(id: string) {
@@ -804,6 +754,10 @@ function TeachersTab({
     <section className="mt-8 space-y-6">
       <form onSubmit={addTeacher} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm space-y-3">
         <h3 className="text-xs font-bold text-zinc-800 uppercase tracking-wide">Жаңа мұғалім қосу</h3>
+        <p className="text-[11px] leading-relaxed text-zinc-500">
+          Логин мен құпия сөзді мұғалімге өзіңіз ойлап қойыңыз (кездейсоқ жасалмайды). Кіру мәліметтерін
+          кейінірек те қоюға болады — төмендегі тізімнен «Логин/пароль қою» түймесін басыңыз.
+        </p>
         <div className="flex flex-wrap gap-3">
           <input
             value={name}
@@ -822,95 +776,73 @@ function TeachersTab({
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Логин"
-            className="w-40 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
+            placeholder="Логин (міндетті емес, кейін де қоюға болады)"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            className="w-64 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
           />
           <input
+            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Құпия сөз"
-            className="w-40 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
+            placeholder="Құпия сөз (кемінде 8 таңба)"
+            autoComplete="new-password"
+            className="w-56 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
           />
           <button
             type="submit"
             disabled={saving}
-            className="rounded-xl bg-zinc-900 px-5 py-2 text-xs font-medium text-white transition-all hover:bg-zinc-800"
+            className="rounded-xl bg-zinc-900 px-5 py-2 text-xs font-medium text-white transition-all hover:bg-zinc-800 disabled:opacity-50"
           >
             Қосу
           </button>
         </div>
-      </form>
-
-      <div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-800">
-          Логин мен пароль беру
-        </h3>
-        <p className="text-[11px] leading-relaxed text-zinc-500">
-          Әр жолға бір мұғалім: «Аты-жөні, Пәні». Логин пәнге қарай жасалады (IELTS → ielts1, ielts2;
-          DET → det1), пароль әрқайсысына бөлек кездейсоқ беріледі. Парольдер тек бір рет көрсетіледі.
-        </p>
-        <textarea
-          value={bulkText}
-          onChange={(e) => setBulkText(e.target.value)}
-          rows={5}
-          placeholder={'Айгүл Серікова, IELTS\nДәулет Ахметов, DET\nАрман Қайратов, Математика'}
-          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={addBulk}
-            disabled={busy || !bulkText.trim()}
-            className="rounded-xl bg-zinc-900 px-5 py-2 text-xs font-medium text-white transition-all hover:bg-zinc-800 disabled:opacity-50"
-          >
-            Тізімді қосып, логин/пароль беру
-          </button>
-          <button
-            type="button"
-            onClick={() => requestCredentials({ mode: 'missing' })}
-            disabled={busy || missingCount === 0}
-            className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-700 transition-all hover:border-zinc-400 disabled:opacity-40"
-          >
-            Логині жоқтарға беру ({missingCount})
-          </button>
-        </div>
-        {credMessage && (
-          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            {credMessage}
+        {addError && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+            {addError}
           </p>
         )}
-      </div>
-
-      {creds && <CredentialsPanel creds={creds} onClose={() => setCreds(null)} />}
+      </form>
 
       <div className="rounded-2xl border border-zinc-200 bg-white divide-y divide-zinc-100 shadow-sm">
         {teachers.map((t) => (
-          <div key={t.id} className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-zinc-900">{t.name}</p>
-              <p className="text-[10px] text-zinc-500 mt-0.5">
-                {t.subject ? `${t.subject} · ` : ''}
-                {summarizeSlots(slots.filter((sl) => sl.teacher_id === t.id))
-                  ? `Кесте: ${summarizeSlots(slots.filter((sl) => sl.teacher_id === t.id))} · `
-                  : ''}
-                {t.username ? `Логин: ${t.username}` : 'Кіру жоқ'}
-              </p>
+          <div key={t.id} className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-zinc-900">{t.name}</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">
+                  {t.subject ? `${t.subject} · ` : ''}
+                  {summarizeSlots(slots.filter((sl) => sl.teacher_id === t.id))
+                    ? `Кесте: ${summarizeSlots(slots.filter((sl) => sl.teacher_id === t.id))} · `
+                    : ''}
+                  {t.username ? `Логин: ${t.username}` : 'Кіру жоқ'}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setLoginEditId(loginEditId === t.id ? null : t.id)}
+                  className="text-xs text-zinc-500 hover:text-zinc-900"
+                >
+                  {loginEditId === t.id ? 'Жабу' : 'Логин/пароль қою'}
+                </button>
+                <button
+                  onClick={() => removeTeacher(t.id)}
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  Жою
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => resetPassword(t)}
-                disabled={busy}
-                className="text-xs text-zinc-500 hover:text-zinc-900 disabled:opacity-40"
-              >
-                {t.username ? 'Жаңа пароль' : 'Логин беру'}
-              </button>
-              <button
-                onClick={() => removeTeacher(t.id)}
-                className="text-xs text-red-500 hover:text-red-700"
-              >
-                Жою
-              </button>
-            </div>
+            {loginEditId === t.id && (
+              <TeacherCredentialForm
+                teacher={t}
+                onDone={async () => {
+                  setLoginEditId(null)
+                  await reload()
+                }}
+              />
+            )}
           </div>
         ))}
         {teachers.length === 0 && <p className="p-6 text-center text-xs text-zinc-400">Тізім бос</p>}
@@ -919,87 +851,88 @@ function TeachersTab({
   )
 }
 
-function CredentialsPanel({ creds, onClose }: { creds: Credential[]; onClose: () => void }) {
-  const [copied, setCopied] = useState<boolean | null>(null)
-  const loginUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}/teacher/login` : '/teacher/login'
+// Admin-only: types the login and password in by hand. Nothing here is
+// generated automatically or at random.
+function TeacherCredentialForm({
+  teacher,
+  onDone,
+}: {
+  teacher: Teacher
+  onDone: () => Promise<void>
+}) {
+  const [username, setUsername] = useState(teacher.username ?? '')
+  const [password, setPassword] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
 
-  const text =
-    `Кіру беті: ${loginUrl}\n\n` +
-    creds
-      .map(
-        (c) =>
-          `${c.name}${c.subject ? ` (${c.subject})` : ''}\nЛогин: ${c.username}\nҚұпия сөз: ${c.password}`
-      )
-      .join('\n\n')
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setSaved(false)
+    setSaving(true)
+    const res = await fetch(`/api/teachers/${teacher.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setSaving(false)
 
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-    } catch {
-      setCopied(false)
+    if (!res.ok) {
+      setError(data.error ?? `Қате шықты (код ${res.status})`)
+      return
     }
+    setSaved(true)
+    setPassword('')
+    await onDone()
   }
 
   return (
-    <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-800">
-            Логиндер мен парольдер
-          </h3>
-          <p className="mt-1 text-[11px] text-amber-700">
-            Парольдер қауіпсіздік үшін сақталмайды: қазір көшіріп алыңыз. Жабылған соң қайта көрінбейді
-            (қажет болса «Жаңа пароль» жасаңыз).
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={copy}
-            className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-medium text-white"
-          >
-            Барлығын көшіру
-          </button>
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-zinc-200 bg-white px-4 py-1.5 text-xs font-medium text-zinc-600"
-          >
-            Жабу
-          </button>
-        </div>
+    <form onSubmit={save} className="mt-3 space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Логин"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="w-44 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900"
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={teacher.username ? 'Жаңа құпия сөз (бос қалдырсаңыз өзгермейді)' : 'Құпия сөз'}
+          autoComplete="new-password"
+          className="min-w-[240px] flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900"
+        />
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+        >
+          {saving ? 'Сақталуда...' : 'Сақтау'}
+        </button>
       </div>
-
-      {copied === true && <p className="text-[11px] text-emerald-700">Көшірілді</p>}
-      {copied === false && (
-        <p className="text-[11px] text-red-600">Көшіру мүмкін болмады — кестеден қолмен көшіріңіз</p>
+      <p className="text-[10px] text-zinc-400">
+        Логин мен парольді мұғалімге өзіңіз хабарлайсыз — жүйе оларды кездейсоқ жасамайды.
+      </p>
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-600">
+          {error}
+        </p>
       )}
-
-      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-500">
-              <th className="p-3 font-medium">Мұғалім</th>
-              <th className="p-3 font-medium">Пәні</th>
-              <th className="p-3 font-medium">Логин</th>
-              <th className="p-3 font-medium">Құпия сөз</th>
-            </tr>
-          </thead>
-          <tbody>
-            {creds.map((c) => (
-              <tr key={c.id} className="border-b border-zinc-100 last:border-0">
-                <td className="p-3 text-zinc-800">{c.name}</td>
-                <td className="p-3 text-zinc-500">{c.subject ?? '—'}</td>
-                <td className="select-all p-3 font-mono text-zinc-900">{c.username}</td>
-                <td className="select-all p-3 font-mono text-zinc-900">{c.password}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      {saved && !error && (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">
+          Сақталды
+        </p>
+      )}
+    </form>
   )
 }
+
 
 function GroupsTab({
   groups,
