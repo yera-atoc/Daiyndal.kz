@@ -18,7 +18,7 @@ export default function TeacherLoginPage() {
     const res = await fetch('/api/teacher/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: username.trim(), password }),
     })
 
     setLoading(false)
@@ -53,6 +53,10 @@ export default function TeacherLoginPage() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoFocus
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            autoComplete="username"
             className="mt-2 w-full border border-ink/20 bg-paper px-4 py-2 text-ink outline-none focus:border-mustard"
           />
         </label>
@@ -63,6 +67,7 @@ export default function TeacherLoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
             className="mt-2 w-full border border-ink/20 bg-paper px-4 py-2 text-ink outline-none focus:border-mustard"
           />
         </label>
