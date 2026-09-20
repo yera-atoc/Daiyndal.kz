@@ -13,6 +13,14 @@ type Teacher = {
 
 type Group = { id: string; name: string }
 
+type Credential = {
+  id: string
+  name: string
+  subject: string | null
+  username: string
+  password: string
+}
+
 type Student = {
   id: string
   full_name: string
@@ -720,6 +728,55 @@ function TeachersTab({
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null)
+  const [creds, setCreds] = useState<Credential[] | null>(null)
+  const [credMessage, setCredMessage] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [bulkText, setBulkText] = useState('')
+
+  const missingCount = teachers.filter((t) => !t.username).length
+
+  // Asks the server to issue logins/passwords. Passwords come back in plain
+  // text only in this response — the database keeps just a hash.
+  async function requestCredentials(payload: Record<string, unknown>): Promise<boolean> {
+    setBusy(true)
+    setCredMessage(null)
+    const res = await fetch('/api/teachers/credentials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json().catch(() => ({}))
+    setBusy(false)
+
+    const got: Credential[] = Array.isArray(data.credentials) ? data.credentials : []
+    if (got.length > 0) setCreds(got)
+    if (!res.ok) setCredMessage(data.error ?? 'Қате шықты')
+    else if (got.length === 0) setCredMessage('Барлық мұғалімде логин бар')
+    await reload()
+    return res.ok
+  }
+
+  async function addBulk() {
+    // One teacher per line: "Аты-жөні, Пәні"
+    const people = bulkText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const i = line.lastIndexOf(',')
+        return i === -1
+          ? { name: line, subject: '' }
+          : { name: line.slice(0, i).trim(), subject: line.slice(i + 1).trim() }
+      })
+      .filter((p) => p.name)
+    if (people.length === 0) return
+    if (await requestCredentials({ mode: 'create', people })) setBulkText('')
+  }
+
+  async function resetPassword(t: Teacher) {
+    if (!window.confirm(`${t.name} үшін жаңа пароль жасау керек пе? Ескі пароль істемей қалады.`)) return
+    await requestCredentials({ mode: 'reset', teacherId: t.id })
+  }
 
   async function addTeacher(e: React.FormEvent) {
     e.preventDefault()
@@ -784,6 +841,48 @@ function TeachersTab({
         </div>
       </form>
 
+      <div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-800">
+          Логин мен пароль беру
+        </h3>
+        <p className="text-[11px] leading-relaxed text-zinc-500">
+          Әр жолға бір мұғалім: «Аты-жөні, Пәні». Логин пәнге қарай жасалады (IELTS → ielts1, ielts2;
+          DET → det1), пароль әрқайсысына бөлек кездейсоқ беріледі. Парольдер тек бір рет көрсетіледі.
+        </p>
+        <textarea
+          value={bulkText}
+          onChange={(e) => setBulkText(e.target.value)}
+          rows={5}
+          placeholder={'Айгүл Серікова, IELTS\nДәулет Ахметов, DET\nАрман Қайратов, Математика'}
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={addBulk}
+            disabled={busy || !bulkText.trim()}
+            className="rounded-xl bg-zinc-900 px-5 py-2 text-xs font-medium text-white transition-all hover:bg-zinc-800 disabled:opacity-50"
+          >
+            Тізімді қосып, логин/пароль беру
+          </button>
+          <button
+            type="button"
+            onClick={() => requestCredentials({ mode: 'missing' })}
+            disabled={busy || missingCount === 0}
+            className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-700 transition-all hover:border-zinc-400 disabled:opacity-40"
+          >
+            Логині жоқтарға беру ({missingCount})
+          </button>
+        </div>
+        {credMessage && (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            {credMessage}
+          </p>
+        )}
+      </div>
+
+      {creds && <CredentialsPanel creds={creds} onClose={() => setCreds(null)} />}
+
       <div className="rounded-2xl border border-zinc-200 bg-white divide-y divide-zinc-100 shadow-sm">
         {teachers.map((t) => (
           <div key={t.id} className="p-4 flex items-center justify-between">
@@ -797,17 +896,108 @@ function TeachersTab({
                 {t.username ? `Логин: ${t.username}` : 'Кіру жоқ'}
               </p>
             </div>
-            <button
-              onClick={() => removeTeacher(t.id)}
-              className="text-xs text-red-500 hover:text-red-700"
-            >
-              Жою
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => resetPassword(t)}
+                disabled={busy}
+                className="text-xs text-zinc-500 hover:text-zinc-900 disabled:opacity-40"
+              >
+                {t.username ? 'Жаңа пароль' : 'Логин беру'}
+              </button>
+              <button
+                onClick={() => removeTeacher(t.id)}
+                className="text-xs text-red-500 hover:text-red-700"
+              >
+                Жою
+              </button>
+            </div>
           </div>
         ))}
         {teachers.length === 0 && <p className="p-6 text-center text-xs text-zinc-400">Тізім бос</p>}
       </div>
     </section>
+  )
+}
+
+function CredentialsPanel({ creds, onClose }: { creds: Credential[]; onClose: () => void }) {
+  const [copied, setCopied] = useState<boolean | null>(null)
+  const loginUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}/teacher/login` : '/teacher/login'
+
+  const text =
+    `Кіру беті: ${loginUrl}\n\n` +
+    creds
+      .map(
+        (c) =>
+          `${c.name}${c.subject ? ` (${c.subject})` : ''}\nЛогин: ${c.username}\nҚұпия сөз: ${c.password}`
+      )
+      .join('\n\n')
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-800">
+            Логиндер мен парольдер
+          </h3>
+          <p className="mt-1 text-[11px] text-amber-700">
+            Парольдер қауіпсіздік үшін сақталмайды: қазір көшіріп алыңыз. Жабылған соң қайта көрінбейді
+            (қажет болса «Жаңа пароль» жасаңыз).
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={copy}
+            className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-medium text-white"
+          >
+            Барлығын көшіру
+          </button>
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-zinc-200 bg-white px-4 py-1.5 text-xs font-medium text-zinc-600"
+          >
+            Жабу
+          </button>
+        </div>
+      </div>
+
+      {copied === true && <p className="text-[11px] text-emerald-700">Көшірілді</p>}
+      {copied === false && (
+        <p className="text-[11px] text-red-600">Көшіру мүмкін болмады — кестеден қолмен көшіріңіз</p>
+      )}
+
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-500">
+              <th className="p-3 font-medium">Мұғалім</th>
+              <th className="p-3 font-medium">Пәні</th>
+              <th className="p-3 font-medium">Логин</th>
+              <th className="p-3 font-medium">Құпия сөз</th>
+            </tr>
+          </thead>
+          <tbody>
+            {creds.map((c) => (
+              <tr key={c.id} className="border-b border-zinc-100 last:border-0">
+                <td className="p-3 text-zinc-800">{c.name}</td>
+                <td className="p-3 text-zinc-500">{c.subject ?? '—'}</td>
+                <td className="select-all p-3 font-mono text-zinc-900">{c.username}</td>
+                <td className="select-all p-3 font-mono text-zinc-900">{c.password}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   )
 }
 
