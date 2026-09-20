@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { WEEKDAYS, hhmm, summarizeSlots, type ScheduleSlot } from '@/lib/schedule'
+import { WEEKDAYS, hhmm, slotGroupName, summarizeSlots, type ScheduleSlot } from '@/lib/schedule'
 
 type Teacher = {
   id: string
@@ -11,11 +11,14 @@ type Teacher = {
   username: string | null
 }
 
+type Group = { id: string; name: string }
+
 type Student = {
   id: string
   full_name: string
   grade: number | null
   teacher_id: string | null
+  group_id?: string | null
   payment_date?: string | null     // Төленген күні
   payment_deadline?: string | null // Келесі төлем уақыты
   comment?: string | null          // Жеке комментарий
@@ -23,7 +26,7 @@ type Student = {
 
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-type Tab = 'attendance' | 'students' | 'teachers' | 'schedule' | 'stats' | 'sheets'
+type Tab = 'attendance' | 'students' | 'groups' | 'teachers' | 'schedule' | 'stats' | 'sheets'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -36,20 +39,23 @@ export default function AdminDashboard() {
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [students, setStudents] = useState<Student[]>([])
   const [slots, setSlots] = useState<ScheduleSlot[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [date, setDate] = useState(todayISO())
   const [loading, setLoading] = useState(true)
 
   async function loadCore() {
-    const [teachersRes, studentsRes, scheduleRes] = await Promise.all([
+    const [teachersRes, studentsRes, scheduleRes, groupsRes] = await Promise.all([
       fetch('/api/teachers'),
       fetch('/api/students'),
       fetch('/api/schedule'),
+      fetch('/api/groups'),
     ])
     setTeachers(await teachersRes.json())
     setStudents(await studentsRes.json())
     // If the schedule table isn't created yet, keep the rest of the panel working.
     setSlots(scheduleRes.ok ? await scheduleRes.json() : [])
+    setGroups(groupsRes.ok ? await groupsRes.json() : [])
   }
 
   async function loadAttendance(forDate: string) {
@@ -128,6 +134,7 @@ export default function AdminDashboard() {
             [
               ['attendance', 'Қатысу'],
               ['students', 'Оқушылар & CRM'],
+              ['groups', 'Топтар'],
               ['teachers', 'Мұғалімдер'],
               ['schedule', 'Мұғалімдер кестесі'],
               ['stats', 'Айлық статистика'],
@@ -154,6 +161,7 @@ export default function AdminDashboard() {
             setDate={setDate}
             students={students}
             teachers={teachers}
+            groups={groups}
             slots={slots}
             attendance={attendance}
             onToggle={toggleAttendance}
@@ -164,6 +172,17 @@ export default function AdminDashboard() {
           <StudentsTab
             students={students}
             teachers={teachers}
+            groups={groups}
+            reload={loadCore}
+          />
+        )}
+
+        {tab === 'groups' && (
+          <GroupsTab
+            groups={groups}
+            students={students}
+            teachers={teachers}
+            slots={slots}
             reload={loadCore}
           />
         )}
@@ -173,7 +192,7 @@ export default function AdminDashboard() {
         )}
 
         {tab === 'schedule' && (
-          <ScheduleTab teachers={teachers} slots={slots} reload={loadCore} />
+          <ScheduleTab teachers={teachers} groups={groups} slots={slots} reload={loadCore} />
         )}
 
         {tab === 'stats' && <StatsTab students={students} attendance={attendance} />}
@@ -259,6 +278,7 @@ function AttendanceTab({
   setDate,
   students,
   teachers,
+  groups,
   slots,
   attendance,
   onToggle,
@@ -267,6 +287,7 @@ function AttendanceTab({
   setDate: (d: string) => void
   students: Student[]
   teachers: Teacher[]
+  groups: Group[]
   slots: ScheduleSlot[]
   attendance: AttendanceRecord[]
   onToggle: (studentId: string, present: boolean) => void
@@ -278,20 +299,48 @@ function AttendanceTab({
         { name: t.name, schedule: summarizeSlots(slots.filter((sl) => sl.teacher_id === t.id)) },
       ])
     )
-    const map = new Map<string, { students: Student[]; schedule?: string | null }>()
-    
+    const groupMap = new Map(groups.map((g) => [g.id, g]))
+    const map = new Map<
+      string,
+      { label: string; students: Student[]; schedule: string | null; teachers: string | null }
+    >()
+
     for (const s of students) {
+      const group = s.group_id ? groupMap.get(s.group_id) : null
       const teacherInfo = s.teacher_id ? teacherMap.get(s.teacher_id) : null
-      const key = teacherInfo ? teacherInfo.name : 'Топсыз оқушылар'
-      const schedule = teacherInfo?.schedule || null
+
+      let key: string
+      let label: string
+      let schedule: string | null = null
+      let teacherNames: string | null = null
+
+      if (group) {
+        // Students in a group are shown under that group, with the teacher(s)
+        // and lesson times taken from the group's schedule slots.
+        const groupSlots = slots.filter((sl) => sl.group_id === group.id)
+        key = `group:${group.id}`
+        label = group.name
+        schedule = summarizeSlots(groupSlots) || null
+        const names = Array.from(new Set(groupSlots.map((sl) => teachers.find((t) => t.id === sl.teacher_id)?.name)))
+          .filter(Boolean)
+        teacherNames = names.length ? `Мұғалім: ${names.join(', ')}` : null
+      } else if (teacherInfo) {
+        // Students not in a group yet keep the old per-teacher grouping.
+        key = `teacher:${s.teacher_id}`
+        label = teacherInfo.name
+        schedule = teacherInfo.schedule || null
+      } else {
+        key = 'none'
+        label = 'Топсыз оқушылар'
+      }
 
       if (!map.has(key)) {
-        map.set(key, { students: [], schedule })
+        map.set(key, { label, students: [], schedule, teachers: teacherNames })
       }
       map.get(key)!.students.push(s)
     }
     return Array.from(map.entries())
-  }, [students, teachers, slots])
+  }, [students, teachers, groups, slots])
 
   const presentCount = attendance.filter((a) => a.present).length
 
@@ -319,15 +368,17 @@ function AttendanceTab({
       )}
 
       <div className="space-y-6">
-        {grouped.map(([groupName, data]) => (
-          <div key={groupName} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        {grouped.map(([groupKey, data]) => (
+          <div key={groupKey} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-800">
-                {groupName}
+                {data.label}
               </h3>
-              {data.schedule && (
+              {(data.teachers || data.schedule) && (
                 <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-[10px] font-medium text-zinc-600">
-                  Сабақ уақыты: {data.schedule}
+                  {data.teachers}
+                  {data.teachers && data.schedule ? ' · ' : ''}
+                  {data.schedule ? `Сабақ уақыты: ${data.schedule}` : ''}
                 </span>
               )}
             </div>
@@ -386,15 +437,18 @@ function AttendanceTab({
 function StudentsTab({
   students,
   teachers,
+  groups,
   reload,
 }: {
   students: Student[]
   teachers: Teacher[]
+  groups: Group[]
   reload: () => Promise<void>
 }) {
   const [fullName, setFullName] = useState('')
   const [grade, setGrade] = useState('')
   const [teacherId, setTeacherId] = useState('')
+  const [groupId, setGroupId] = useState('')
   const [paymentDate, setPaymentDate] = useState('')
   const [paymentDeadline, setPaymentDeadline] = useState('')
   const [comment, setComment] = useState('')
@@ -412,6 +466,7 @@ function StudentsTab({
         fullName,
         grade: grade ? Number(grade) : null,
         teacherId: teacherId || null,
+        groupId: groupId || null,
         paymentDate: paymentDate || null,
         paymentDeadline: paymentDeadline || null,
         comment: comment || null,
@@ -420,6 +475,7 @@ function StudentsTab({
     setFullName('')
     setGrade('')
     setTeacherId('')
+    setGroupId('')
     setPaymentDate('')
     setPaymentDeadline('')
     setComment('')
@@ -454,9 +510,19 @@ function StudentsTab({
             onChange={(e) => setTeacherId(e.target.value)}
             className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 focus:outline-none"
           >
-            <option value="">Мұғалімсіз (Топсыз)</option>
+            <option value="">Мұғалімсіз</option>
             {teachers.map((t) => (
               <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          <select
+            value={groupId}
+            onChange={(e) => setGroupId(e.target.value)}
+            className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 focus:outline-none"
+          >
+            <option value="">Топсыз</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>
         </div>
@@ -503,6 +569,7 @@ function StudentsTab({
                 <p className="text-xs font-semibold text-zinc-900">{s.full_name}</p>
                 <p className="text-[10px] text-zinc-500 mt-0.5">
                   {s.grade ? `${s.grade}-сынып · ` : ''}
+                  {groups.find((g) => g.id === s.group_id) ? `Топ: ${groups.find((g) => g.id === s.group_id)!.name} · ` : ''}
                   {teachers.find((t) => t.id === s.teacher_id)?.name ?? 'Мұғалімсіз'} 
                   {s.payment_deadline ? ` · 💳 Төлем дедлайны: ${s.payment_deadline}` : ''}
                 </p>
@@ -527,6 +594,7 @@ function StudentsTab({
               <StudentEditForm
                 student={s}
                 teachers={teachers}
+                groups={groups}
                 onDone={async () => {
                   setEditingId(null)
                   await reload()
@@ -544,15 +612,18 @@ function StudentsTab({
 function StudentEditForm({
   student,
   teachers,
+  groups,
   onDone,
 }: {
   student: Student
   teachers: Teacher[]
+  groups: Group[]
   onDone: () => Promise<void>
 }) {
   const [fullName, setFullName] = useState(student.full_name)
   const [grade, setGrade] = useState(student.grade ? String(student.grade) : '')
   const [teacherId, setTeacherId] = useState(student.teacher_id ?? '')
+  const [groupId, setGroupId] = useState(student.group_id ?? '')
   const [paymentDeadline, setPaymentDeadline] = useState(student.payment_deadline ?? '')
   const [comment, setComment] = useState(student.comment ?? '')
   const [saving, setSaving] = useState(false)
@@ -568,6 +639,7 @@ function StudentEditForm({
         fullName,
         grade: grade ? Number(grade) : null,
         teacherId: teacherId || null,
+        groupId: groupId || null,
         paymentDeadline: paymentDeadline || null,
         comment: comment || null,
       }),
@@ -598,6 +670,16 @@ function StudentEditForm({
         <option value="">Мұғалімсіз</option>
         {teachers.map((t) => (
           <option key={t.id} value={t.id}>{t.name}</option>
+        ))}
+      </select>
+      <select
+        value={groupId}
+        onChange={(e) => setGroupId(e.target.value)}
+        className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+      >
+        <option value="">Топсыз</option>
+        {groups.map((g) => (
+          <option key={g.id} value={g.id}>{g.name}</option>
         ))}
       </select>
       <input
@@ -729,16 +811,239 @@ function TeachersTab({
   )
 }
 
-function ScheduleTab({
+function GroupsTab({
+  groups,
+  students,
   teachers,
   slots,
   reload,
 }: {
+  groups: Group[]
+  students: Student[]
   teachers: Teacher[]
   slots: ScheduleSlot[]
   reload: () => Promise<void>
 }) {
+  const [name, setName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+
+  async function readError(res: Response) {
+    const data = await res.json().catch(() => ({}))
+    return data.error ?? 'Қате шықты'
+  }
+
+  async function addGroup(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    if (!name.trim()) return
+    setSaving(true)
+    const res = await fetch('/api/groups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    setSaving(false)
+    if (!res.ok) return setError(await readError(res))
+    setName('')
+    await reload()
+  }
+
+  async function renameGroup(id: string) {
+    setError(null)
+    const res = await fetch(`/api/groups/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: renameValue }),
+    })
+    if (!res.ok) return setError(await readError(res))
+    setRenamingId(null)
+    await reload()
+  }
+
+  async function removeGroup(g: Group) {
+    if (!window.confirm(`«${g.name}» тобын жою керек пе? Оқушылар мен сабақтар өшпейді, топсыз қалады.`)) return
+    setError(null)
+    const res = await fetch(`/api/groups/${g.id}`, { method: 'DELETE' })
+    if (!res.ok) return setError(await readError(res))
+    await reload()
+  }
+
+  async function setStudentGroup(studentId: string, groupId: string | null) {
+    setError(null)
+    const res = await fetch(`/api/students/${studentId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupId }),
+    })
+    if (!res.ok) return setError(await readError(res))
+    await reload()
+  }
+
+  return (
+    <section className="mt-8 space-y-6">
+      <form
+        onSubmit={addGroup}
+        className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
+      >
+        <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-800">Жаңа топ қосу</h3>
+        <div className="flex flex-wrap gap-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Топ атауы (мысалы: IELTS 6.0, Дс/Ср)"
+            className="min-w-[220px] flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
+          />
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-xl bg-zinc-900 px-5 py-2 text-xs font-medium text-white transition-all hover:bg-zinc-800 disabled:opacity-50"
+          >
+            {saving ? 'Сақталуда...' : 'Қосу'}
+          </button>
+        </div>
+        {error && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+            {error}
+          </p>
+        )}
+      </form>
+
+      <div className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        {groups.map((g) => {
+          const members = students.filter((s) => s.group_id === g.id)
+          const groupSlots = slots.filter((sl) => sl.group_id === g.id)
+          const teacherNames = Array.from(
+            new Set(groupSlots.map((sl) => teachers.find((t) => t.id === sl.teacher_id)?.name))
+          ).filter(Boolean)
+          const addable = students.filter((s) => s.group_id !== g.id)
+          const open = openId === g.id
+
+          return (
+            <div key={g.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  {renamingId === g.id ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+                      />
+                      <button
+                        onClick={() => renameGroup(g.id)}
+                        className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white"
+                      >
+                        Сақтау
+                      </button>
+                      <button
+                        onClick={() => setRenamingId(null)}
+                        className="text-xs text-zinc-500 hover:text-zinc-900"
+                      >
+                        Болдырмау
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs font-semibold text-zinc-900">{g.name}</p>
+                  )}
+                  <p className="mt-0.5 text-[10px] text-zinc-500">
+                    {members.length} оқушы
+                    {teacherNames.length > 0 ? ` · Мұғалім: ${teacherNames.join(', ')}` : ' · Мұғалім тағайындалмаған'}
+                    {groupSlots.length > 0 ? ` · ${summarizeSlots(groupSlots)}` : ''}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <button
+                    onClick={() => setOpenId(open ? null : g.id)}
+                    className="text-xs text-zinc-500 hover:text-zinc-900"
+                  >
+                    {open ? 'Жабу' : 'Оқушылар'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRenamingId(g.id)
+                      setRenameValue(g.name)
+                    }}
+                    className="text-xs text-zinc-500 hover:text-zinc-900"
+                  >
+                    Өзгерту
+                  </button>
+                  <button
+                    onClick={() => removeGroup(g)}
+                    className="text-xs text-red-500 hover:text-red-700"
+                  >
+                    Жою
+                  </button>
+                </div>
+              </div>
+
+              {open && (
+                <div className="mt-3 space-y-2 border-t border-zinc-100 pt-3">
+                  {members.length === 0 && (
+                    <p className="text-[11px] text-zinc-400">Топта әзірге оқушы жоқ</p>
+                  )}
+                  {members.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-center justify-between rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
+                    >
+                      <p className="text-xs font-medium text-zinc-800">
+                        {m.full_name}
+                        {m.grade ? <span className="ml-2 text-[10px] text-zinc-400">{m.grade}-сынып</span> : null}
+                      </p>
+                      <button
+                        onClick={() => setStudentGroup(m.id, null)}
+                        className="text-xs text-red-500 hover:text-red-700"
+                      >
+                        Шығару
+                      </button>
+                    </div>
+                  ))}
+                  <select
+                    value=""
+                    onChange={(e) => e.target.value && setStudentGroup(e.target.value, g.id)}
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 sm:w-auto"
+                  >
+                    <option value="">+ Оқушы қосу</option>
+                    {addable.map((st) => {
+                      const other = groups.find((x) => x.id === st.group_id)
+                      return (
+                        <option key={st.id} value={st.id}>
+                          {st.full_name}
+                          {other ? ` (қазір: ${other.name})` : ''}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+              )}
+            </div>
+          )
+        })}
+        {groups.length === 0 && (
+          <p className="p-6 text-center text-xs text-zinc-400">Әзірге топ жоқ. Жоғарыдан қосыңыз.</p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function ScheduleTab({
+  teachers,
+  groups,
+  slots,
+  reload,
+}: {
+  teachers: Teacher[]
+  groups: Group[]
+  slots: ScheduleSlot[]
+  reload: () => Promise<void>
+}) {
   const [teacherId, setTeacherId] = useState('')
+  const [groupId, setGroupId] = useState('')
   const [days, setDays] = useState<number[]>([])
   const [startTime, setStartTime] = useState('15:00')
   const [endTime, setEndTime] = useState('16:00')
@@ -773,7 +1078,7 @@ function ScheduleTab({
     const res = await fetch('/api/schedule', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teacherId, days, startTime, endTime, title, note }),
+      body: JSON.stringify({ teacherId, groupId: groupId || null, days, startTime, endTime, title, note }),
     })
     setSaving(false)
 
@@ -818,10 +1123,22 @@ function ScheduleTab({
               </option>
             ))}
           </select>
+          <select
+            value={groupId}
+            onChange={(e) => setGroupId(e.target.value)}
+            className="min-w-[180px] rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 focus:outline-none"
+          >
+            <option value="">Топ (міндетті емес)</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Топ / пән (міндетті емес)"
+            placeholder="Қосымша атауы, пән (міндетті емес)"
             className="min-w-[180px] flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
           />
         </div>
@@ -930,6 +1247,11 @@ function ScheduleTab({
                         <span className="ml-2 font-medium text-zinc-600">
                           {teacherName.get(s.teacher_id) ?? 'Белгісіз мұғалім'}
                         </span>
+                        {slotGroupName(s) && (
+                          <span className="ml-2 rounded-md bg-zinc-900 px-2 py-0.5 text-[10px] font-medium text-white">
+                            {slotGroupName(s)}
+                          </span>
+                        )}
                       </p>
                       {(s.title || s.note) && (
                         <p className="mt-0.5 text-[10px] text-zinc-500">
@@ -956,6 +1278,7 @@ function ScheduleTab({
                     <SlotEditForm
                       slot={s}
                       teachers={teachers}
+                      groups={groups}
                       onDone={async () => {
                         setEditingSlotId(null)
                         await reload()
@@ -976,13 +1299,16 @@ function ScheduleTab({
 function SlotEditForm({
   slot,
   teachers,
+  groups,
   onDone,
 }: {
   slot: ScheduleSlot
   teachers: Teacher[]
+  groups: Group[]
   onDone: () => Promise<void>
 }) {
   const [teacherId, setTeacherId] = useState(slot.teacher_id)
+  const [groupId, setGroupId] = useState(slot.group_id ?? '')
   const [day, setDay] = useState(slot.day_of_week)
   const [startTime, setStartTime] = useState(hhmm(slot.start_time))
   const [endTime, setEndTime] = useState(hhmm(slot.end_time))
@@ -998,7 +1324,7 @@ function SlotEditForm({
     const res = await fetch(`/api/schedule/${slot.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teacherId, days: [day], startTime, endTime, title, note }),
+      body: JSON.stringify({ teacherId, groupId: groupId || null, days: [day], startTime, endTime, title, note }),
     })
     setSaving(false)
 
@@ -1049,10 +1375,22 @@ function SlotEditForm({
         />
       </div>
       <div className="flex flex-wrap gap-2">
+        <select
+          value={groupId}
+          onChange={(e) => setGroupId(e.target.value)}
+          className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+        >
+          <option value="">Топсыз</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Топ / пән"
+          placeholder="Қосымша атауы"
           className="min-w-[140px] flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900 placeholder-zinc-400"
         />
         <input
