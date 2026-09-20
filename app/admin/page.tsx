@@ -22,6 +22,7 @@ type Student = {
   payment_date?: string | null     // Төленген күні
   payment_deadline?: string | null // Келесі төлем уақыты
   comment?: string | null          // Жеке комментарий
+  username?: string | null         // Оқушының өз кіру логині (әкімші қояды)
 }
 
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
@@ -454,6 +455,7 @@ function StudentsTab({
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [loginEditId, setLoginEditId] = useState<string | null>(null)
 
   async function addStudent(e: React.FormEvent) {
     e.preventDefault()
@@ -572,10 +574,17 @@ function StudentsTab({
                   {groups.find((g) => g.id === s.group_id) ? `Топ: ${groups.find((g) => g.id === s.group_id)!.name} · ` : ''}
                   {teachers.find((t) => t.id === s.teacher_id)?.name ?? 'Мұғалімсіз'} 
                   {s.payment_deadline ? ` · 💳 Төлем дедлайны: ${s.payment_deadline}` : ''}
+                  {` · ${s.username ? `Логин: ${s.username}` : 'Кіру жоқ'}`}
                 </p>
                 {s.comment && <p className="text-[10px] text-zinc-600 mt-1 italic">💬 {s.comment}</p>}
               </div>
               <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setLoginEditId(loginEditId === s.id ? null : s.id)}
+                  className="text-xs text-zinc-500 hover:text-zinc-900"
+                >
+                  {loginEditId === s.id ? 'Жабу' : 'Логин/пароль қою'}
+                </button>
                 <button
                   onClick={() => setEditingId(editingId === s.id ? null : s.id)}
                   className="text-xs text-zinc-500 hover:text-zinc-900"
@@ -590,6 +599,15 @@ function StudentsTab({
                 </button>
               </div>
             </div>
+            {loginEditId === s.id && (
+              <StudentCredentialForm
+                student={s}
+                onDone={async () => {
+                  setLoginEditId(null)
+                  await reload()
+                }}
+              />
+            )}
             {editingId === s.id && (
               <StudentEditForm
                 student={s}
@@ -701,6 +719,88 @@ function StudentEditForm({
       >
         Сақтау
       </button>
+    </form>
+  )
+}
+
+// Admin-only: types the login and password in by hand, same as
+// TeacherCredentialForm below. Nothing here is generated automatically.
+function StudentCredentialForm({
+  student,
+  onDone,
+}: {
+  student: Student
+  onDone: () => Promise<void>
+}) {
+  const [username, setUsername] = useState(student.username ?? '')
+  const [password, setPassword] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setSaved(false)
+    setSaving(true)
+    const res = await fetch(`/api/students/${student.id}/credentials`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setSaving(false)
+
+    if (!res.ok) {
+      setError(data.error ?? `Қате шықты (код ${res.status})`)
+      return
+    }
+    setSaved(true)
+    setPassword('')
+    await onDone()
+  }
+
+  return (
+    <form onSubmit={save} className="mt-3 space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Логин"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="w-44 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900"
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={student.username ? 'Жаңа құпия сөз (бос қалдырсаңыз өзгермейді)' : 'Құпия сөз'}
+          autoComplete="new-password"
+          className="min-w-[240px] flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-900"
+        />
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+        >
+          {saving ? 'Сақталуда...' : 'Сақтау'}
+        </button>
+      </div>
+      <p className="text-[10px] text-zinc-400">
+        Логин мен парольді оқушыға/ата-анаға өзіңіз хабарлайсыз — жүйе оларды кездейсоқ жасамайды.
+      </p>
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-600">
+          {error}
+        </p>
+      )}
+      {saved && !error && (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">
+          Сақталды
+        </p>
+      )}
     </form>
   )
 }
