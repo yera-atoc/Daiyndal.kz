@@ -15,7 +15,11 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+
+  // password_hash/password_salt must never leave the server, even to an
+  // admin's own browser — same rule as /api/teachers.
+  const safe = (data ?? []).map(({ password_hash, password_salt, ...rest }: any) => rest)
+  return NextResponse.json(safe)
 }
 
 export async function POST(req: NextRequest) {
