@@ -15,7 +15,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 })
   }
-  const { teacherId, days, startTime, endTime, title, note } = parsed.value
+  const { teacherId, days, startTime, endTime, title, note, groupId } = parsed.value
   if (days.length !== 1) {
     return NextResponse.json({ error: 'Бір күнді таңдаңыз' }, { status: 400 })
   }
@@ -45,6 +45,33 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     )
   }
 
+  if (groupId) {
+    const { data: groupSlots, error: groupError } = await supabaseAdmin
+      .from('schedule_slots')
+      .select('start_time, end_time')
+      .eq('group_id', groupId)
+      .eq('day_of_week', day)
+      .neq('id', params.id)
+
+    if (groupError) {
+      return NextResponse.json({ error: groupError.message }, { status: 500 })
+    }
+
+    const groupClash = (groupSlots ?? []).find(
+      (s) => hhmm(s.start_time) < endTime && startTime < hhmm(s.end_time)
+    )
+    if (groupClash) {
+      return NextResponse.json(
+        {
+          error: `Бұл топтың ${hhmm(groupClash.start_time)}–${hhmm(
+            groupClash.end_time
+          )} басқа сабағы бар`,
+        },
+        { status: 409 }
+      )
+    }
+  }
+
   const { data, error } = await supabaseAdmin
     .from('schedule_slots')
     .update({
@@ -54,6 +81,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       end_time: endTime,
       title,
       note,
+      group_id: groupId,
     })
     .eq('id', params.id)
     .select()
@@ -61,7 +89,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
   if (error) {
     if (error.code === '23503') {
-      return NextResponse.json({ error: 'Мұғалім табылмады' }, { status: 400 })
+      return NextResponse.json({ error: 'Мұғалім немесе топ табылмады' }, { status: 400 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
