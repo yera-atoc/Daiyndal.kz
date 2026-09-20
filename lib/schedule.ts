@@ -19,6 +19,13 @@ export type ScheduleSlot = {
   end_time: string
   title: string | null
   note: string | null
+  group_id: string | null
+  student_groups?: { id: string; name: string } | null
+}
+
+/** Group name for a slot (falls back to the older free-text title). */
+export function slotGroupName(s: ScheduleSlot): string | null {
+  return s.student_groups?.name ?? null
 }
 
 /** "15:00:00" -> "15:00" */
@@ -61,6 +68,7 @@ export type SlotInput = {
   endTime: string
   title: string | null
   note: string | null
+  groupId: string | null
 }
 
 export function parseSlotInput(
@@ -100,6 +108,7 @@ export function parseSlotInput(
       endTime,
       title: title || null,
       note: note || null,
+      groupId: typeof body.groupId === 'string' && body.groupId ? body.groupId : null,
     },
   }
 }
