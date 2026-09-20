@@ -9,11 +9,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Логин мен құпия сөзді енгізіңіз' }, { status: 400 })
   }
 
-  const { data: teacher, error } = await supabaseAdmin
+  // Logins are stored lowercase; phones often capitalise the first letter,
+  // so try the login as typed and in lowercase.
+  const typed = String(username).trim()
+  const candidates = Array.from(new Set([typed, typed.toLowerCase()]))
+  const { data: rows, error } = await supabaseAdmin
     .from('teachers')
     .select('id, password_hash, password_salt')
-    .eq('username', username)
-    .single()
+    .in('username', candidates)
+    .limit(1)
+  const teacher = rows?.[0]
 
   if (error || !teacher || !teacher.password_hash || !teacher.password_salt) {
     return NextResponse.json({ error: 'Логин немесе құпия сөз қате' }, { status: 401 })
