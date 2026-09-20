@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { isAdmin } from '@/lib/requireAdmin'
 import { generateSalt, hashTeacherPassword } from '@/lib/teacherAuth'
+import { PASSWORD_HINT, PASSWORD_MIN_LENGTH, USERNAME_HINT, normalizeUsername } from '@/lib/credentials'
 
 export async function GET() {
   // password_hash/password_salt are never selected here — this list is
@@ -40,11 +41,18 @@ export async function POST(req: NextRequest) {
 
   // Username/password are optional at creation time — an admin can add a
   // teacher first and set up their login later via PATCH.
-  if (body.username && body.password) {
+  const rawUsername = typeof body.username === 'string' ? body.username : ''
+  const password = typeof body.password === 'string' ? body.password : ''
+  if (rawUsername.trim() || password) {
+    const username = normalizeUsername(rawUsername)
+    if (!username) return NextResponse.json({ error: USERNAME_HINT }, { status: 400 })
+    if (password.length < PASSWORD_MIN_LENGTH || password.length > 100) {
+      return NextResponse.json({ error: PASSWORD_HINT }, { status: 400 })
+    }
     const salt = generateSalt()
-    insert.username = body.username
+    insert.username = username
     insert.password_salt = salt
-    insert.password_hash = await hashTeacherPassword(body.password, salt)
+    insert.password_hash = await hashTeacherPassword(password, salt)
   }
 
   const { data, error } = await supabaseAdmin
@@ -53,6 +61,12 @@ export async function POST(req: NextRequest) {
     .select('id, name, subject, username, created_at')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // 23505 = unique violation (login already taken)
+    if (error.code === '23505') {
+      return NextResponse.json({ error: 'Бұл логин бос емес' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json(data)
 }
