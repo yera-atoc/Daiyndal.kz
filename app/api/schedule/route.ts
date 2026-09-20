@@ -28,7 +28,9 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from('schedule_slots')
-    .select('id, teacher_id, day_of_week, start_time, end_time, title, note')
+    .select(
+      'id, teacher_id, day_of_week, start_time, end_time, title, note, group_id, student_groups(id, name)'
+    )
     .order('day_of_week')
     .order('start_time')
 
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 })
   }
-  const { teacherId, days, startTime, endTime, title, note } = parsed.value
+  const { teacherId, days, startTime, endTime, title, note, groupId } = parsed.value
 
   // Don't let a teacher be double-booked.
   const { data: existing, error: existingError } = await supabaseAdmin
@@ -78,6 +80,33 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // A group can't be in two lessons at once either (even with another teacher).
+  if (groupId) {
+    const { data: groupSlots, error: groupError } = await supabaseAdmin
+      .from('schedule_slots')
+      .select('day_of_week, start_time, end_time')
+      .eq('group_id', groupId)
+      .in('day_of_week', days)
+
+    if (groupError) {
+      return NextResponse.json({ error: groupError.message }, { status: 500 })
+    }
+
+    const groupClash = (groupSlots ?? []).find(
+      (s) => hhmm(s.start_time) < endTime && startTime < hhmm(s.end_time)
+    )
+    if (groupClash) {
+      return NextResponse.json(
+        {
+          error: `Бұл топтың ${dayName(groupClash.day_of_week)} күні ${hhmm(
+            groupClash.start_time
+          )}–${hhmm(groupClash.end_time)} басқа сабағы бар`,
+        },
+        { status: 409 }
+      )
+    }
+  }
+
   const rows = days.map((day) => ({
     teacher_id: teacherId,
     day_of_week: day,
@@ -85,6 +114,7 @@ export async function POST(req: NextRequest) {
     end_time: endTime,
     title,
     note,
+    group_id: groupId,
   }))
 
   const { data, error } = await supabaseAdmin.from('schedule_slots').insert(rows).select()
@@ -92,7 +122,7 @@ export async function POST(req: NextRequest) {
   if (error) {
     // 23503 = foreign key violation (teacher doesn't exist)
     if (error.code === '23503') {
-      return NextResponse.json({ error: 'Мұғалім табылмады' }, { status: 400 })
+      return NextResponse.json({ error: 'Мұғалім немесе топ табылмады' }, { status: 400 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
