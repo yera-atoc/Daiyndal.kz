@@ -7,10 +7,17 @@ export async function GET() {
   // password_hash/password_salt are never selected here — this list is
   // also used by public-ish pages (attendance grouping), so credentials
   // must never leave the server in this response.
-  const { data, error } = await supabaseAdmin
-    .from('teachers')
-    .select('id, name, subject, username, created_at')
-    .order('name')
+  // Logins are only shown to the admin; anonymous visitors get names/subjects only.
+  const admin = await isAdmin()
+  const { data, error } = admin
+    ? await supabaseAdmin
+        .from('teachers')
+        .select('id, name, subject, username, created_at')
+        .order('name')
+    : await supabaseAdmin
+        .from('teachers')
+        .select('id, name, subject, created_at')
+        .order('name')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
