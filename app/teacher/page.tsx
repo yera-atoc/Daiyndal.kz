@@ -32,6 +32,7 @@ type StudentRow = {
   grade: number | null
   group_id: string | null
   student_groups?: { id: string; name: string } | null
+  rating_points: number
 }
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
@@ -153,7 +154,7 @@ export default function TeacherDashboard() {
         </div>
 
         {tab === 'schedule' && <ScheduleTab slots={slots} />}
-        {tab === 'students' && <StudentsTab students={students} />}
+        {tab === 'students' && <StudentsTab students={students} onRatingChanged={loadAll} />}
         {tab === 'materials' && <MaterialsTab materials={materials} reload={loadAll} />}
         {tab === 'tests' && <TestsTab tests={tests} reload={loadAll} />}
         {tab === 'profile' && <ProfileTab me={me} onSaved={loadAll} />}
@@ -224,9 +225,18 @@ function ProfileTab({ me, onSaved }: { me: Teacher | null; onSaved: () => Promis
 }
 
 function ScheduleTab({ slots }: { slots: ScheduleSlot[] }) {
-  // Read-only: the schedule is set by the admin. Shown as a weekly board,
-  // one column per weekday, with lesson cards stacked in time order.
-  const activeDays = WEEKDAYS.filter((d) => slots.some((s) => s.day_of_week === d.id))
+  // Read-only: the schedule is set by the admin. Shown as day tabs + a
+  // table for the selected day (same pattern as BilimClass's "Сабақ
+  // кестесі" page), defaulting to today's weekday.
+  const todayId = (() => {
+    const jsDay = new Date().getDay() // 0 = Sunday
+    return jsDay === 0 ? 7 : jsDay
+  })()
+  const [day, setDay] = useState<number>(todayId)
+
+  const daySlots = slots
+    .filter((s) => s.day_of_week === day)
+    .sort((a, b) => a.start_time.localeCompare(b.start_time))
 
   return (
     <section className="mt-8">
@@ -235,48 +245,92 @@ function ScheduleTab({ slots }: { slots: ScheduleSlot[] }) {
           Әзірге кесте қойылмаған. Сабақ кестесін әкімші қосады.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div
-            className="grid min-w-[720px] divide-x divide-zinc-200"
-            style={{ gridTemplateColumns: `repeat(${activeDays.length}, minmax(0, 1fr))` }}
-          >
-            {activeDays.map((d) => {
-              const daySlots = slots
-                .filter((s) => s.day_of_week === d.id)
-                .sort((a, b) => a.start_time.localeCompare(b.start_time))
+        <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <div className="flex overflow-x-auto border-b border-zinc-200 bg-zinc-50">
+            {WEEKDAYS.map((d) => {
+              const count = slots.filter((s) => s.day_of_week === d.id).length
+              const active = day === d.id
               return (
-                <div key={d.id} className="flex flex-col">
-                  <div className="border-b border-zinc-200 bg-black px-3 py-2.5 text-center">
-                    <p className="text-sm font-semibold text-white">{d.name}</p>
-                  </div>
-                  <div className="flex-1 space-y-2 bg-zinc-50/50 p-2">
-                    {daySlots.map((s) => (
-                      <div key={s.id} className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
-                        <p className="text-sm font-bold text-zinc-900">
-                          {hhmm(s.start_time)}–{hhmm(s.end_time)}
-                        </p>
-                        {slotGroupName(s) && (
-                          <span className="mt-1 inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
-                            {slotGroupName(s)}
-                          </span>
-                        )}
-                        {s.title && <p className="mt-1 text-sm text-zinc-700">{s.title}</p>}
-                        {s.note && <p className="mt-1 text-xs text-zinc-400">{s.note}</p>}
-                      </div>
-                    ))}
-                    {daySlots.length === 0 && <div className="px-2 py-6" />}
-                  </div>
-                </div>
+                <button
+                  key={d.id}
+                  onClick={() => setDay(d.id)}
+                  className={`shrink-0 border-b-2 px-5 py-3 text-sm font-semibold uppercase tracking-wide transition ${
+                    active
+                      ? 'border-black text-black'
+                      : 'border-transparent text-zinc-400 hover:text-zinc-700'
+                  }`}
+                >
+                  {d.short}
+                  {count > 0 && (
+                    <span
+                      className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                        active ? 'bg-black text-white' : 'bg-zinc-200 text-zinc-600'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
               )
             })}
           </div>
+
+          <p className="px-5 pt-4 text-sm font-semibold text-zinc-900">
+            {WEEKDAYS.find((d) => d.id === day)?.name}
+          </p>
+
+          {daySlots.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-zinc-400">
+              Бұл күнге сабақ жоспарланбаған.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="mt-3 w-full min-w-[560px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    <th className="px-5 py-2 font-semibold">Уақыт</th>
+                    <th className="px-5 py-2 font-semibold">Топ</th>
+                    <th className="px-5 py-2 font-semibold">Тақырып</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {daySlots.map((s) => (
+                    <tr key={s.id} className="align-top">
+                      <td className="whitespace-nowrap px-5 py-3 font-bold text-zinc-900">
+                        {hhmm(s.start_time)}–{hhmm(s.end_time)}
+                      </td>
+                      <td className="px-5 py-3">
+                        {slotGroupName(s) ? (
+                          <span className="inline-block rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
+                            {slotGroupName(s)}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-zinc-700">
+                        {s.title || <span className="text-zinc-300">—</span>}
+                        {s.note && <p className="mt-0.5 text-xs text-zinc-400">{s.note}</p>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </section>
   )
 }
 
-function StudentsTab({ students }: { students: StudentRow[] }) {
+function StudentsTab({
+  students,
+  onRatingChanged,
+}: {
+  students: StudentRow[]
+  onRatingChanged: () => Promise<void>
+}) {
   const [date, setDate] = useState(todayISO())
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -349,29 +403,32 @@ function StudentsTab({ students }: { students: StudentRow[] }) {
                   {s.student_groups?.name ? ` · ${s.student_groups.name}` : ''}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => mark(s.id, true)}
-                  disabled={savingId === s.id}
-                  className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition disabled:opacity-50 ${
-                    present === true
-                      ? 'bg-black text-white'
-                      : 'border border-zinc-300 text-zinc-600 hover:border-black'
-                  }`}
-                >
-                  <span>✓</span> Келді
-                </button>
-                <button
-                  onClick={() => mark(s.id, false)}
-                  disabled={savingId === s.id}
-                  className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition disabled:opacity-50 ${
-                    present === false
-                      ? 'bg-zinc-900 text-white'
-                      : 'border border-zinc-300 text-zinc-600 hover:border-black'
-                  }`}
-                >
-                  <span>✕</span> Келмеді
-                </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <RatingControl student={s} onSaved={onRatingChanged} />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => mark(s.id, true)}
+                    disabled={savingId === s.id}
+                    className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition disabled:opacity-50 ${
+                      present === true
+                        ? 'bg-black text-white'
+                        : 'border border-zinc-300 text-zinc-600 hover:border-black'
+                    }`}
+                  >
+                    <span>✓</span> Келді
+                  </button>
+                  <button
+                    onClick={() => mark(s.id, false)}
+                    disabled={savingId === s.id}
+                    className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition disabled:opacity-50 ${
+                      present === false
+                        ? 'bg-zinc-900 text-white'
+                        : 'border border-zinc-300 text-zinc-600 hover:border-black'
+                    }`}
+                  >
+                    <span>✕</span> Келмеді
+                  </button>
+                </div>
               </div>
             </div>
           )
@@ -381,6 +438,67 @@ function StudentsTab({ students }: { students: StudentRow[] }) {
         )}
       </div>
     </section>
+  )
+}
+
+function RatingControl({
+  student,
+  onSaved,
+}: {
+  student: StudentRow
+  onSaved: () => Promise<void>
+}) {
+  const [value, setValue] = useState(String(student.rating_points))
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setValue(String(student.rating_points))
+  }, [student.rating_points])
+
+  async function save(next: number) {
+    const clamped = Math.max(0, next)
+    setSaving(true)
+    setValue(String(clamped))
+    await fetch(`/api/teacher/students/${student.id}/rating`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ points: clamped }),
+    })
+    setSaving(false)
+    await onSaved()
+  }
+
+  return (
+    <div className="flex items-center gap-1 rounded-lg border border-zinc-300 bg-zinc-50 px-1.5 py-1">
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => save(student.rating_points - 5)}
+        className="h-6 w-6 rounded text-sm font-bold text-zinc-600 hover:bg-zinc-200 disabled:opacity-40"
+      >
+        −
+      </button>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => {
+          const n = Number(value)
+          if (Number.isFinite(n)) save(n)
+        }}
+        disabled={saving}
+        className="w-14 bg-transparent text-center text-sm font-semibold text-zinc-900 outline-none"
+      />
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => save(student.rating_points + 5)}
+        className="h-6 w-6 rounded text-sm font-bold text-zinc-600 hover:bg-zinc-200 disabled:opacity-40"
+      >
+        +
+      </button>
+      <span className="pr-1 text-xs text-zinc-400">ұпай</span>
+    </div>
   )
 }
 
