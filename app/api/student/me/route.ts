@@ -10,10 +10,18 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin
     .from('students')
-    .select('id, full_name, grade, username')
+    .select('id, full_name, grade, username, rating_points')
     .eq('id', studentId)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+
+  const { count, error: rankError } = await supabaseAdmin
+    .from('students')
+    .select('id', { count: 'exact', head: true })
+    .gt('rating_points', data.rating_points)
+
+  if (rankError) return NextResponse.json({ error: rankError.message }, { status: 500 })
+
+  return NextResponse.json({ ...data, rank: (count ?? 0) + 1 })
 }
