@@ -4,6 +4,27 @@ import Footer from '@/components/Footer'
 import HeroSchedule from '@/components/HeroSchedule'
 import SubjectCard from '@/components/SubjectCard'
 import { subjects } from '@/lib/subjects'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+
+export const revalidate = 60
+
+type TopStudent = {
+  id: string
+  full_name: string
+  grade: number | null
+  rating_points: number
+  teachers: { name: string; subject: string | null } | null
+}
+
+async function getTopStudents(): Promise<TopStudent[]> {
+  const { data } = await supabaseAdmin
+    .from('students')
+    .select('id, full_name, grade, rating_points, teachers(name, subject)')
+    .gt('rating_points', 0)
+    .order('rating_points', { ascending: false })
+    .limit(5)
+  return (data as any) ?? []
+}
 
 const programs = [
   {
@@ -32,7 +53,9 @@ const programs = [
   },
 ]
 
-export default function Home() {
+export default async function Home() {
+  const topStudents = await getTopStudents()
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-zinc-900 flex flex-col font-sans">
       <Header />
@@ -174,6 +197,53 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* Top-5 Rating Preview */}
+      {topStudents.length > 0 && (
+        <section className="mx-auto max-w-3xl px-6 py-10 w-full">
+          <div className="flex items-end justify-between">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider bg-zinc-200 text-zinc-700 px-3 py-1 rounded-full">
+                Апта үздіктері
+              </span>
+              <h2 className="mt-3 text-2xl font-extrabold text-zinc-900 tracking-tight">
+                Оқушылар рейтингі
+              </h2>
+            </div>
+            <Link href="/rating" className="hidden sm:block text-sm font-semibold text-zinc-900 hover:underline">
+              Толығын көру →
+            </Link>
+          </div>
+
+          <div className="mt-6 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            {topStudents.map((s, i) => (
+              <div key={s.id} className="flex items-center justify-between gap-4 px-5 py-3.5">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold ${
+                      i === 0 ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600'
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">{s.full_name}</p>
+                    <p className="text-xs text-zinc-500">
+                      {s.grade ? `${s.grade}-сынып` : ''}
+                      {s.teachers?.subject ? ` · ${s.teachers.subject}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-base font-black text-zinc-900">{s.rating_points}</span>
+              </div>
+            ))}
+          </div>
+
+          <Link href="/rating" className="mt-4 block text-center text-sm font-semibold text-zinc-900 hover:underline sm:hidden">
+            Толық рейтингті көру →
+          </Link>
+        </section>
+      )}
 
       {/* Programs Section */}
       <section id="bagdarlama" className="bg-white border-y border-zinc-200/80 my-10">
