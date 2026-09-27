@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { currentTeacherId } from '@/lib/requireTeacher'
 
-export const MATERIALS_BUCKET = 'materials'
+const MATERIALS_BUCKET = 'materials'
 
 // Issues a short-lived signed upload URL for the materials bucket. The
 // actual file bytes are then PUT straight from the browser to Supabase
