@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { isAdmin } from '@/lib/requireAdmin'
+import { ISO_RE } from '@/lib/payments'
 
 export async function PUT(
   req: NextRequest,
@@ -24,13 +25,31 @@ export async function PUT(
       // Only touch the group when the caller sent one, so older callers
       // can't accidentally wipe a student's group.
       ...(body.groupId !== undefined ? { group_id: body.groupId || null } : {}),
+      // CRM fields: same rule — only touched when the caller sent them.
+      ...(body.paymentDate !== undefined
+        ? { payment_date: ISO_RE.test(body.paymentDate ?? '') ? body.paymentDate : null }
+        : {}),
+      ...(body.paymentDeadline !== undefined
+        ? { payment_deadline: ISO_RE.test(body.paymentDeadline ?? '') ? body.paymentDeadline : null }
+        : {}),
+      ...(body.paymentAmount !== undefined
+        ? {
+            payment_amount:
+              body.paymentAmount === null || body.paymentAmount === '' || !(Number(body.paymentAmount) >= 0)
+                ? null
+                : Math.round(Number(body.paymentAmount)),
+          }
+        : {}),
+      ...(body.phone !== undefined ? { phone: String(body.phone ?? '').trim() || null } : {}),
+      ...(body.comment !== undefined ? { comment: String(body.comment ?? '').trim() || null } : {}),
     })
     .eq('id', params.id)
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  const { password_hash, password_salt, ...safe } = data as any
+  return NextResponse.json(safe)
 }
 
 // Changes only the student's group (used by the Groups tab to add/remove members).
