@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin
     .from('students')
-    .select('id, full_name, grade, group_id, student_groups(id, name)')
+    .select('id, full_name, grade, group_id, student_groups(id, name), rating_points')
     .eq('teacher_id', teacherId)
     .order('full_name')
 
