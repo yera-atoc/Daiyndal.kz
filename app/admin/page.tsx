@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { WEEKDAYS, hhmm, slotGroupName, summarizeSlots, type ScheduleSlot } from '@/lib/schedule'
+import PaymentsTab, { PaymentAlertBanner } from '@/components/admin/PaymentsTab'
 
 type Teacher = {
   id: string
@@ -22,12 +23,14 @@ type Student = {
   payment_date?: string | null     // Төленген күні
   payment_deadline?: string | null // Келесі төлем уақыты
   comment?: string | null          // Жеке комментарий
+  phone?: string | null            // WhatsApp / телефон
+  payment_amount?: number | null   // Айлық сома (₸)
   username?: string | null         // Оқушының өз кіру логині (әкімші қояды)
 }
 
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-type Tab = 'attendance' | 'students' | 'groups' | 'teachers' | 'schedule' | 'stats' | 'sheets'
+type Tab = 'attendance' | 'students' | 'payments' | 'groups' | 'teachers' | 'schedule' | 'stats' | 'sheets'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -52,8 +55,8 @@ export default function AdminDashboard() {
       fetch('/api/schedule'),
       fetch('/api/groups'),
     ])
-    setTeachers(await teachersRes.json())
-    setStudents(await studentsRes.json())
+    setTeachers(teachersRes.ok ? await teachersRes.json() : [])
+    setStudents(studentsRes.ok ? await studentsRes.json() : [])
     // If the schedule table isn't created yet, keep the rest of the panel working.
     setSlots(scheduleRes.ok ? await scheduleRes.json() : [])
     setGroups(groupsRes.ok ? await groupsRes.json() : [])
@@ -135,6 +138,7 @@ export default function AdminDashboard() {
             [
               ['attendance', 'Қатысу'],
               ['students', 'Оқушылар & CRM'],
+              ['payments', 'Төлемдер'],
               ['groups', 'Топтар'],
               ['teachers', 'Мұғалімдер'],
               ['schedule', 'Мұғалімдер кестесі'],
@@ -154,6 +158,10 @@ export default function AdminDashboard() {
               {label}
             </button>
           ))}
+        </div>
+
+        <div className="mt-4">
+          <PaymentAlertBanner students={students} onOpen={() => setTab('payments')} />
         </div>
 
         {tab === 'attendance' && (
@@ -177,6 +185,8 @@ export default function AdminDashboard() {
             reload={loadCore}
           />
         )}
+
+        {tab === 'payments' && <PaymentsTab students={students} groups={groups} reload={loadCore} />}
 
         {tab === 'groups' && (
           <GroupsTab
@@ -452,6 +462,8 @@ function StudentsTab({
   const [groupId, setGroupId] = useState('')
   const [paymentDate, setPaymentDate] = useState('')
   const [paymentDeadline, setPaymentDeadline] = useState('')
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [phone, setPhone] = useState('')
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -471,6 +483,8 @@ function StudentsTab({
         groupId: groupId || null,
         paymentDate: paymentDate || null,
         paymentDeadline: paymentDeadline || null,
+        paymentAmount: paymentAmount ? Number(paymentAmount) : null,
+        phone: phone || null,
         comment: comment || null,
       }),
     })
@@ -480,6 +494,8 @@ function StudentsTab({
     setGroupId('')
     setPaymentDate('')
     setPaymentDeadline('')
+    setPaymentAmount('')
+    setPhone('')
     setComment('')
     await reload()
     setSaving(false)
@@ -547,6 +563,20 @@ function StudentsTab({
               className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
             />
           </div>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Телефон (WhatsApp)"
+            className="w-40 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
+          />
+          <input
+            type="number"
+            min={0}
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            placeholder="Айлық сома ₸"
+            className="w-32 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400"
+          />
           <input
             value={comment}
             onChange={(e) => setComment(e.target.value)}
@@ -643,6 +673,8 @@ function StudentEditForm({
   const [teacherId, setTeacherId] = useState(student.teacher_id ?? '')
   const [groupId, setGroupId] = useState(student.group_id ?? '')
   const [paymentDeadline, setPaymentDeadline] = useState(student.payment_deadline ?? '')
+  const [paymentAmount, setPaymentAmount] = useState(student.payment_amount != null ? String(student.payment_amount) : '')
+  const [phone, setPhone] = useState(student.phone ?? '')
   const [comment, setComment] = useState(student.comment ?? '')
   const [saving, setSaving] = useState(false)
 
@@ -659,6 +691,8 @@ function StudentEditForm({
         teacherId: teacherId || null,
         groupId: groupId || null,
         paymentDeadline: paymentDeadline || null,
+        paymentAmount: paymentAmount ? Number(paymentAmount) : null,
+        phone: phone || null,
         comment: comment || null,
       }),
     })
@@ -705,6 +739,20 @@ function StudentEditForm({
         value={paymentDeadline}
         onChange={(e) => setPaymentDeadline(e.target.value)}
         className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+      />
+      <input
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="Телефон"
+        className="w-36 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
+      />
+      <input
+        type="number"
+        min={0}
+        value={paymentAmount}
+        onChange={(e) => setPaymentAmount(e.target.value)}
+        placeholder="Сома ₸"
+        className="w-28 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-900"
       />
       <input
         value={comment}
