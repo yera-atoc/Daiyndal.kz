@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { subjects } from '@/lib/subjects'
 import { supabase } from '@/lib/supabaseClient'
-import { WEEKDAYS, hhmm, slotGroupName, type ScheduleSlot } from '@/lib/schedule'
+import { type ScheduleSlot } from '@/lib/schedule'
+import WeeklyTimetable from '@/components/WeeklyTimetable'
 
 const MATERIALS_BUCKET = 'materials'
 const MAX_FILE_MB = 30
@@ -153,7 +154,7 @@ export default function TeacherDashboard() {
           ))}
         </div>
 
-        {tab === 'schedule' && <ScheduleTab slots={slots} />}
+        {tab === 'schedule' && <ScheduleTab slots={slots} students={students} />}
         {tab === 'students' && <StudentsTab students={students} onRatingChanged={loadAll} />}
         {tab === 'materials' && <MaterialsTab materials={materials} reload={loadAll} />}
         {tab === 'tests' && <TestsTab tests={tests} reload={loadAll} />}
@@ -224,104 +225,15 @@ function ProfileTab({ me, onSaved }: { me: Teacher | null; onSaved: () => Promis
   )
 }
 
-function ScheduleTab({ slots }: { slots: ScheduleSlot[] }) {
-  // Read-only: the schedule is set by the admin. Shown as day tabs + a
-  // table for the selected day (same pattern as BilimClass's "Сабақ
-  // кестесі" page), defaulting to today's weekday.
-  const todayId = (() => {
-    const jsDay = new Date().getDay() // 0 = Sunday
-    return jsDay === 0 ? 7 : jsDay
-  })()
-  const [day, setDay] = useState<number>(todayId)
+function ScheduleTab({ slots, students }: { slots: ScheduleSlot[]; students: StudentRow[] }) {
+  // Read-only: the schedule is set by the admin. Weekly grid like BilimClass.
+  const groupSizes = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const st of students) if (st.group_id) m[st.group_id] = (m[st.group_id] ?? 0) + 1
+    return m
+  }, [students])
 
-  const daySlots = slots
-    .filter((s) => s.day_of_week === day)
-    .sort((a, b) => a.start_time.localeCompare(b.start_time))
-
-  return (
-    <section className="mt-8">
-      {slots.length === 0 ? (
-        <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-500 shadow-sm">
-          Әзірге кесте қойылмаған. Сабақ кестесін әкімші қосады.
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="flex overflow-x-auto border-b border-zinc-200 bg-zinc-50">
-            {WEEKDAYS.map((d) => {
-              const count = slots.filter((s) => s.day_of_week === d.id).length
-              const active = day === d.id
-              return (
-                <button
-                  key={d.id}
-                  onClick={() => setDay(d.id)}
-                  className={`shrink-0 border-b-2 px-5 py-3 text-sm font-semibold uppercase tracking-wide transition ${
-                    active
-                      ? 'border-black text-black'
-                      : 'border-transparent text-zinc-400 hover:text-zinc-700'
-                  }`}
-                >
-                  {d.short}
-                  {count > 0 && (
-                    <span
-                      className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
-                        active ? 'bg-black text-white' : 'bg-zinc-200 text-zinc-600'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          <p className="px-5 pt-4 text-sm font-semibold text-zinc-900">
-            {WEEKDAYS.find((d) => d.id === day)?.name}
-          </p>
-
-          {daySlots.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-zinc-400">
-              Бұл күнге сабақ жоспарланбаған.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="mt-3 w-full min-w-[560px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-200 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    <th className="px-5 py-2 font-semibold">Уақыт</th>
-                    <th className="px-5 py-2 font-semibold">Топ</th>
-                    <th className="px-5 py-2 font-semibold">Тақырып</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {daySlots.map((s) => (
-                    <tr key={s.id} className="align-top">
-                      <td className="whitespace-nowrap px-5 py-3 font-bold text-zinc-900">
-                        {hhmm(s.start_time)}–{hhmm(s.end_time)}
-                      </td>
-                      <td className="px-5 py-3">
-                        {slotGroupName(s) ? (
-                          <span className="inline-block rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
-                            {slotGroupName(s)}
-                          </span>
-                        ) : (
-                          <span className="text-zinc-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-zinc-700">
-                        {s.title || <span className="text-zinc-300">—</span>}
-                        {s.note && <p className="mt-0.5 text-xs text-zinc-400">{s.note}</p>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-    </section>
-  )
+  return <WeeklyTimetable slots={slots} groupSizes={groupSizes} />
 }
 
 function StudentsTab({
