@@ -152,8 +152,19 @@ function StudentsTab({ students, setStudents, toast, q, setQ }: any) {
   const [status, setStatus] = useState("all");
   const [subject, setSubject] = useState("all");
   const [edit, setEdit] = useState<Student | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [date, setDate] = useState("");
   const [err, setErr] = useState("");
+
+  // Поля для нового ученика
+  const [newStudent, setNewStudent] = useState({
+    name: "",
+    phone: "+7 ",
+    subject: SUBJECTS[0],
+    teacher: TEACHERS[0].name,
+    amount: 35000,
+    due: TODAY,
+  });
 
   const rows = useMemo(() => students.filter((s: Student) =>
     s.name.toLowerCase().includes(q.toLowerCase()) &&
@@ -167,24 +178,59 @@ function StudentsTab({ students, setStudents, toast, q, setQ }: any) {
     toast(`Оплата отмечена: ${s.name}. Следующая — ${next}`);
   };
   const saveDate = () => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(+new Date(date))) return setErr("Укажите корректную дату");
+    if (!/^\d{4}-\d{2}-\d{2}\$/.test(date) || isNaN(+new Date(date))) return setErr("Укажите корректную дату");
     setStudents((p: Student[]) => p.map((x) => (x.id === edit!.id ? { ...x, due: date, paid: false } : x)));
     setEdit(null); toast("Дата оплаты обновлена");
   };
 
+  const deleteStudent = (s: Student) => {
+    if (confirm(`Удалить ученика ${s.name}?`)) {
+      setStudents((p: Student[]) => p.filter((x) => x.id !== s.id));
+      toast(`Ученик ${s.name} удалён`);
+    }
+  };
+
+  const handleAddStudent = () => {
+    if (newStudent.name.trim().length < 2) return setErr("Введите ФИО (минимум 2 символа)");
+    if (!/^\+?[\d\s()-]{10,18}\$/.test(newStudent.phone)) return setErr("Введите корректный номер телефона");
+
+    const created: Student = {
+      id: Date.now(),
+      name: newStudent.name.trim(),
+      phone: newStudent.phone.trim(),
+      subject: newStudent.subject,
+      teacher: TEACHERS.find((t) => t.subject === newStudent.subject)?.name || TEACHERS[0].name,
+      amount: Number(newStudent.amount) || 0,
+      due: newStudent.due,
+      paid: false,
+    };
+
+    setStudents((prev: Student[]) => [created, ...prev]);
+    toast(`Ученик ${created.name} успешно добавлен!`);
+    setIsAddOpen(false);
+    setNewStudent({ name: "", phone: "+7 ", subject: SUBJECTS[0], teacher: TEACHERS[0].name, amount: 35000, due: TODAY });
+    setErr("");
+  };
+
   return (
     <>
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-        <input className={inp} placeholder="Поиск по имени…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className={inp + " sm:w-48"} value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="all">Все статусы</option>
-          {Object.entries(PAY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
-        <select className={inp + " sm:w-44"} value={subject} onChange={(e) => setSubject(e.target.value)}>
-          <option value="all">Все предметы</option>
-          {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
-        </select>
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+          <input className={inp} placeholder="Поиск по имени…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <select className={inp + " sm:w-48"} value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="all">Все статусы</option>
+            {Object.entries(PAY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+          <select className={inp + " sm:w-44"} value={subject} onChange={(e) => setSubject(e.target.value)}>
+            <option value="all">Все предметы</option>
+            {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <button className={`${btn} bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap`} onClick={() => { setIsAddOpen(true); setErr(""); }}>
+          + Добавить ученика
+        </button>
       </div>
+
       <Card c="overflow-x-auto">
         <table className="w-full min-w-[860px] text-left text-sm">
           <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
@@ -194,7 +240,7 @@ function StudentsTab({ students, setStudents, toast, q, setQ }: any) {
             {rows.map((s: Student) => { const p = PAY[payStatus(s)]; return (
               <tr key={s.id} className="border-b border-slate-50 transition hover:bg-slate-50/80">
                 <td className="px-2 py-2 font-medium text-slate-900"><Cell value={s.name} validate={(v) => (v.trim().length < 2 ? "Минимум 2 символа" : "")} onSave={(v) => patch(s.id, { name: v.trim() }, "Имя обновлено")} /></td>
-                <td className="px-2 py-2 text-slate-600"><Cell value={s.phone} c="font-mono text-xs" validate={(v) => (/^\+?[\d\s()-]{10,18}$/.test(v) ? "" : "Неверный номер")} onSave={(v) => patch(s.id, { phone: v.trim() }, "Контакт обновлён")} /></td>
+                <td className="px-2 py-2 text-slate-600"><Cell value={s.phone} c="font-mono text-xs" validate={(v) => (/^\+?[\d\s()-]{10,18}\$/.test(v) ? "" : "Неверный номер")} onSave={(v) => patch(s.id, { phone: v.trim() }, "Контакт обновлён")} /></td>
                 <td className="px-4 py-3">{s.subject}</td>
                 <td className="px-4 py-3 text-slate-600">{s.teacher}</td>
                 <td className="px-2 py-2"><Cell value={s.amount} type="number" c="w-24 font-mono text-xs" validate={(v) => (Number(v) > 0 ? "" : "Сумма > 0")} onSave={(v) => patch(s.id, { amount: Number(v) }, "Сумма обновлена")} /></td>
@@ -203,12 +249,15 @@ function StudentsTab({ students, setStudents, toast, q, setQ }: any) {
                 <td className="space-x-1 px-4 py-3 text-right whitespace-nowrap">
                   <button className={`${btn} bg-emerald-600 text-white hover:bg-emerald-700`} onClick={() => markPaid(s)}>Оплачено</button>
                   <button className={`${btn} border border-slate-200 hover:bg-slate-100`} onClick={() => { setEdit(s); setDate(s.due); setErr(""); }}>Дата</button>
+                  <button className={`${btn} text-rose-600 hover:bg-rose-50`} onClick={() => deleteStudent(s)}>✕</button>
                 </td>
               </tr>); })}
             {!rows.length && <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400">Ничего не найдено</td></tr>}
           </tbody>
         </table>
       </Card>
+
+      {/* Модальное окно смены даты оплаты */}
       {edit && (
         <Modal title={`Дата оплаты — ${edit.name}`} onClose={() => setEdit(null)}>
           <input type="date" className={inp} value={date} onChange={(e) => { setDate(e.target.value); setErr(""); }} />
@@ -216,6 +265,47 @@ function StudentsTab({ students, setStudents, toast, q, setQ }: any) {
           <div className="mt-4 flex justify-end gap-2">
             <button className={`${btn} hover:bg-slate-100`} onClick={() => setEdit(null)}>Отмена</button>
             <button className={`${btn} bg-indigo-600 text-white hover:bg-indigo-700`} onClick={saveDate}>Сохранить</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Модальное окно добавления нового ученика */}
+      {isAddOpen && (
+        <Modal title="Новый ученик" onClose={() => setIsAddOpen(false)}>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-slate-500">ФИО ученика</label>
+              <input className={inp} placeholder="Алихан Ибрагимов" value={newStudent.name} onChange={(e) => { setNewStudent({ ...newStudent, name: e.target.value }); setErr(""); }} />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Телефон</label>
+              <input className={inp} placeholder="+7 707 123 45 67" value={newStudent.phone} onChange={(e) => { setNewStudent({ ...newStudent, phone: e.target.value }); setErr(""); }} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-slate-500">Предмет</label>
+                <select className={inp} value={newStudent.subject} onChange={(e) => {
+                  const subj = e.target.value;
+                  const th = TEACHERS.find((t) => t.subject === subj)?.name || TEACHERS[0].name;
+                  setNewStudent({ ...newStudent, subject: subj, teacher: th });
+                }}>
+                  {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">Стоимость (₸)</label>
+                <input type="number" className={inp} value={newStudent.amount} onChange={(e) => setNewStudent({ ...newStudent, amount: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Дата оплаты</label>
+              <input type="date" className={inp} value={newStudent.due} onChange={(e) => setNewStudent({ ...newStudent, due: e.target.value })} />
+            </div>
+            {err && <p className="rounded-lg bg-rose-50 px-2 py-1.5 text-xs text-rose-700">⚠ {err}</p>}
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <button className={`${btn} hover:bg-slate-100`} onClick={() => setIsAddOpen(false)}>Отмена</button>
+            <button className={`${btn} bg-indigo-600 text-white hover:bg-indigo-700`} onClick={handleAddStudent}>Создать</button>
           </div>
         </Modal>
       )}
