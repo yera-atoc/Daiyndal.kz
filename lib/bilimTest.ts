@@ -58,8 +58,17 @@ export function prevMax(exam: Exam, row: ScoreRow | undefined): number {
   return row ? exam.subjects.filter((s) => s.id in row).reduce((a, s) => a + s.max, 0) : 0
 }
 
-// Топ тізімі. Жаңа оқушы қосу үшін осы тізімге атын жазыңыз.
-export const ROSTER: string[] = [
+export type Student = {
+  id: string
+  full_name: string
+  position: number
+  // Сайтқа дейінгі айлардың баллдары: {"2026-09": {"math": 370, ...}}
+  legacy_scores: Record<string, ScoreRow>
+}
+
+// Бастапқы тізім: bt_students кестесі бос болса, бір рет осыдан толтырылады.
+// Кейін оқушыларды админ бетінен қосасыз / өзгертесіз.
+const SEED_ROSTER: string[] = [
   'Оразалы Жанел',
   'Тамабай Ералы',
   'Әлихан Алдияр',
@@ -108,16 +117,19 @@ const SEPT_ROWS: Row[] = [
   ['Хамитбек Мұстафа', 130, 80, 60, 50, 60],
 ]
 
-export const STATIC_HISTORY: Record<string, { title: string; scores: Record<string, ScoreRow> }> = {
-  '2026-09': {
-    title: 'Қыркүйек 2026',
-    scores: Object.fromEntries(
-      SEPT_ROWS.map(([n, math, science, english, kazakh, russian]) => [
-        n,
-        { math, science, english, kazakh, russian },
-      ])
-    ),
-  },
+export const SEED_STUDENTS: Omit<Student, 'id'>[] = SEED_ROSTER.map((full_name, i) => {
+  const r = SEPT_ROWS.find((x) => x[0] === full_name)
+  const legacy_scores: Record<string, ScoreRow> = {}
+  if (r) legacy_scores['2026-09'] = { math: r[1], science: r[2], english: r[3], kazakh: r[4], russian: r[5] }
+  return {
+    full_name,
+    position: i + 1,
+    legacy_scores,
+  }
+})
+
+export function cleanName(v: unknown): string {
+  return String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 80)
 }
 
 const MONTHS = [
