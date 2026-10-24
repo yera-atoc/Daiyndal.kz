@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/requireAdmin'
+import { syncBtAddToCrm, syncBtDeleteToCrm, syncBtGroupToCrm, syncBtRenameToCrm } from '@/lib/crmSync'
 import { GROUP_ID_RE, LETTERS, MONTH_RE, cleanName, type Exam, type Group, type SubjectConfig } from '@/lib/bilimTest'
 import {
   addStudent,
@@ -128,6 +129,7 @@ export async function POST(req: NextRequest) {
       const old = groups.find((g) => g.id === id)
       const group: Group = { id, name, subjects, position: old?.position ?? Math.max(0, ...groups.map((g) => g.position)) + 1 }
       await saveGroup(group)
+      await syncBtGroupToCrm(id, name)
       return NextResponse.json({ ok: true, id })
     }
     if (action === 'delete-group') {
@@ -170,10 +172,13 @@ export async function POST(req: NextRequest) {
       const res = action === 'add-student' ? await addStudent(String(b.group), name) : await renameStudent(String(b.id), name)
       if (res === 'duplicate') return bad('Бұл аты-жөні топта бар', 409)
       if (res === 'missing') return bad('Оқушы табылмады', 404)
+      if (action === 'add-student') await syncBtAddToCrm(String(b.group), name)
+      else await syncBtRenameToCrm(String(b.id), name)
       return NextResponse.json({ ok: true })
     }
     if (action === 'delete-student') {
       await deleteStudent(String(b.id))
+      await syncBtDeleteToCrm(String(b.id))
       return NextResponse.json({ ok: true })
     }
     if (action === 'reset-pin') {

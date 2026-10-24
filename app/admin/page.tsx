@@ -123,7 +123,7 @@ function Crm() {
 
         {data.missing.length > 0 && (
           <div className="mb-5 rounded-2xl border p-4 text-sm" style={{ borderColor: '#FCA5A5', background: '#FEF2F2', color: '#991B1B' }}>
-            <b>Дерекқорда кейбір кестелер мен өрістер жоқ.</b> Supabase → SQL Editor ішінде <code>supabase/migration_crm.sql</code> файлын іске қосыңыз.
+            <b>Дерекқорда кейбір кестелер мен өрістер жоқ.</b> Supabase → SQL Editor ішінде <code>supabase/migration_crm.sql</code>, содан кейін <code>supabase/migration_crm_sync.sql</code> файлдарын іске қосыңыз.
             <details className="mt-1"><summary className="cursor-pointer">Толығырақ</summary><ul className="mt-1 list-disc pl-5">{data.missing.map((m) => <li key={m}>{m}</li>)}</ul></details>
           </div>
         )}

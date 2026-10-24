@@ -399,6 +399,7 @@ export function Groups({ data, reload, flash, onOpenGroup }: { data: CrmData; re
                 <dd className="text-right">{slots.length ? slots.map((s) => `${DAYS[s.day_of_week - 1]} ${hhmm(s.start_time)}`).join(', ') : '—'}</dd>
                 <dt style={{ color: BRAND.muted }}>Мұғалім</dt><dd className="text-right">{teachers.join(', ') || '—'}</dd>
               </dl>
+              <GroupSettings g={g} data={data} run={run} />
               <div className="mt-4 flex gap-2">
                 <button onClick={() => onOpenGroup(g.id)} className={btnDark} style={{ background: BRAND.ink }}>Қатысу белгілеу</button>
                 <button onClick={() => { const n = prompt('Топтың жаңа аты', g.name); if (n && n.trim() !== g.name) run({ action: 'save-group', id: g.id, name: n }, 'Топ өзгертілді') }} className={btnLine} style={{ borderColor: BRAND.line }}>Атын өзгерту</button>
@@ -409,6 +410,53 @@ export function Groups({ data, reload, flash, onOpenGroup }: { data: CrmData; re
         })}
       </div>
       {data.groups.length === 0 && <Empty>Әзірге топ жоқ.</Empty>}
+    </div>
+  )
+}
+
+function GroupSettings({ g, data, run }: { g: CrmData['groups'][number]; data: CrmData; run: (body: unknown, note: string) => Promise<boolean> }) {
+  const [fee, setFee] = useState(g.monthly_fee != null ? String(g.monthly_fee) : '')
+  const style = { borderColor: BRAND.line }
+  return (
+    <div className="mt-4 space-y-3 border-t pt-4" style={style}>
+      <div>
+        <span className="mb-1 block text-xs font-medium" style={{ color: BRAND.muted }}>Айлық төлем, ₸</span>
+        <div className="flex gap-1.5">
+          <input type="number" min={0} step={500} value={fee} onChange={(e) => setFee(e.target.value)} placeholder="мысалы 35000" className={inputCls} style={style} />
+        </div>
+        <div className="mt-1.5 flex gap-1.5">
+          <button
+            disabled={fee === ''}
+            onClick={() => run({ action: 'set-group-fee', id: g.id, amount: fee, applyAll: true }, 'Топтағы барлық оқушыға қойылды')}
+            className={`${btnDark} flex-1 px-2 py-1.5 text-xs`}
+            style={{ background: BRAND.ink }}
+          >
+            Барлық оқушыға
+          </button>
+          <button
+            disabled={fee === ''}
+            onClick={() => run({ action: 'set-group-fee', id: g.id, amount: fee, applyAll: false }, 'Сомасы жоқ оқушыларға қойылды')}
+            className={`${btnLine} flex-1 px-2 py-1.5 text-xs`}
+            style={{ borderColor: BRAND.line }}
+          >
+            Сомасы жоқтарға ғана
+          </button>
+        </div>
+      </div>
+      {data.btGroups.length > 0 && (
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium" style={{ color: BRAND.muted }}>Білім тексеру тобы</span>
+          <select
+            value={g.bt_group_id ?? ''}
+            onChange={(e) => run({ action: 'link-group', id: g.id, btGroup: e.target.value }, e.target.value ? 'Топтар байланысты: оқушылар екі жақта да бірдей' : 'Байланыс алынды')}
+            className={inputCls}
+            style={style}
+          >
+            <option value="">Байланыспаған</option>
+            {data.btGroups.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </label>
+      )}
     </div>
   )
 }

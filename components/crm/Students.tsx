@@ -130,7 +130,7 @@ export default function Students({
       </div>
 
       <div className="overflow-x-auto rounded-2xl border bg-white" style={{ borderColor: BRAND.line }}>
-        <table className="w-full min-w-[860px] text-sm">
+        <table className="w-full min-w-[920px] text-sm">
           <thead>
             <tr className="border-b text-left text-xs" style={{ borderColor: BRAND.line, color: BRAND.muted }}>
               <th className="px-4 py-3 font-medium">Оқушы</th>
@@ -147,7 +147,7 @@ export default function Students({
               <tr key={s.id} className="cursor-pointer border-b last:border-0 hover:bg-slate-50" style={{ borderColor: BRAND.line }} onClick={() => setOpenId(s.id)}>
                 <td className="px-4 py-2.5">
                   <div className="font-semibold">{s.full_name}</div>
-                  <div className="text-xs" style={{ color: BRAND.muted }}>{s.grade ? `${s.grade}-сынып` : ''}{s.status && s.status !== 'active' ? ` · ${STATUS[s.status].label}` : ''}</div>
+                  <div className="text-xs" style={{ color: BRAND.muted }}>{[s.grade ? `${s.grade}-сынып` : '', s.school ?? '', s.status && s.status !== 'active' ? STATUS[s.status].label : ''].filter(Boolean).join(' · ')}</div>
                 </td>
                 <td className="px-4 py-2.5">{gName(s.group_id)}</td>
                 <td className="px-4 py-2.5">
@@ -163,7 +163,10 @@ export default function Students({
                   {a ? <b style={{ color: a.rate < 0.75 ? BRAND.red : BRAND.text }}>{Math.round(a.rate * 100)} %</b> : <span style={{ color: BRAND.muted }}>—</span>}
                 </td>
                 <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => setPayId(s.id)} className="rounded-lg border px-2.5 py-1 text-xs font-semibold" style={{ borderColor: BRAND.line }}>Төлем</button>
+                  <div className="flex justify-end gap-1.5">
+                    <button onClick={() => setEdit(s)} className="rounded-lg border px-2.5 py-1 text-xs font-semibold" style={{ borderColor: BRAND.line, color: BRAND.blue }}>Өзгерту</button>
+                    <button onClick={() => setPayId(s.id)} className="rounded-lg border px-2.5 py-1 text-xs font-semibold" style={{ borderColor: BRAND.line }}>Төлем</button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -232,7 +235,9 @@ function StudentDrawer({
         <Info k="Оқушының телефоны" v={s.phone} />
         <Info k="Мұғалімі" v={teacher} />
         <Info k="Оқи бастады" v={s.start_date ? dmy(s.start_date) + ' ' + s.start_date.slice(0, 4) : null} />
-        <Info k="Кабинет логині" v={s.username} />
+        <Info k="Мектебі" v={s.school} />
+        <Info k="Мекенжайы" v={s.address} />
+        <Info k="Білім тексеру" v={s.bt_student_id ? 'тізімде бар' : null} />
         {s.comment && <div className="col-span-2"><dt className="text-xs" style={{ color: BRAND.muted }}>Ескерту</dt><dd className="mt-0.5 whitespace-pre-wrap">{s.comment}</dd></div>}
       </dl>
 
@@ -293,7 +298,7 @@ function StudentDrawer({
 
       <button
         onClick={async () => {
-          if (!confirm(`${s.full_name} CRM-нен толық өшірілсін бе? Төлем тарихы сақталады. Оқушы кетсе, «Өзгерту» арқылы «Кетті» күйін қойған дұрыс.`)) return
+          if (!confirm(`${s.full_name} толық өшірілсін бе?${s.bt_student_id ? ' Білім тексерудегі жазбасы мен жауап парақтары да өшеді.' : ''} Төлем тарихы сақталады. Оқушы кетсе, «Өзгерту» арқылы «Кетті» күйін қойған дұрыс.`)) return
           await crm({ action: 'delete-student', id: s.id })
           onClose()
           await reload()
@@ -358,7 +363,9 @@ function StudentForm({ init, data, onClose, onSaved }: { init: Partial<CStudent>
             {data.teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </Field>
-        <Field label="Айлық төлем, ₸"><input type="number" min={0} step={500} value={f.payment_amount ?? ''} onChange={set('payment_amount')} className={inputCls} style={style} /></Field>
+        <Field label="Мектебі"><input value={f.school ?? ''} onChange={set('school')} className={inputCls} style={style} /></Field>
+        <Field label="Мекенжайы"><input value={f.address ?? ''} onChange={set('address')} className={inputCls} style={style} /></Field>
+        <Field label="Айлық төлем, ₸"><input type="number" min={0} step={500} value={f.payment_amount ?? ''} onChange={set('payment_amount')} placeholder={(() => { const fee = data.groups.find((g) => g.id === f.group_id)?.monthly_fee; return fee ? `Бос қалса — топтың төлемі ${fee}` : '' })()} className={inputCls} style={style} /></Field>
         <Field label="Келесі төлем күні"><input type="date" value={f.payment_deadline ?? ''} onChange={set('payment_deadline')} className={inputCls} style={style} /></Field>
         <Field label="Күйі">
           <select value={f.status ?? 'active'} onChange={set('status')} className={inputCls} style={style}>

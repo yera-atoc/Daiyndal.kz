@@ -23,8 +23,11 @@ export type CStudent = {
   comment: string | null
   username: string | null
   created_at: string
+  school?: string | null
+  address?: string | null
+  bt_student_id?: string | null
 }
-export type CGroup = { id: string; name: string }
+export type CGroup = { id: string; name: string; bt_group_id?: string | null; monthly_fee?: number | null }
 export type CTeacher = { id: string; name: string; subject: string | null; username: string | null }
 export type CPayment = { id: string; student_id: string | null; student_name: string; amount: number | null; paid_on: string; period_end: string | null; note: string | null }
 export type CAttendance = { student_id: string; date: string; present: boolean; excused: boolean | null }
