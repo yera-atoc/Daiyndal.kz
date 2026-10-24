@@ -1,7 +1,7 @@
 // Білім тексеру сынағы (НЗМ дайындық тобы): ортақ типтер, тізім, бағалау.
 // Бұл файлда құпия дерек жоқ — клиентте де, серверде де қолданылады.
 
-export type SubjectId = 'math' | 'science' | 'english' | 'kazakh' | 'russian'
+export type SubjectId = 'quant' | 'math' | 'science' | 'english' | 'kazakh' | 'russian'
 
 export type SubjectConfig = {
   id: SubjectId
@@ -36,6 +36,8 @@ export const GROUP_NAME = 'НЗМ дайындық тобы'
 export const LETTERS = ['A', 'B', 'C', 'D', 'E']
 
 export const DEFAULT_SUBJECTS: SubjectConfig[] = [
+  // Қазаннан бастап қосылды (қыркүйекте болмаған): 60 сұрақ × 5 балл
+  { id: 'quant', name: 'Сандық сипаттама', short: 'Сандық сип.', max: 300, questions: 60, options: 4 },
   { id: 'math', name: 'Математика', short: 'Математика', max: 400, questions: 40, options: 4 },
   { id: 'science', name: 'Жаратылыстану', short: 'Жаратылыстану', max: 200, questions: 20, options: 4 },
   { id: 'english', name: 'Ағылшын тілі', short: 'Ағылшын т.', max: 200, questions: 20, options: 4 },
@@ -44,7 +46,17 @@ export const DEFAULT_SUBJECTS: SubjectConfig[] = [
 ]
 
 export const SUBJECT_IDS = DEFAULT_SUBJECTS.map((s) => s.id)
-export const TOTAL_MAX = DEFAULT_SUBJECTS.reduce((a, s) => a + s.max, 0) // 1200
+export const TOTAL_MAX = DEFAULT_SUBJECTS.reduce((a, s) => a + s.max, 0) // 1500
+
+// Осы сынақтың жалпы максимумы (пәндер бойынша)
+export function examMax(exam: Exam): number {
+  return exam.subjects.reduce((a, s) => a + s.max, 0)
+}
+
+// Алдыңғы айдың максимумы: сол айда болған пәндер ғана (қыркүйек = 1200)
+export function prevMax(exam: Exam, row: ScoreRow | undefined): number {
+  return row ? exam.subjects.filter((s) => s.id in row).reduce((a, s) => a + s.max, 0) : 0
+}
 
 // Топ тізімі. Жаңа оқушы қосу үшін осы тізімге атын жазыңыз.
 export const ROSTER: string[] = [

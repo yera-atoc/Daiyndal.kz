@@ -1,7 +1,8 @@
 import {
   GROUP_NAME,
   commonDelta,
-  TOTAL_MAX,
+  examMax,
+  prevMax,
   fmtPct,
   gradeSubject,
   monthName,
@@ -37,7 +38,10 @@ export default function ReportSheet({ exam, student, subs, prev, rank }: ReportI
   const prevTotal = rowTotal(prev?.row)
   const nowRow = Object.fromEntries(rows.map((r) => [r.s.id, r.now]))
   const delta = commonDelta(nowRow, prev?.row)
+  const commonCount = rows.filter((r) => r.now !== null && r.before !== null).length
   const nowM = monthName(exam.id)
+  const MAX = examMax(exam)
+  const PMAX = prevMax(exam, prev?.row)
   const prevM = prev ? monthName(prev.id) : null
 
   // Қорытынды мәтіндер
@@ -73,7 +77,7 @@ export default function ReportSheet({ exam, student, subs, prev, rank }: ReportI
     <section className="bt-sheet mx-auto flex flex-col bg-white text-[#111] shadow-xl print:shadow-none">
       {/* Тақырып */}
       <div className="flex items-start justify-between">
-        <img src="/beles-logo.png" alt="Beles education" style={{ height: '17mm' }} />
+        <img src="/beles-logo.png" alt="Beles education" style={{ height: '14mm' }} />
         <div className="text-right">
           <div className="text-[9pt] font-bold uppercase tracking-[.12em]" style={{ color: BLUE }}>
             Оқушы карточкасы
@@ -84,35 +88,35 @@ export default function ReportSheet({ exam, student, subs, prev, rank }: ReportI
           </div>
         </div>
       </div>
-      <div className="mt-[6mm] h-[1.2mm] bg-black" />
+      <div className="mt-[5mm] h-[1.2mm] bg-black" />
 
-      <h1 className="mt-[7mm] text-[28pt] font-extrabold leading-none tracking-tight">{student}</h1>
+      <h1 className="mt-[6mm] text-[26pt] font-extrabold leading-none tracking-tight">{student}</h1>
       <p className="mt-[3mm] text-[10.5pt] text-slate-500">
         {GROUP_NAME} · {hasPrev ? 'екі айлық нәтиже және өзгеріс' : `${nowM} айының нәтижесі`} · барлығы{' '}
-        {TOTAL_MAX} баллдан
+        {MAX} баллдан
       </p>
 
       {/* Карточкалар */}
-      <div className="mt-[7mm] grid grid-cols-4 gap-[3.5mm]">
-        <Card label={prevM ?? 'Алдыңғы ай'} value={hasPrev ? String(prevTotal) : '—'} sub={hasPrev ? fmtPct(pct(prevTotal!, TOTAL_MAX)) : 'тапсырмаған'} />
+      <div className="mt-[5mm] grid grid-cols-4 gap-[3.5mm]">
+        <Card label={prevM ?? 'Алдыңғы ай'} value={hasPrev ? String(prevTotal) : '—'} sub={hasPrev ? `${fmtPct(pct(prevTotal!, PMAX))} · ${PMAX}-ден` : 'тапсырмаған'} />
         <Card
           label={nowM}
           value={nowTotal !== null ? String(nowTotal) : '—'}
-          sub={nowTotal !== null ? fmtPct(pct(nowTotal, TOTAL_MAX)) : 'нәтиже жоқ'}
+          sub={nowTotal !== null ? `${fmtPct(pct(nowTotal, MAX))} · ${MAX}-ден` : 'нәтиже жоқ'}
           active
         />
         <Card
           label="Өзгеріс"
           value={delta !== null ? sign(delta) : '—'}
           unit={delta !== null ? 'балл' : ''}
-          sub={delta !== null ? `${sign(Math.round(pct(delta, TOTAL_MAX) * 10) / 10).replace('.', ',')} пайыздық пункт` : 'салыстыру жоқ'}
+          sub={delta !== null ? `ортақ ${commonCount} пән бойынша` : 'салыстыру жоқ'}
           tone={delta === null ? undefined : delta >= 0 ? 'up' : 'down'}
         />
         <Card label="Топтағы орны" value={rank ? String(rank.place) : '—'} unit={rank ? `/ ${rank.of}` : ''} sub={`${nowM} бойынша`} />
       </div>
 
       {/* Пәндер */}
-      <div className="mt-[8mm] flex items-end justify-between">
+      <div className="mt-[6mm] flex items-end justify-between">
         <h2 className="text-[15pt] font-bold">Пәндер бойынша</h2>
         <div className="flex items-center gap-4 text-[8.5pt] text-slate-500">
           {hasPrev && (
@@ -127,7 +131,7 @@ export default function ReportSheet({ exam, student, subs, prev, rank }: ReportI
           </span>
         </div>
       </div>
-      <div className="mt-[3mm] grid grid-cols-[38mm_1fr_36mm_18mm] border-b-2 border-black pb-[2mm] text-[7.5pt] font-semibold uppercase tracking-[.1em] text-slate-500">
+      <div className="mt-[3mm] grid grid-cols-[44mm_1fr_42mm_17mm] border-b-2 border-black pb-[2mm] text-[7.5pt] font-semibold uppercase tracking-[.1em] text-slate-500">
         <span>Пән</span>
         <span>Максимумның қанша пайызы</span>
         <span className="text-right">Балл</span>
@@ -136,9 +140,9 @@ export default function ReportSheet({ exam, student, subs, prev, rank }: ReportI
       {rows.map(({ s, g, now, before }) => {
         const d = now !== null && before !== null ? now - before : null
         return (
-          <div key={s.id} className="grid grid-cols-[38mm_1fr_36mm_18mm] items-center border-b border-slate-200 py-[2.6mm]">
+          <div key={s.id} className="grid grid-cols-[44mm_1fr_42mm_17mm] items-center border-b border-slate-200 py-[1.9mm]">
             <div>
-              <div className="text-[11pt] font-semibold">{s.name}</div>
+              <div className="text-[10.5pt] font-semibold">{s.name}</div>
               {g && (
                 <div className="text-[8pt] text-slate-500">
                   {g.correct}/{s.questions} дұрыс
@@ -157,20 +161,20 @@ export default function ReportSheet({ exam, student, subs, prev, rank }: ReportI
               className="text-right text-[12pt] font-bold"
               style={{ color: d === null ? '#94a3b8' : d > 0 ? BLUE : d < 0 ? '#DC2626' : '#475569' }}
             >
-              {d === null ? '—' : sign(d)}
+              {d === null ? (hasPrev && prev?.row && !(s.id in prev.row) && now !== null ? <span className="text-[8pt] font-semibold text-slate-400">жаңа пән</span> : '—') : sign(d)}
             </div>
           </div>
         )
       })}
-      <div className="grid grid-cols-[38mm_1fr_36mm_18mm] items-center border-t-2 border-black py-[3.5mm]">
+      <div className="grid grid-cols-[44mm_1fr_42mm_17mm] items-center border-t-2 border-black py-[2.5mm]">
         <div className="text-[12pt] font-bold">Жиынтығы</div>
         <div className="space-y-[1.2mm] pr-[6mm]">
-          {hasPrev && <Bar v={prevTotal} max={TOTAL_MAX} color={LIGHT} />}
-          <Bar v={nowTotal} max={TOTAL_MAX} color={BLUE} />
+          {hasPrev && <Bar v={prevTotal} max={PMAX} color={LIGHT} />}
+          <Bar v={nowTotal} max={MAX} color={BLUE} />
         </div>
         <div className="text-right text-[9pt] text-slate-500">
-          {hasPrev && <>{prevTotal} → </>}
-          <b className="text-[12.5pt] text-black">{nowTotal ?? '—'}</b> / {TOTAL_MAX}
+          {hasPrev && <>{prevTotal}/{PMAX} → </>}
+          <b className="text-[12.5pt] text-black">{nowTotal ?? '—'}</b> / {MAX}
         </div>
         <div className="text-right text-[12pt] font-bold" style={{ color: delta === null ? '#94a3b8' : delta >= 0 ? BLUE : '#DC2626' }}>
           {delta === null ? '—' : sign(delta)}
@@ -178,16 +182,16 @@ export default function ReportSheet({ exam, student, subs, prev, rank }: ReportI
       </div>
 
       {/* Қорытынды */}
-      <div className="mt-[6mm] grid grid-cols-2 gap-[4mm]">
-        <div className="rounded-[3mm] p-[4mm]" style={{ background: '#EEF3FE' }}>
+      <div className="mt-[4mm] grid grid-cols-2 gap-[4mm]">
+        <div className="rounded-[3mm] px-[4mm] py-[3mm]" style={{ background: '#EEF3FE' }}>
           <div className="text-[8.5pt] font-bold uppercase tracking-[.1em]" style={{ color: BLUE }}>
             {ups.length ? 'Өскен пәндер' : 'Күшті тұс'}
           </div>
-          <p className="mt-[2mm] text-[10pt] leading-snug">{goodText}</p>
+          <p className="mt-[1.5mm] text-[9.5pt] leading-snug">{goodText}</p>
         </div>
-        <div className="rounded-[3mm] p-[4mm]" style={{ background: '#FDF0EF' }}>
+        <div className="rounded-[3mm] px-[4mm] py-[3mm]" style={{ background: '#FDF0EF' }}>
           <div className="text-[8.5pt] font-bold uppercase tracking-[.1em] text-red-600">Назар аудару керек</div>
-          <p className="mt-[2mm] text-[10pt] leading-snug">
+          <p className="mt-[1.5mm] text-[9.5pt] leading-snug">
             {badText}
             {missing.length > 0 && ` Тапсырылмаған: ${missing.join(', ')}.`}
           </p>
@@ -196,13 +200,13 @@ export default function ReportSheet({ exam, student, subs, prev, rank }: ReportI
 
       {/* Қате сұрақтар */}
       {rows.some((r) => r.g && (r.g.wrong.length || r.g.blank.length)) && (
-        <div className="mt-[5mm]">
+        <div className="mt-[4mm] mb-[3mm] min-h-0 flex-1 overflow-hidden">
           <div className="text-[8.5pt] font-bold uppercase tracking-[.1em] text-slate-500">Қате және бос сұрақтар (нөмірлері)</div>
-          <div className="mt-[2mm] space-y-[0.8mm] text-[8.5pt] leading-snug">
+          <div className="mt-[2mm] space-y-[0.6mm] text-[8pt] leading-snug">
             {rows
               .filter((r) => r.g && (r.g.wrong.length || r.g.blank.length))
               .map((r) => (
-                <div key={r.s.id} className="grid grid-cols-[30mm_1fr]">
+                <div key={r.s.id} className="grid grid-cols-[32mm_1fr]">
                   <span className="font-semibold">{r.s.name}</span>
                   <span className="text-slate-600">
                     {r.g!.wrong.join(', ')}
@@ -245,7 +249,7 @@ function Card({
 }) {
   return (
     <div
-      className="rounded-[3mm] border p-[4mm]"
+      className="rounded-[3mm] border px-[4mm] py-[3mm]"
       style={{ borderColor: active ? BLUE : '#E2E8F0', background: active ? '#F1F5FE' : '#fff' }}
     >
       <div className="text-[8pt] font-bold uppercase tracking-[.12em]" style={{ color: active ? BLUE : '#475569' }}>

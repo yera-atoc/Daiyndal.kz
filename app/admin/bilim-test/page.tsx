@@ -6,7 +6,7 @@ import {
   GROUP_NAME,
   LETTERS,
   ROSTER,
-  TOTAL_MAX,
+  examMax,
   pct,
   ranking,
   commonDelta,
@@ -236,7 +236,7 @@ function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen: (n: s
               {exam.subjects.map((s) => (
                 <th key={s.id} className="px-3 py-2.5 text-right">{s.short} <span className="font-normal normal-case">({s.max})</span></th>
               ))}
-              <th className="px-3 py-2.5 text-right">Жалпы ({TOTAL_MAX})</th>
+              <th className="px-3 py-2.5 text-right">Жалпы ({examMax(exam)})</th>
               <th className="px-3 py-2.5 text-right">Өзгеріс</th>
               <th className="px-3 py-2.5" />
             </tr>
@@ -262,7 +262,7 @@ function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen: (n: s
                   })}
                   <td className="px-3 py-2 text-right">
                     {r.total !== null ? (
-                      <span className="inline-block min-w-[3.5rem] rounded-md px-2 py-0.5 text-right font-bold tabular-nums" style={{ background: totalBg(r.total) }}>
+                      <span className="inline-block min-w-[3.5rem] rounded-md px-2 py-0.5 text-right font-bold tabular-nums" style={{ background: totalBg(r.total, examMax(exam)) }}>
                         {r.total}
                       </span>
                     ) : (
@@ -291,8 +291,8 @@ function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen: (n: s
 }
 
 // Жалпы балл түсі: жоғары — қою жасыл
-function totalBg(t: number) {
-  const p = Math.min(1, t / TOTAL_MAX)
+function totalBg(t: number, max: number) {
+  const p = Math.min(1, t / max)
   const a = 0.12 + p * 0.6
   return `rgba(22,163,74,${a.toFixed(2)})`
 }
