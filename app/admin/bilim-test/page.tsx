@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   GROUP_NAME,
   LETTERS,
-  ROSTER,
   examMax,
   pct,
   ranking,
@@ -13,19 +12,21 @@ import {
   rowTotal,
   sign,
   type Exam,
+  type Student,
   type ScoreRow,
   type SubjectId,
   type Submission,
 } from '@/lib/bilimTest'
 
 type Resp = {
+  students: Student[]
   exams: { id: string; title: string }[]
   exam: Exam | null
   submissions: Submission[]
   previous: { id: string; title: string; scores: Record<string, ScoreRow> } | null
   error?: string
 }
-type Tab = 'results' | 'key' | 'settings'
+type Tab = 'results' | 'key' | 'settings' | 'students'
 
 function thisMonth() {
   const d = new Date()
@@ -108,7 +109,7 @@ function Admin() {
         <div>
           <a href="/admin" className="text-sm text-blue-600">← Админ панель</a>
           <h1 className="mt-1 text-2xl font-bold">Білім тексеру сынағы</h1>
-          <p className="text-slate-500">{GROUP_NAME} · {ROSTER.length} оқушы</p>
+          <p className="text-slate-500">{GROUP_NAME} · {data.students.length} оқушы</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {data.exams.length > 0 && (
@@ -134,6 +135,7 @@ function Admin() {
           Әзірге сынақ жоқ. Айды таңдап, «+ Жаңа ай» басыңыз.
         </div>
       )}
+      {!exam && <StudentsTab students={data.students} reload={load} flash={flash} />}
 
       {exam && draft && (
         <>
@@ -142,6 +144,7 @@ function Admin() {
               ['results', 'Нәтижелер'],
               ['key', 'Жауап кілті'],
               ['settings', 'Сынақты басқару'],
+              ['students', `Оқушылар (${data.students.length})`],
             ] as [Tab, string][]).map(([t, l]) => (
               <button
                 key={t}
@@ -154,12 +157,13 @@ function Admin() {
           </div>
 
           {tab === 'results' && <Results data={data} exam={exam} onOpen={setOpen} />}
+          {tab === 'students' && <StudentsTab students={data.students} reload={load} flash={flash} />}
           {tab === 'key' && <KeyEditor draft={draft} setDraft={setDraft} />}
           {tab === 'settings' && (
             <Settings exam={exam} draft={draft} setDraft={setDraft} hasSubs={data.submissions.length > 0} onToggle={(e) => save(e, 'Жауап қабылдау жаңартылды')} busy={busy} />
           )}
 
-          {dirty && tab !== 'results' && (
+          {dirty && (tab === 'key' || tab === 'settings') && (
             <div className="sticky bottom-4 mt-6 flex items-center justify-end gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
               <span className="text-sm text-slate-500">Сақталмаған өзгерістер бар</span>
               <button onClick={() => setDraft(structuredClone(exam))} className="rounded-lg px-3 py-2 text-sm">Болдырмау</button>
@@ -200,20 +204,21 @@ function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen: (n: s
   const keyed = exam.subjects.filter((s) => (exam.answer_key[s.id] ?? []).some(Boolean))
   const prev = data.previous
 
-  const rows = ROSTER.map((name) => {
+  const names = data.students.map((s) => s.full_name)
+  const rows = names.map((name) => {
     const total = rowTotal(rk.scores[name])
     const prevTotal = rowTotal(prev?.scores[name])
     const delta = commonDelta(rk.scores[name], prev?.scores[name])
     return { name, total, prevTotal, delta, count: submittedBy[name]?.size ?? 0 }
   }).sort((a, b) => (b.total ?? -1) - (a.total ?? -1) || b.count - a.count || a.name.localeCompare(b.name))
 
-  const nSubmitted = Object.keys(submittedBy).length
+  const nSubmitted = names.filter((n) => submittedBy[n]).length
 
   return (
     <div className="mt-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2 text-sm">
-          <span className="rounded-full bg-slate-100 px-3 py-1">Тапсырғандар: <b>{nSubmitted}</b> / {ROSTER.length}</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1">Тапсырғандар: <b>{nSubmitted}</b> / {names.length}</span>
           <span className={`rounded-full px-3 py-1 ${keyed.length === exam.subjects.length ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
             Кілт: <b>{keyed.length}</b> / {exam.subjects.length} пән
           </span>
@@ -436,6 +441,108 @@ function Settings({
       )}
       <p className="text-sm text-slate-500">
         «Жауап қабылдау» бірден сақталады. Мысалы, 30 қазанда тек математика мен жаратылыстануды, 31 қазанда тілдерді ашыңыз.
+      </p>
+    </div>
+  )
+}
+
+function StudentsTab({
+  students,
+  reload,
+  flash,
+}: {
+  students: Student[]
+  reload: () => Promise<void>
+  flash: (m: string) => void
+}) {
+  const [name, setName] = useState('')
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const run = async (body: unknown, note: string) => {
+    setBusy(true)
+    try {
+      await post(body)
+      await reload()
+      flash(note)
+      return true
+    } catch (e: any) {
+      flash(e.message)
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-5 space-y-4">
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault()
+          if (await run({ action: 'add-student', name }, 'Оқушы қосылды')) setName('')
+        }}
+        className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-4"
+      >
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Тегі мен аты, мысалы: Серік Іңкәр"
+          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+        />
+        <button disabled={busy || name.trim().length < 3} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
+          + Оқушы қосу
+        </button>
+      </form>
+
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        {students.map((s, i) => (
+          <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
+            <span className="w-6 text-right text-sm tabular-nums text-slate-400">{i + 1}</span>
+            {editing === s.id ? (
+              <form
+                className="flex flex-1 flex-wrap gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  if (await run({ action: 'rename-student', id: s.id, name: editName }, 'Аты өзгертілді')) setEditing(null)
+                }}
+              >
+                <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-blue-400 px-3 py-1.5 outline-none" />
+                <button disabled={busy} className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white">Сақтау</button>
+                <button type="button" onClick={() => setEditing(null)} className="rounded-lg px-3 py-1.5 text-sm">Болдырмау</button>
+              </form>
+            ) : (
+              <>
+                <span className="flex-1 font-medium">{s.full_name}</span>
+                {Object.keys(s.legacy_scores ?? {}).length === 0 && (
+                  <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 sm:inline">қыркүйекте жоқ</span>
+                )}
+                <button
+                  onClick={() => {
+                    setEditing(s.id)
+                    setEditName(s.full_name)
+                  }}
+                  className="rounded-md px-2 py-1 text-sm text-blue-600 hover:bg-blue-50"
+                >
+                  Өзгерту
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => {
+                    if (confirm(`${s.full_name} тізімнен шығарылады. Оның барлық жауап парақтары да өшеді. Жалғастырасыз ба?`))
+                      run({ action: 'delete-student', id: s.id }, 'Тізімнен шығарылды')
+                  }}
+                  className="rounded-md px-2 py-1 text-sm text-red-600 hover:bg-red-50"
+                >
+                  Өшіру
+                </button>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="text-sm text-slate-500">
+        Атын өзгертсеңіз, оқушының бұрынғы нәтижелері мен жауап парақтары жаңа атымен сақталады.
       </p>
     </div>
   )
