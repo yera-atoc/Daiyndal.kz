@@ -25,7 +25,7 @@ export type ReportInput = {
   rank: { place: number; of: number } | null
 }
 
-const MONTHS_GEN = ['қаңтар', 'ақпан', 'наурыз', 'сәуір', 'мамыр', 'маусым', 'шілде', 'тамыз', 'қыркүйек', 'қазан', 'қараша', 'желтоқсан']
+export const MONTHS_GEN = ['қаңтар', 'ақпан', 'наурыз', 'сәуір', 'мамыр', 'маусым', 'шілде', 'тамыз', 'қыркүйек', 'қазан', 'қараша', 'желтоқсан']
 const BLUE = '#2563EB'
 const LIGHT = '#A9C2F5'
 
@@ -218,31 +218,10 @@ export default function ReportSheet({ exam, student, subs, prev, rank, groupName
         </div>
       )}
 
-      {rows.some((r) => r.g && (r.g.wrong.length || r.g.blank.length)) && (
-        <div className="mt-[4mm] mb-[3mm] min-h-0 flex-1 overflow-hidden">
-          <div className="text-[8.5pt] font-bold uppercase tracking-[.1em] text-slate-500">Қате және бос сұрақтар (нөмірлері)</div>
-          <div className="mt-[2mm] space-y-[0.6mm] text-[8pt] leading-snug">
-            {rows
-              .filter((r) => r.g && (r.g.wrong.length || r.g.blank.length))
-              .map((r) => (
-                <div key={r.s.id} className="grid grid-cols-[32mm_1fr]">
-                  <span className="font-semibold">{r.s.name}</span>
-                  <span className="text-slate-600">
-                    {r.g!.wrong.join(', ')}
-                    {r.g!.blank.length > 0 && (
-                      <span className="text-slate-400">
-                        {r.g!.wrong.length ? ' · ' : ''}бос: {r.g!.blank.join(', ')}
-                      </span>
-                    )}
-                  </span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
+      <p className="mt-[4mm] text-[8.5pt] text-slate-500">Динамика мен болжам — 2-бетте, әр сұрақ бойынша толық талдау — 3-бетте.</p>
 
       <div className="mt-auto flex justify-between border-t border-slate-200 pt-[3mm] text-[8pt] text-slate-500">
-        <span>Beles education · айлық есеп</span>
+        <span>Beles education · айлық есеп · 1-бет</span>
         <span>
           {student} · {date}
         </span>

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import ReportSheet from '@/components/bilim/ReportSheet'
+import ReportPages from '@/components/bilim/ReportPages'
 import PrintStyles from '@/components/bilim/PrintStyles'
 import type { StudentResult } from '@/lib/bilimTestResults'
 
@@ -33,8 +33,8 @@ function Report() {
       {err && <p className="p-10 text-center text-rose-600">{err}</p>}
       {!data && !err && <p className="p-10 text-center text-slate-400">Жүктелуде…</p>}
       {data && (
-        <div className="bt-pages py-6">
-          <ReportSheet exam={data.exam} student={data.student} subs={data.subs} prev={data.prev} rank={data.rank} groupName={data.groupName} />
+        <div className="bt-pages space-y-8 py-6">
+          <ReportPages history={data.history} exam={data.exam} student={data.student} subs={data.subs} prev={data.prev} rank={data.rank} groupName={data.groupName} />
         </div>
       )}
     </>

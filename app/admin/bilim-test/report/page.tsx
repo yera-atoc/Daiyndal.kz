@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import ReportSheet from '@/components/bilim/ReportSheet'
+import ReportPages from '@/components/bilim/ReportPages'
+import type { HistPoint } from '@/lib/bilimTestForecast'
 import PrintStyles from '@/components/bilim/PrintStyles'
 import { ranking, type Exam, type Group, type ScoreRow, type Student, type Submission } from '@/lib/bilimTest'
 
@@ -12,6 +13,7 @@ type Resp = {
   exam: Exam | null
   submissions: Submission[]
   previous: { id: string; month: string; title: string; scores: Record<string, ScoreRow> } | null
+  histories: Record<string, HistPoint[]>
   error?: string
 }
 
@@ -53,8 +55,9 @@ function Reports() {
       </div>
       <div className="bt-pages space-y-8 py-8">
         {names.map((n) => (
-          <ReportSheet
+          <ReportPages
             key={n}
+            history={data.histories?.[n] ?? []}
             exam={exam}
             student={n}
             groupName={data.group?.name ?? ''}

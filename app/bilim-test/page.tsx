@@ -14,6 +14,9 @@ import {
   weakTopics,
 } from '@/lib/bilimTest'
 import type { StudentResult } from '@/lib/bilimTestResults'
+import ProgressChart, { type ChartPoint } from '@/components/bilim/ProgressChart'
+import { buildForecast } from '@/lib/bilimTestForecast'
+import { monthName } from '@/lib/bilimTest'
 
 type OpenExam = { id: string; title: string; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
 type Summary = {
@@ -436,11 +439,36 @@ function ResultDetail({ examId, onBack }: { examId: string; onBack: () => void }
 
       <div className="mt-4 grid grid-cols-6 gap-2.5 sm:grid-cols-5 [&>*:nth-child(-n+2)]:col-span-3 [&>*]:col-span-2 sm:[&>*]:col-span-1 sm:[&>*:nth-child(-n+2)]:col-span-1">
         <Stat label="Балл" value={total !== null ? `${total}` : '—'} sub={total !== null ? `${max}-ден · ${fmtPct(pct(total, max))}` : ''} />
-        <Stat label="Топтағы орны" value={rank ? `${rank.place} / ${rank.of}` : '—'} sub={delta !== null ? `${prev?.title}: ${sign(delta)} балл` : ''} />
+        <Stat label="Топтағы орны" value={rank ? `${rank.place} / ${rank.of}` : '—'} sub={delta !== null ? `${monthName(prev!.month)}мен салыстырғанда: ${sign(delta)}` : ''} />
         <Stat label="Дұрыс" value={`${correct}`} tone="text-emerald-600" />
         <Stat label="Қате" value={`${wrong}`} tone="text-red-600" />
         <Stat label="Бос" value={`${blank}`} tone="text-amber-600" />
       </div>
+
+      {(() => {
+        const fc = buildForecast(exam, nowRow, data.history)
+        const pts: ChartPoint[] = [
+          ...data.history.filter((h) => h.month < exam.month && h.total !== null).map((h) => ({ month: h.month, value: h.total!, max: h.max || max, kind: 'actual' as const })),
+          ...(total !== null ? [{ month: exam.month, value: total, max: fc?.max ?? max, kind: 'actual' as const }] : []),
+          ...(fc ? fc.months.map((m, i) => ({ month: m, value: fc.totals[i], max: fc.max, kind: 'forecast' as const })) : []),
+        ]
+        if (pts.length < 2) return null
+        const end = fc?.totals.at(-1)
+        return (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="font-bold">Динамика және болжам</h3>
+              {fc && end !== undefined && total !== null && (
+                <span className="text-sm text-slate-500">
+                  {monthName(fc.months.at(-1)!)}ға дейін: <b className="text-blue-600">{end}</b> (+{end - total})
+                </span>
+              )}
+            </div>
+            <ProgressChart points={pts} target={end} />
+            <p className="text-xs text-slate-400">Тұтас сызық — нақты нәтиже, үзік сызық — жүйелі дайындық жалғасқандағы болжам.</p>
+          </div>
+        )
+      })()}
 
       <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
         {graded.map((x) => (

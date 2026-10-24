@@ -9,7 +9,8 @@ import {
   type ScoreRow,
   type Submission,
 } from './bilimTest'
-import { listGroups, listStudents, listSubmissions, previousScores } from './bilimTestStore'
+import { groupHistories, listGroups, listStudents, listSubmissions, previousScores } from './bilimTestStore'
+import type { HistPoint } from './bilimTestForecast'
 
 export type RankRow = { place: number | null; name: string; me: boolean; scores: ScoreRow; total: number | null }
 
@@ -21,14 +22,16 @@ export type StudentResult = {
   prev: { id: string; month: string; title: string; row: ScoreRow | undefined } | null
   rank: { place: number; of: number } | null
   table: RankRow[]
+  history: HistPoint[]
 }
 
 export async function studentResult(exam: Exam, student: string, opts: { fullNames: boolean }): Promise<StudentResult> {
-  const [subs, prev, groups, students] = await Promise.all([
+  const [subs, prev, groups, students, hist] = await Promise.all([
     listSubmissions(exam.id),
     previousScores(exam),
     listGroups(),
     listStudents(exam.group_id),
+    groupHistories(exam),
   ])
   // Тізімнен шығарылған оқушылардың парақтары рейтингке кірмейді
   const names = new Set(students.map((s) => s.full_name))
@@ -51,6 +54,7 @@ export async function studentResult(exam: Exam, student: string, opts: { fullNam
     prev: prev ? { id: prev.id, month: prev.month, title: prev.title, row: prev.scores[student] } : null,
     rank: rk.place[student] ? { place: rk.place[student], of: rk.of } : null,
     table,
+    history: hist[student] ?? [],
   }
 }
 

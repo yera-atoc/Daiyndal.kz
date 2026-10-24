@@ -7,6 +7,7 @@ import {
   deleteStudent,
   deleteSubmission,
   getExam,
+  groupHistories,
   listExams,
   listGroups,
   listStudents,
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
       exam,
       submissions: exam ? await listSubmissions(exam.id) : [],
       previous: exam ? await previousScores(exam) : null,
+      histories: exam ? await groupHistories(exam) : {},
     })
   } catch (e: any) {
     return bad(e.message, 500)

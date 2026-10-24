@@ -5,6 +5,7 @@ import {
   SEED_STUDENTS,
   examIdFor,
   examTitle,
+  rowTotal,
   scoresForExam,
   type Exam,
   type Group,
@@ -12,6 +13,7 @@ import {
   type Student,
   type Submission,
 } from './bilimTest'
+import type { HistPoint } from './bilimTestForecast'
 
 const DEMO = process.env.BILIM_TEST_DEMO === '1'
 
@@ -300,4 +302,32 @@ export async function previousScores(
   const scores: Record<string, ScoreRow> = {}
   for (const s of students) if (s.legacy_scores?.[prev]) scores[s.full_name] = s.legacy_scores[prev]
   return { id: prev, month: prev, title: examTitle(prev), scores }
+}
+
+// ── Тарих: әр оқушының айлар бойынша нәтижесі (график пен болжам үшін) ──
+
+export async function groupHistories(exam: Exam): Promise<Record<string, HistPoint[]>> {
+  const [exams, students] = await Promise.all([listExams(exam.group_id), listStudents(exam.group_id)])
+  const maxOf = (row: ScoreRow, subjects: Exam['subjects']) =>
+    subjects.filter((s) => s.id in row).reduce((a, s) => a + s.max, 0)
+  const out: Record<string, HistPoint[]> = {}
+  for (const st of students) out[st.full_name] = []
+
+  // Сайтқа дейінгі (Excel) айлар
+  for (const st of students) {
+    for (const [month, row] of Object.entries(st.legacy_scores ?? {})) {
+      if (month > exam.month || exams.some((e) => e.month === month)) continue
+      out[st.full_name].push({ month, title: examTitle(month), scores: row, total: rowTotal(row), max: maxOf(row, exam.subjects) })
+    }
+  }
+  // Сайттағы сынақтар
+  for (const e of exams.filter((x) => x.month <= exam.month)) {
+    const scores = scoresForExam(e, await listSubmissions(e.id))
+    for (const [name, row] of Object.entries(scores)) {
+      if (!out[name]) continue
+      out[name].push({ month: e.month, title: e.title, scores: row, total: rowTotal(row), max: maxOf(row, e.subjects) })
+    }
+  }
+  for (const k of Object.keys(out)) out[k].sort((a, b) => a.month.localeCompare(b.month))
+  return out
 }
