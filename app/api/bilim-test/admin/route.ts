@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/requireAdmin'
-import { EXAM_ID_RE, LETTERS, SUBJECT_IDS, type Exam } from '@/lib/bilimTest'
+import { EXAM_ID_RE, LETTERS, SUBJECT_IDS, cleanName, type Exam } from '@/lib/bilimTest'
 import {
+  addStudent,
+  deleteStudent,
   deleteSubmission,
+  listStudents,
+  renameStudent,
   getExam,
   listExams,
   listSubmissions,
@@ -22,6 +26,7 @@ export async function GET(req: NextRequest) {
     const id = req.nextUrl.searchParams.get('exam') ?? exams[exams.length - 1]?.id
     const exam = id ? exams.find((e) => e.id === id) ?? null : null
     return NextResponse.json({
+      students: await listStudents(),
       exams: exams.map((e) => ({ id: e.id, title: e.title })),
       exam,
       submissions: exam ? await listSubmissions(exam.id) : [],
@@ -80,6 +85,19 @@ export async function POST(req: NextRequest) {
       const exam = clean(body.exam)
       if (!exam) return NextResponse.json({ error: 'Дерек дұрыс емес' }, { status: 400 })
       await saveExam(exam)
+      return NextResponse.json({ ok: true })
+    }
+    if (body?.action === 'add-student' || body?.action === 'rename-student') {
+      const name = cleanName(body.name)
+      if (name.length < 3) return NextResponse.json({ error: 'Аты-жөнін толық жазыңыз' }, { status: 400 })
+      const res =
+        body.action === 'add-student' ? await addStudent(name) : await renameStudent(String(body.id), name)
+      if (res === 'duplicate') return NextResponse.json({ error: 'Бұл аты-жөні тізімде бар' }, { status: 409 })
+      if (res === 'missing') return NextResponse.json({ error: 'Оқушы табылмады' }, { status: 404 })
+      return NextResponse.json({ ok: true })
+    }
+    if (body?.action === 'delete-student') {
+      await deleteStudent(String(body.id))
       return NextResponse.json({ ok: true })
     }
     if (body?.action === 'delete-submission') {
