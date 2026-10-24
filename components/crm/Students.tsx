@@ -54,26 +54,23 @@ export default function Students({
   const [edit, setEdit] = useState<Partial<CStudent> | null>(null)
   const [importOpen, setImportOpen] = useState(false)
 
-  const rows = useMemo(() => {
-    return students
-      .map((s) => ({ s, p: payInfo(s, today), a: attendanceRate(attendance, s.id, today) }))
-      .filter(({ s, p }) => {
-        if (q && !`${s.full_name} ${s.phone ?? ''} ${s.parent_phone ?? ''} ${s.parent_name ?? ''}`.toLowerCase().includes(q.toLowerCase())) return false
-        if (group && (group === '-' ? s.group_id : s.group_id !== group)) return false
-        if (status && (s.status ?? 'active') !== status) return false
-        if (pay === 'overdue' && p.kind !== 'overdue') return false
-        if (pay === 'soon' && p.kind !== 'soon' && p.kind !== 'today') return false
-        if (pay === 'ok' && p.kind !== 'ok') return false
-        if (pay === 'none' && p.kind !== 'none') return false
-        return true
-      })
-  }, [students, today, attendance, q, group, status, pay])
-
-  const count = (k: PayFilter) =>
-    students.filter((s) => (s.status ?? 'active') === 'active').filter((s) => {
-      const p = payInfo(s, today).kind
-      return k === 'all' || p === k || (k === 'soon' && p === 'today')
-    }).length
+  // Іздеу, топ және күй сүзгілері — төлем батырмаларындағы сандар да осыларды ескереді
+  const base = useMemo(
+    () =>
+      students
+        .map((s) => ({ s, p: payInfo(s, today), a: attendanceRate(attendance, s.id, today) }))
+        .filter(({ s }) => {
+          if (q && !`${s.full_name} ${s.phone ?? ''} ${s.parent_phone ?? ''} ${s.parent_name ?? ''}`.toLowerCase().includes(q.toLowerCase())) return false
+          if (group && (group === '-' ? s.group_id : s.group_id !== group)) return false
+          if (status && (s.status ?? 'active') !== status) return false
+          return true
+        }),
+    [students, today, attendance, q, group, status]
+  )
+  const payMatch = (k: PayFilter, kind: string) =>
+    k === 'all' || kind === k || (k === 'soon' && kind === 'today')
+  const rows = base.filter(({ p }) => payMatch(pay, p.kind))
+  const count = (k: PayFilter) => base.filter(({ p }) => payMatch(k, p.kind)).length
 
   const gName = (id: string | null) => groups.find((g) => g.id === id)?.name ?? '—'
   const open = students.find((s) => s.id === openId) ?? null
