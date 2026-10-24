@@ -61,13 +61,15 @@ export function syncCrmDeleteToBt(btStudentId: string | null | undefined) {
 export function syncBtAddToCrm(btGroupId: string, fullName: string) {
   return safely('bt→crm add', async () => {
     const sb = await db()
-    const { data: g } = await sb.from('student_groups').select('id, monthly_fee').eq('bt_group_id', btGroupId).maybeSingle()
+    // Бір Білім тексеру тобына бірнеше CRM тобы байланған болуы мүмкін (мысалы, НЗМ 1 және НЗМ 2) — біріншісіне қосамыз
+    const { data: g } = await sb.from('student_groups').select('id, monthly_fee').eq('bt_group_id', btGroupId).order('name').limit(1).maybeSingle()
     if (!g) return
     const bt = (await listStudents(btGroupId)).find((x) => x.full_name === fullName)
     if (!bt) return
-    const { data: existing } = await sb.from('students').select('id').eq('bt_student_id', bt.id).maybeSingle()
+    const { data: existing } = await sb.from('students').select('id').eq('bt_student_id', bt.id).limit(1).maybeSingle()
     if (existing) return
-    const { data: same } = await sb.from('students').select('id').eq('group_id', g.id).eq('full_name', fullName).maybeSingle()
+    const { data: linkedGroups } = await sb.from('student_groups').select('id').eq('bt_group_id', btGroupId)
+    const { data: same } = await sb.from('students').select('id').in('group_id', (linkedGroups ?? []).map((x) => x.id)).eq('full_name', fullName).limit(1).maybeSingle()
     if (same) {
       await sb.from('students').update({ bt_student_id: bt.id }).eq('id', same.id)
       return
@@ -107,11 +109,9 @@ export function syncBtDeleteToCrm(btStudentId: string) {
 export function syncBtGroupToCrm(btGroupId: string, name: string) {
   return safely('bt→crm group', async () => {
     const sb = await db()
-    const { data: linked } = await sb.from('student_groups').select('id').eq('bt_group_id', btGroupId).maybeSingle()
-    if (linked) {
-      await sb.from('student_groups').update({ name }).eq('id', linked.id)
-      return
-    }
+    // Байланған топ бар болса — CRM-дегі атауына тимейміз (CRM-де бір тестілеу тобы бірнеше оқу тобына бөлінуі мүмкін)
+    const { data: linked } = await sb.from('student_groups').select('id').eq('bt_group_id', btGroupId).limit(1)
+    if (linked?.length) return
     const { data: same } = await sb.from('student_groups').select('id').eq('name', name).maybeSingle()
     if (same) await sb.from('student_groups').update({ bt_group_id: btGroupId }).eq('id', same.id)
     else await sb.from('student_groups').insert({ name, bt_group_id: btGroupId })
