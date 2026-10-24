@@ -50,12 +50,12 @@ export const LETTERS = ['A', 'B', 'C', 'D', 'E']
 
 // НЗМ тобының пәндері (үлгі)
 export const DEFAULT_SUBJECTS: SubjectConfig[] = [
-  { id: 'quant', name: 'Сандық сипаттама', short: 'Сандық сип.', max: 300, questions: 60, options: 4 },
   { id: 'math', name: 'Математика', short: 'Математика', max: 400, questions: 40, options: 4 },
+  { id: 'quant', name: 'Сандық сипаттама', short: 'Сандық сип.', max: 300, questions: 60, options: 4 },
   { id: 'science', name: 'Жаратылыстану', short: 'Жаратылыстану', max: 200, questions: 20, options: 4 },
-  { id: 'english', name: 'Ағылшын тілі', short: 'Ағылшын т.', max: 200, questions: 20, options: 4 },
   { id: 'kazakh', name: 'Қазақ тілі', short: 'Қазақ т.', max: 200, questions: 20, options: 4 },
   { id: 'russian', name: 'Орыс тілі', short: 'Орыс т.', max: 200, questions: 20, options: 4 },
+  { id: 'english', name: 'Ағылшын тілі', short: 'Ағылшын т.', max: 200, questions: 20, options: 4 },
 ]
 
 export const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/
