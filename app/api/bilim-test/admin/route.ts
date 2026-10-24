@@ -16,6 +16,8 @@ import {
 } from '@/lib/bilimTestStore'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
 
 const denied = () => NextResponse.json({ error: 'Рұқсат жоқ' }, { status: 401 })
 
