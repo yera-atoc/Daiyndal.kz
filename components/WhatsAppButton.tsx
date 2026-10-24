@@ -1,8 +1,11 @@
 'use client'
 
 import React from 'react'
+import { usePathname } from 'next/navigation'
 
 export default function WhatsAppButton() {
+  const pathname = usePathname()
+  if (pathname?.startsWith('/ielts')) return null // емтихан кезінде батырма сұрақтарды жаппасын
   const phoneNumber = '77772739248' 
   const message = 'Сәлеметсіз бе! Beles платформасы бойынша сұрағым бар еді.'
 

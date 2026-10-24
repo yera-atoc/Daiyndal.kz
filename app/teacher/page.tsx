@@ -118,6 +118,7 @@ export default function TeacherDashboard() {
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link href="/ielts/teacher" className="rounded-lg bg-black px-3 py-2 text-xs font-bold text-white hover:opacity-80">IELTS mock</Link>
             <div className="hidden sm:flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-xs font-bold text-white">
                 {me ? initials(me.name) : '·'}

@@ -29,7 +29,9 @@ export default function TeacherLoginPage() {
       return
     }
 
-    router.push('/teacher')
+    // ?next=/ielts/teacher — тек сайттың ішкі беттеріне
+    const next = new URLSearchParams(window.location.search).get('next') ?? ''
+    router.push(/^\/[a-z]/i.test(next) && !next.startsWith('//') ? next : '/teacher')
     router.refresh()
   }
 
