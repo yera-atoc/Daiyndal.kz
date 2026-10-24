@@ -15,7 +15,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 })
   }
-  const { teacherId, days, startTime, endTime, title, note, groupId } = parsed.value
+  const { teacherId, days, startTime, endTime, title, note, groupId, room } = parsed.value
   if (days.length !== 1) {
     return NextResponse.json({ error: 'Бір күнді таңдаңыз' }, { status: 400 })
   }
@@ -82,6 +82,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       title,
       note,
       group_id: groupId,
+      room,
     })
     .eq('id', params.id)
     .select()

@@ -69,6 +69,7 @@ export type SlotInput = {
   title: string | null
   note: string | null
   groupId: string | null
+  room: string | null
 }
 
 export function parseSlotInput(
@@ -109,6 +110,7 @@ export function parseSlotInput(
       title: title || null,
       note: note || null,
       groupId: typeof body.groupId === 'string' && body.groupId ? body.groupId : null,
+      room: typeof body.room === 'string' && body.room.trim() ? body.room.trim().slice(0, 40) : null,
     },
   }
 }

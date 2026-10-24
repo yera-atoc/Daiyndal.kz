@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 })
   }
-  const { teacherId, days, startTime, endTime, title, note, groupId } = parsed.value
+  const { teacherId, days, startTime, endTime, title, note, groupId, room } = parsed.value
 
   // Don't let a teacher be double-booked.
   const { data: existing, error: existingError } = await supabaseAdmin
@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
     title,
     note,
     group_id: groupId,
+    ...(room ? { room } : {}),
   }))
 
   const { data, error } = await supabaseAdmin.from('schedule_slots').insert(rows).select()
