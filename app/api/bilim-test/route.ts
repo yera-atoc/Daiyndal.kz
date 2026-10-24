@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server'
-import { ROSTER } from '@/lib/bilimTest'
-import { listExams, listSubmissions } from '@/lib/bilimTestStore'
+import { listExams, listStudents, listSubmissions } from '@/lib/bilimTestStore'
 
 export const dynamic = 'force-dynamic'
 
 // Ашық: оқушы беті үшін. Жауап кілті мұнда ешқашан жіберілмейді.
 export async function GET() {
   try {
-    const exams = await listExams()
+    const [exams, students] = await Promise.all([listExams(), listStudents()])
     const exam =
       [...exams].reverse().find((e) => e.open_subjects.length > 0) ?? exams[exams.length - 1] ?? null
     const submitted: Record<string, string[]> = {}
@@ -28,7 +27,7 @@ export async function GET() {
           open: exam.open_subjects.includes(s.id),
         })),
       },
-      roster: ROSTER,
+      roster: students.map((s) => s.full_name),
       submitted,
     })
   } catch (e: any) {

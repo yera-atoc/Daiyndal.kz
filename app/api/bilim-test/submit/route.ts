@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { LETTERS, ROSTER } from '@/lib/bilimTest'
-import { addSubmission, getExam } from '@/lib/bilimTestStore'
+import { LETTERS } from '@/lib/bilimTest'
+import { addSubmission, getExam, studentExists } from '@/lib/bilimTestStore'
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const subject = String(body?.subject ?? '')
     const answers = body?.answers
 
-    if (!ROSTER.includes(student)) {
+    if (!(await studentExists(student))) {
       return NextResponse.json({ error: 'Оқушы тізімде жоқ' }, { status: 400 })
     }
     const exam = await getExam(examId)
