@@ -51,7 +51,7 @@ export async function GET() {
     withFallback('student_groups', () => sb.from('student_groups').select('id, name, created_at' + GROUP_EXTRA).order('name'), () => sb.from('student_groups').select('id, name, created_at').order('name')),
     safe('teachers', sb.from('teachers').select('id, name, subject, username').order('name')),
     safe('crm_payments', sb.from('crm_payments').select('id, student_id, student_name, amount, paid_on, period_end, note').gte('paid_on', yearAgo).order('paid_on', { ascending: false })),
-    safe('attendance', sb.from('attendance').select('student_id, date, present, excused').gte('date', twoMonths)),
+    safe('crm_attendance', sb.from('crm_attendance').select('student_id, date, present, excused').gte('date', twoMonths)),
     safe('schedule_slots', sb.from('schedule_slots').select('id, teacher_id, group_id, day_of_week, start_time, end_time, title, note, room').order('day_of_week').order('start_time')),
     safe('bt_groups', sb.from('bt_groups').select('id, name')),
   ])
@@ -138,13 +138,15 @@ export async function POST(req: NextRequest) {
       const upserts = marks
         .filter((m) => m.mark)
         .map((m) => ({ student_id: m.studentId, date: d, present: m.mark === 'present', excused: m.mark === 'excused' }))
-      const clears = marks.filter((m) => !m.mark).map((m) => m.studentId)
-      if (upserts.length) {
-        const { error } = await sb.from('attendance').upsert(upserts, { onConflict: 'student_id,date' })
+      // Осы оқушылардың сол күнгі белгілерін өшіріп, жаңаларын жазамыз
+      // (дерекқорда (student_id, date) бойынша бірегейлік шектеуі болмаса да жұмыс істейді)
+      const ids = marks.map((m) => m.studentId).filter(Boolean)
+      if (ids.length) {
+        const { error } = await sb.from('crm_attendance').delete().eq('date', d).in('student_id', ids)
         if (error) return bad(error.message, 500)
       }
-      if (clears.length) {
-        const { error } = await sb.from('attendance').delete().eq('date', d).in('student_id', clears)
+      if (upserts.length) {
+        const { error } = await sb.from('crm_attendance').insert(upserts)
         if (error) return bad(error.message, 500)
       }
       return NextResponse.json({ ok: true })

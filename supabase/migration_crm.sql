@@ -40,8 +40,18 @@ create index if not exists crm_payments_paid_on on crm_payments (paid_on);
 create index if not exists crm_payments_student on crm_payments (student_id);
 alter table crm_payments enable row level security;
 
--- Қатысу: «себепті» белгісі
-alter table attendance add column if not exists excused boolean not null default false;
+-- Қатысу (CRM-нің өз кестесі)
+create table if not exists crm_attendance (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid not null references students(id) on delete cascade,
+  date date not null,
+  present boolean not null default false,
+  excused boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (student_id, date)
+);
+create index if not exists crm_attendance_date on crm_attendance (date);
+alter table crm_attendance enable row level security;
 
 -- Сабақ кестесі
 create table if not exists schedule_slots (

@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   if (ids.length === 0) return NextResponse.json([])
 
   const { data, error } = await supabaseAdmin
-    .from('attendance')
+    .from('crm_attendance')
     .select('*')
     .eq('date', date)
     .in('student_id', ids)
@@ -64,12 +64,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Рұқсат жоқ' }, { status: 403 })
   }
 
+  // Бір оқушыға бір күнде бір белгі: ескісін өшіріп, жаңасын жазамыз (дерекқорда бірегейлік шектеуі болмаса да жұмыс істейді)
+  const { error: delError } = await supabaseAdmin
+    .from('crm_attendance')
+    .delete()
+    .eq('student_id', body.studentId)
+    .eq('date', body.date)
+  if (delError) return NextResponse.json({ error: delError.message }, { status: 500 })
+
   const { data, error } = await supabaseAdmin
-    .from('attendance')
-    .upsert(
-      { student_id: body.studentId, date: body.date, present: body.present },
-      { onConflict: 'student_id,date' }
-    )
+    .from('crm_attendance')
+    .insert({ student_id: body.studentId, date: body.date, present: body.present })
     .select()
     .single()
 
