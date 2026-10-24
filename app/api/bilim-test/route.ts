@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { listExams, listStudents, listSubmissions } from '@/lib/bilimTestStore'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
 
 // Ашық: оқушы беті үшін. Жауап кілті мұнда ешқашан жіберілмейді.
 export async function GET() {
@@ -15,7 +17,8 @@ export async function GET() {
         ;(submitted[s.student_name] ??= []).push(s.subject)
       }
     }
-    return NextResponse.json({
+    return NextResponse.json(
+      {
       exam: exam && {
         id: exam.id,
         title: exam.title,
@@ -29,7 +32,9 @@ export async function GET() {
       },
       roster: students.map((s) => s.full_name),
       submitted,
-    })
+      },
+      { headers: { 'Cache-Control': 'no-store, max-age=0' } }
+    )
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

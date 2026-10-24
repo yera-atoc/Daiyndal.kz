@@ -45,8 +45,16 @@ export default function BilimTestPage() {
 
   useEffect(() => {
     refresh()
+    // Мұғалім пәнді ашқанда бет өзі жаңарсын: 20 секунд сайын және телефонға қайта оралғанда
+    const t = setInterval(refresh, 20000)
+    const onVis = () => document.visibilityState === 'visible' && refresh()
+    document.addEventListener('visibilitychange', onVis)
     const saved = load<string | null>(NAME_KEY, null)
     if (saved) setStudent(saved)
+    return () => {
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [refresh])
 
   const chooseStudent = (n: string | null) => {
