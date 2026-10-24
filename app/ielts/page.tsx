@@ -163,7 +163,7 @@ function Login({ onDone }: { onDone: () => void }) {
                   <span className="text-xs" style={{ color: MUTED }}>{s.group}</span>
                 </button>
               ))}
-              {!list.length && <p className="py-6 text-center text-sm" style={{ color: MUTED }}>Ашық тест жоқ</p>}
+              {!list.length && <p className="py-6 text-center text-sm" style={{ color: MUTED }}>Әзірге ашық тест жоқ. Мұғалім тест ашып, сізге рұқсат бергенде атыңыз осында шығады.</p>}
             </div>
           </>
         ) : (
