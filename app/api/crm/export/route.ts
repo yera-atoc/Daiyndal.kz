@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   let csv: string
   if (type === 'payments') {
     const { data, error } = await supabaseAdmin
-      .from('payments')
+      .from('crm_payments')
       .select('student_name, amount, paid_on, period_end, note')
       .order('paid_on', { ascending: false })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

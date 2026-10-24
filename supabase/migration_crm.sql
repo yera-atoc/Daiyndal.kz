@@ -24,8 +24,9 @@ alter table students add column if not exists payment_deadline date;
 alter table students add column if not exists payment_amount int;
 alter table students add column if not exists comment text;
 
--- Төлемдер тарихы
-create table if not exists payments (
+-- Төлемдер тарихы (CRM). Ескерту: «payments» атты кесте осы жобадағы басқа жүйеге (онлайн төлем,
+-- profiles) тиесілі болуы мүмкін, сондықтан CRM өз кестесін қолданады.
+create table if not exists crm_payments (
   id uuid primary key default gen_random_uuid(),
   student_id uuid references students(id) on delete set null,
   student_name text not null,
@@ -35,8 +36,9 @@ create table if not exists payments (
   note text,
   created_at timestamptz not null default now()
 );
-create index if not exists payments_paid_on on payments (paid_on);
-alter table payments enable row level security;
+create index if not exists crm_payments_paid_on on crm_payments (paid_on);
+create index if not exists crm_payments_student on crm_payments (student_id);
+alter table crm_payments enable row level security;
 
 -- Қатысу: «себепті» белгісі
 alter table attendance add column if not exists excused boolean not null default false;

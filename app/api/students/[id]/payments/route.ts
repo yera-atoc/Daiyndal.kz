@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Рұқсат жоқ' }, { status: 401 })
   }
   const { data, error } = await supabaseAdmin
-    .from('payments')
+    .from('crm_payments')
     .select('id, amount, paid_on, period_end, note, created_at')
     .eq('student_id', params.id)
     .order('paid_on', { ascending: false })
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const note = typeof body.note === 'string' ? body.note.trim().slice(0, 300) || null : null
 
-  const { error: pErr } = await supabaseAdmin.from('payments').insert({
+  const { error: pErr } = await supabaseAdmin.from('crm_payments').insert({
     student_id: student.id,
     student_name: student.full_name,
     amount,

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const to = req.nextUrl.searchParams.get('to')
 
   let q = supabaseAdmin
-    .from('payments')
+    .from('crm_payments')
     .select('id, student_id, student_name, amount, paid_on, period_end, note')
     .order('paid_on', { ascending: false })
     .limit(5000)

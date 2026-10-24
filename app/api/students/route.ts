@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
 
   // If the admin entered a paid date + amount, log it in the history too.
   if (data.payment_date && data.payment_amount != null) {
-    await supabaseAdmin.from('payments').insert({
+    await supabaseAdmin.from('crm_payments').insert({
       student_id: data.id,
       student_name: data.full_name,
       amount: data.payment_amount,

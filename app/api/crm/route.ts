@@ -50,7 +50,7 @@ export async function GET() {
     withFallback('students', () => sb.from('students').select(STUDENT_FIELDS + STUDENT_EXTRA).order('full_name'), () => sb.from('students').select(STUDENT_FIELDS).order('full_name')),
     withFallback('student_groups', () => sb.from('student_groups').select('id, name, created_at' + GROUP_EXTRA).order('name'), () => sb.from('student_groups').select('id, name, created_at').order('name')),
     safe('teachers', sb.from('teachers').select('id, name, subject, username').order('name')),
-    safe('payments', sb.from('payments').select('id, student_id, student_name, amount, paid_on, period_end, note').gte('paid_on', yearAgo).order('paid_on', { ascending: false })),
+    safe('crm_payments', sb.from('crm_payments').select('id, student_id, student_name, amount, paid_on, period_end, note').gte('paid_on', yearAgo).order('paid_on', { ascending: false })),
     safe('attendance', sb.from('attendance').select('student_id, date, present, excused').gte('date', twoMonths)),
     safe('schedule_slots', sb.from('schedule_slots').select('id, teacher_id, group_id, day_of_week, start_time, end_time, title, note, room').order('day_of_week').order('start_time')),
     safe('bt_groups', sb.from('bt_groups').select('id, name')),
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
         const { error } = await sb.from('students').update(row).eq('id', s.id)
         if (error) return bad(error.message, 500)
         // Аты өзгерсе, төлем тарихындағы атты да жаңарту
-        await sb.from('payments').update({ student_name: full_name }).eq('student_id', s.id)
+        await sb.from('crm_payments').update({ student_name: full_name }).eq('student_id', s.id)
         await syncCrmStudentToBt(s.id)
         return NextResponse.json({ ok: true, id: s.id })
       }
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'delete-payment') {
-      const { error } = await sb.from('payments').delete().eq('id', String(b.id))
+      const { error } = await sb.from('crm_payments').delete().eq('id', String(b.id))
       if (error) return bad(error.message, 500)
       return NextResponse.json({ ok: true })
     }

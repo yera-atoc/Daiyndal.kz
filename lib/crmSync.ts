@@ -92,7 +92,7 @@ export function syncBtRenameToCrm(btStudentId: string, fullName: string) {
     const { data: rows } = await sb.from('students').select('id').eq('bt_student_id', btStudentId)
     for (const r of rows ?? []) {
       await sb.from('students').update({ full_name: fullName }).eq('id', r.id)
-      await sb.from('payments').update({ student_name: fullName }).eq('student_id', r.id)
+      await sb.from('crm_payments').update({ student_name: fullName }).eq('student_id', r.id)
     }
   })
 }
