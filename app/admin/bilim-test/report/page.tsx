@@ -3,9 +3,10 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import ReportSheet from '@/components/bilim/ReportSheet'
-import { ROSTER, ranking, type Exam, type ScoreRow, type Submission } from '@/lib/bilimTest'
+import { ranking, type Exam, type ScoreRow, type Student, type Submission } from '@/lib/bilimTest'
 
 type Resp = {
+  students: Student[]
   exam: Exam | null
   submissions: Submission[]
   previous: { id: string; title: string; scores: Record<string, ScoreRow> } | null
@@ -36,7 +37,7 @@ function Reports() {
   const rk = ranking(exam, data.submissions)
   const names = only
     ? [only]
-    : ROSTER.filter((n) => data.submissions.some((s) => s.student_name === n))
+    : data.students.map((s) => s.full_name).filter((n) => data.submissions.some((s) => s.student_name === n))
 
   return (
     <>
