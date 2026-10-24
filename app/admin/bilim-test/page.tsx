@@ -2,38 +2,43 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { supabase } from '@/lib/supabaseClient'
 import {
-  GROUP_NAME,
   LETTERS,
+  commonDelta,
   examMax,
   pct,
   ranking,
-  commonDelta,
   rowTotal,
   sign,
   type Exam,
-  type Student,
+  type Group,
+  type Question,
   type ScoreRow,
+  type Student,
+  type SubjectConfig,
   type SubjectId,
   type Submission,
 } from '@/lib/bilimTest'
 
 type Resp = {
+  groups: Group[]
+  group: Group | null
   students: Student[]
-  exams: { id: string; title: string }[]
+  exams: { id: string; title: string; month: string }[]
   exam: Exam | null
   submissions: Submission[]
-  previous: { id: string; title: string; scores: Record<string, ScoreRow> } | null
+  previous: { id: string; month: string; title: string; scores: Record<string, ScoreRow> } | null
   error?: string
 }
-type Tab = 'results' | 'key' | 'settings' | 'students'
+type Tab = 'results' | 'key' | 'questions' | 'settings' | 'students'
 
 function thisMonth() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-async function post(body: unknown) {
+async function post<T = any>(body: unknown): Promise<T> {
   const r = await fetch('/api/bilim-test/admin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -41,26 +46,32 @@ async function post(body: unknown) {
   })
   const j = await r.json()
   if (!r.ok) throw new Error(j.error || 'Қате')
+  return j
 }
 
 function Admin() {
   const sp = useSearchParams()
   const router = useRouter()
+  const groupId = sp.get('group') ?? ''
   const examId = sp.get('exam') ?? ''
   const [data, setData] = useState<Resp | null>(null)
   const [draft, setDraft] = useState<Exam | null>(null)
   const [tab, setTab] = useState<Tab>('results')
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
-  const [newId, setNewId] = useState(thisMonth())
+  const [newMonth, setNewMonth] = useState(thisMonth())
   const [open, setOpen] = useState<string | null>(null)
+  const [groupModal, setGroupModal] = useState<Group | 'new' | null>(null)
 
   const load = useCallback(async () => {
-    const r = await fetch(`/api/bilim-test/admin${examId ? `?exam=${examId}` : ''}`, { cache: 'no-store' })
+    const q = new URLSearchParams()
+    if (groupId) q.set('group', groupId)
+    if (examId) q.set('exam', examId)
+    const r = await fetch(`/api/bilim-test/admin?${q}`, { cache: 'no-store' })
     const j: Resp = await r.json()
     setData(j)
     setDraft(j.exam ? structuredClone(j.exam) : null)
-  }, [examId])
+  }, [groupId, examId])
 
   useEffect(() => {
     load()
@@ -84,12 +95,20 @@ function Admin() {
     }
   }
 
+  if (!data) return <p className="p-10 text-center text-slate-400">Жүктелуде…</p>
+  if (data.error) return <p className="p-10 text-center text-rose-600">{data.error}</p>
+
+  const group = data.group
+  const exam = data.exam
+  const dirty = !!exam && !!draft && JSON.stringify(exam) !== JSON.stringify(draft)
+  const goGroup = (id: string) => router.push(`/admin/bilim-test?group=${id}`)
+
   const create = async () => {
+    if (!group) return
     setBusy(true)
     try {
-      await post({ action: 'create', id: newId })
-      router.push(`/admin/bilim-test?exam=${newId}`)
-      if (newId === examId) await load()
+      const j = await post({ action: 'create', group: group.id, month: newMonth })
+      router.push(`/admin/bilim-test?group=${group.id}&exam=${j.id}`)
     } catch (err: any) {
       flash(err.message)
     } finally {
@@ -97,74 +116,98 @@ function Admin() {
     }
   }
 
-  if (!data) return <p className="p-10 text-center text-slate-400">Жүктелуде…</p>
-  if (data.error) return <p className="p-10 text-center text-rose-600">{data.error}</p>
-
-  const exam = data.exam
-  const dirty = !!exam && !!draft && JSON.stringify(exam) !== JSON.stringify(draft)
-
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <a href="/admin" className="text-sm text-blue-600">← Админ панель</a>
-          <h1 className="mt-1 text-2xl font-bold">Білім тексеру сынағы</h1>
-          <p className="text-slate-500">{GROUP_NAME} · {data.students.length} оқушы</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {data.exams.length > 0 && (
-            <select
-              value={exam?.id ?? ''}
-              onChange={(e) => router.push(`/admin/bilim-test?exam=${e.target.value}`)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2"
-            >
-              {data.exams.map((e) => (
-                <option key={e.id} value={e.id}>{e.title}</option>
-              ))}
-            </select>
-          )}
-          <input type="month" value={newId} onChange={(e) => setNewId(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2" />
-          <button disabled={busy} onClick={create} className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-medium hover:bg-slate-50">
-            + Жаңа ай
+      <a href="/admin" className="text-sm text-blue-600">← Админ панель</a>
+      <h1 className="mt-1 text-2xl font-bold">Білім тексеру сынағы</h1>
+
+      {/* Топтар */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {data.groups.map((g) => (
+          <button
+            key={g.id}
+            onClick={() => goGroup(g.id)}
+            className={`rounded-full border px-4 py-1.5 text-sm font-semibold ${group?.id === g.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-600 hover:border-slate-500'}`}
+          >
+            {g.name}
           </button>
-        </div>
+        ))}
+        <button onClick={() => setGroupModal('new')} className="rounded-full border border-dashed border-slate-400 px-4 py-1.5 text-sm text-slate-600 hover:bg-white">
+          + Топ қосу
+        </button>
       </div>
 
-      {!exam && (
-        <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
-          Әзірге сынақ жоқ. Айды таңдап, «+ Жаңа ай» басыңыз.
+      {group && (
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+          <div>
+            <div className="text-lg font-bold">{group.name}</div>
+            <div className="text-sm text-slate-500">
+              {data.students.length} оқушы · {group.subjects.length} пән ·{' '}
+              <button onClick={() => setGroupModal(group)} className="text-blue-600 hover:underline">топты баптау</button>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {data.exams.length > 0 && (
+              <select
+                value={exam?.id ?? ''}
+                onChange={(e) => router.push(`/admin/bilim-test?group=${group.id}&exam=${e.target.value}`)}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+              >
+                {data.exams.map((e) => (
+                  <option key={e.id} value={e.id}>{e.title}</option>
+                ))}
+              </select>
+            )}
+            <input type="month" value={newMonth} onChange={(e) => setNewMonth(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2" />
+            <button disabled={busy} onClick={create} className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-medium hover:bg-slate-50">
+              + Жаңа ай
+            </button>
+          </div>
         </div>
       )}
-      {!exam && <StudentsTab students={data.students} reload={load} flash={flash} />}
 
-      {exam && draft && (
+      {group && !exam && (
         <>
-          <div className="mt-6 flex gap-1 border-b border-slate-200">
+          <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
+            Бұл топта әзірге сынақ жоқ. Айды таңдап, «+ Жаңа ай» басыңыз. Алдымен оқушыларды қосып алыңыз.
+          </div>
+          <StudentsTab group={group} students={data.students} reload={load} flash={flash} />
+        </>
+      )}
+
+      {group && exam && draft && (
+        <>
+          <div className="mt-5 flex gap-1 overflow-x-auto border-b border-slate-200">
             {([
               ['results', 'Нәтижелер'],
               ['key', 'Жауап кілті'],
+              ['questions', 'Сұрақтар'],
               ['settings', 'Сынақты басқару'],
               ['students', `Оқушылар (${data.students.length})`],
             ] as [Tab, string][]).map(([t, l]) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-semibold ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                className={`-mb-px shrink-0 border-b-2 px-4 py-2.5 text-sm font-semibold ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
               >
                 {l}
               </button>
             ))}
+            <span className={`ml-auto shrink-0 self-center rounded-full px-3 py-1 text-xs font-semibold ${exam.published ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+              {exam.published ? 'Нәтиже жарияланған' : 'Нәтиже жарияланбаған'}
+            </span>
           </div>
 
           {tab === 'results' && <Results data={data} exam={exam} onOpen={setOpen} />}
-          {tab === 'students' && <StudentsTab students={data.students} reload={load} flash={flash} />}
           {tab === 'key' && <KeyEditor draft={draft} setDraft={setDraft} />}
+          {tab === 'questions' && <QuestionsEditor draft={draft} setDraft={setDraft} flash={flash} />}
           {tab === 'settings' && (
-            <Settings exam={exam} draft={draft} setDraft={setDraft} hasSubs={data.submissions.length > 0} onToggle={(e) => save(e, 'Жауап қабылдау жаңартылды')} busy={busy} />
+            <Settings exam={exam} draft={draft} setDraft={setDraft} hasSubs={data.submissions.length > 0} onInstant={(e, note) => save(e, note)} busy={busy} />
           )}
+          {tab === 'students' && <StudentsTab group={group} students={data.students} reload={load} flash={flash} />}
 
-          {dirty && (tab === 'key' || tab === 'settings') && (
-            <div className="sticky bottom-4 mt-6 flex items-center justify-end gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+          {dirty && (tab === 'key' || tab === 'questions' || tab === 'settings') && (
+            <div className="sticky bottom-4 z-30 mt-6 flex items-center justify-end gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
               <span className="text-sm text-slate-500">Сақталмаған өзгерістер бар</span>
               <button onClick={() => setDraft(structuredClone(exam))} className="rounded-lg px-3 py-2 text-sm">Болдырмау</button>
               <button disabled={busy} onClick={() => save(draft)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
@@ -189,18 +232,435 @@ function Admin() {
         </>
       )}
 
+      {groupModal && (
+        <GroupModal
+          group={groupModal === 'new' ? null : groupModal}
+          onClose={() => setGroupModal(null)}
+          onSaved={async (id, note) => {
+            setGroupModal(null)
+            flash(note)
+            if (id && id !== group?.id) goGroup(id)
+            else await load()
+          }}
+        />
+      )}
+
       {msg && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">{msg}</div>}
     </div>
   )
 }
 
+// ── Пәндер тізімін өңдеу (топ үлгісі де, сынақ та) ─────────
+
+function newSubjectId() {
+  return `s${Math.random().toString(36).slice(2, 8)}`
+}
+
+function SubjectsEditor({ subjects, onChange }: { subjects: SubjectConfig[]; onChange: (s: SubjectConfig[]) => void }) {
+  const upd = (i: number, patch: Partial<SubjectConfig>) => onChange(subjects.map((s, j) => (j === i ? { ...s, ...patch } : s)))
+  return (
+    <div className="space-y-2">
+      <div className="hidden grid-cols-[1fr_5rem_5rem_6rem_2rem] gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:grid">
+        <span>Пән</span><span>Сұрақ</span><span>Нұсқа</span><span>Макс. балл</span><span />
+      </div>
+      {subjects.map((s, i) => (
+        <div key={s.id} className="grid grid-cols-[1fr_auto] gap-2 rounded-lg border border-slate-200 p-2 sm:grid-cols-[1fr_5rem_5rem_6rem_2rem] sm:border-0 sm:p-0">
+          <input value={s.name} onChange={(e) => upd(i, { name: e.target.value, short: e.target.value.slice(0, 14) })} placeholder="Пәннің аты" className="rounded border border-slate-300 px-2 py-1.5" />
+          <button onClick={() => onChange(subjects.filter((_, j) => j !== i))} title="Пәнді алып тастау" className="text-lg text-red-500 sm:order-last">×</button>
+          <input type="number" min={1} value={s.questions} onChange={(e) => upd(i, { questions: Number(e.target.value) })} className="rounded border border-slate-300 px-2 py-1.5" />
+          <select value={s.options} onChange={(e) => upd(i, { options: Number(e.target.value) })} className="rounded border border-slate-300 px-2 py-1.5">
+            <option value={3}>A–C</option>
+            <option value={4}>A–D</option>
+            <option value={5}>A–E</option>
+          </select>
+          <input type="number" min={1} value={s.max} onChange={(e) => upd(i, { max: Number(e.target.value) })} className="rounded border border-slate-300 px-2 py-1.5" />
+        </div>
+      ))}
+      <button
+        onClick={() => onChange([...subjects, { id: newSubjectId(), name: '', short: '', questions: 20, options: 4, max: 100 }])}
+        className="rounded-lg border border-dashed border-slate-400 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+      >
+        + Пән қосу
+      </button>
+    </div>
+  )
+}
+
+function GroupModal({ group, onClose, onSaved }: { group: Group | null; onClose: () => void; onSaved: (id: string | null, note: string) => void }) {
+  const [name, setName] = useState(group?.name ?? '')
+  const [subjects, setSubjects] = useState<SubjectConfig[]>(
+    group?.subjects ?? [{ id: newSubjectId(), name: 'Математика', short: 'Математика', questions: 20, options: 4, max: 100 }]
+  )
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    setBusy(true)
+    setErr('')
+    try {
+      const j = await post({ action: group ? 'update-group' : 'create-group', group: { id: group?.id, name, subjects } })
+      onSaved(j.id, group ? 'Топ сақталды' : 'Топ қосылды')
+    } catch (e: any) {
+      setErr(e.message)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4" onClick={onClose}>
+      <div className="mt-10 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-xl font-bold">{group ? 'Топты баптау' : 'Жаңа топ'}</h2>
+        <label className="mt-4 block text-sm font-semibold">Топтың аты</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Мысалы: 5-сынып БІЛ" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
+        <div className="mt-5 text-sm font-semibold">Пәндер</div>
+        <p className="mb-2 text-xs text-slate-500">Жаңа ай ашқанда сынақ осы пәндермен құрылады. Бұрынғы айлардың сынақтары өзгермейді.</p>
+        <SubjectsEditor subjects={subjects} onChange={setSubjects} />
+        {err && <p className="mt-3 rounded-lg bg-rose-50 p-2 text-sm text-rose-700">{err}</p>}
+        <div className="mt-6 flex justify-between gap-2">
+          {group && group.id !== 'nzm' ? (
+            <button
+              onClick={async () => {
+                if (!confirm(`«${group.name}» тобын өшіресіз бе?`)) return
+                try {
+                  await post({ action: 'delete-group', id: group.id })
+                  onSaved('', 'Топ өшірілді')
+                  location.href = '/admin/bilim-test'
+                } catch (e: any) {
+                  setErr(e.message)
+                }
+              }}
+              className="text-sm text-red-600"
+            >
+              Топты өшіру
+            </button>
+          ) : <span />}
+          <div className="flex gap-2">
+            <button onClick={onClose} className="rounded-lg px-4 py-2">Болдырмау</button>
+            <button disabled={busy} onClick={submit} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white">Сақтау</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Сынақты басқару: жауап қабылдау, жариялау, пәндер ─────
+
+function Settings({
+  exam,
+  draft,
+  setDraft,
+  hasSubs,
+  onInstant,
+  busy,
+}: {
+  exam: Exam
+  draft: Exam
+  setDraft: (e: Exam) => void
+  hasSubs: boolean
+  onInstant: (e: Exam, note: string) => void
+  busy: boolean
+}) {
+  const [origin, setOrigin] = useState('')
+  useEffect(() => setOrigin(window.location.origin), [])
+  const link = `${origin}/bilim-test`
+  const keyed = exam.subjects.filter((s) => (exam.answer_key[s.id] ?? []).some(Boolean)).length
+
+  return (
+    <div className="mt-5 space-y-5">
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+        <div className="text-sm font-semibold text-blue-800">Оқушыларға жіберетін сілтеме</div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <code className="rounded bg-white px-3 py-1.5 text-sm">{link}</code>
+          <button onClick={() => navigator.clipboard?.writeText(link)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white">Көшіру</button>
+        </div>
+        <p className="mt-2 text-xs text-blue-800/80">Оқушы атын таңдап, PIN-мен кіреді (PIN — «Оқушылар» қойындысында).</p>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="font-semibold">Нәтижені жариялау</div>
+            <p className="text-sm text-slate-500">
+              Жарияланса, оқушылар кабинетте балын, орнын, дұрыс/қате сұрақтарын, рейтингті көреді. Барлығы тапсырып болғанша жарияламаңыз.
+            </p>
+          </div>
+          <button
+            disabled={busy || (!exam.published && keyed === 0)}
+            onClick={() => {
+              if (!exam.published && keyed < exam.subjects.length && !confirm(`Кілт ${keyed}/${exam.subjects.length} пәнге ғана енгізілген. Сонда да жариялайсыз ба?`)) return
+              onInstant({ ...exam, published: !exam.published }, exam.published ? 'Жариялау тоқтатылды' : 'Нәтиже жарияланды')
+            }}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50 ${exam.published ? 'border border-slate-300 bg-white text-slate-700' : 'bg-emerald-600 text-white'}`}
+          >
+            {exam.published ? 'Жариялауды тоқтату' : 'Жариялау'}
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="font-semibold">Жауап қабылдау</div>
+        <p className="text-sm text-slate-500">Бірден сақталады. Мысалы, 30 қазанда бір пәндерді, 31 қазанда қалғанын ашыңыз.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {exam.subjects.map((s) => {
+            const isOpen = exam.open_subjects.includes(s.id)
+            return (
+              <button
+                key={s.id}
+                disabled={busy}
+                onClick={() =>
+                  onInstant(
+                    { ...exam, open_subjects: isOpen ? exam.open_subjects.filter((x) => x !== s.id) : [...exam.open_subjects, s.id] },
+                    'Жауап қабылдау жаңартылды'
+                  )
+                }
+                className={`rounded-full px-3 py-1.5 text-sm font-semibold ${isOpen ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}`}
+              >
+                {s.name}: {isOpen ? 'ашық' : 'жабық'}
+              </button>
+            )
+          })}
+          <button disabled={busy} onClick={() => onInstant({ ...exam, open_subjects: exam.subjects.map((s) => s.id) }, 'Барлығы ашылды')} className="rounded-full border border-slate-300 px-3 py-1.5 text-sm">Бәрін ашу</button>
+          <button disabled={busy} onClick={() => onInstant({ ...exam, open_subjects: [] }, 'Барлығы жабылды')} className="rounded-full border border-slate-300 px-3 py-1.5 text-sm">Бәрін жабу</button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="mb-3 font-semibold">Осы айдың пәндері</div>
+        <SubjectsEditor subjects={draft.subjects} onChange={(subjects) => setDraft({ ...draft, subjects })} />
+        {hasSubs && (
+          <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+            Жауап парақтары түсіп қойған. Сұрақ санын өзгертсеңіз, бұрын тапсырылған парақтар жаңа санмен тексеріледі.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Сұрақтар: мәтін, сурет, тақырып ──────────────────────
+
+function QuestionsEditor({ draft, setDraft, flash }: { draft: Exam; setDraft: (e: Exam) => void; flash: (m: string) => void }) {
+  const [sid, setSid] = useState(draft.subjects[0]?.id ?? '')
+  const [openQ, setOpenQ] = useState<number | null>(null)
+  const [bulk, setBulk] = useState('')
+  const [uploading, setUploading] = useState<number | null>(null)
+  const s = draft.subjects.find((x) => x.id === sid) ?? draft.subjects[0]
+  if (!s) return null
+  const letters = LETTERS.slice(0, s.options)
+  const qs: Question[] = Array.from({ length: s.questions }, (_, i) => draft.questions?.[s.id]?.[i] ?? {})
+  const key = Array.from({ length: s.questions }, (_, i) => draft.answer_key[s.id]?.[i] ?? '')
+  const topics = Array.from(new Set(qs.map((q) => q.topic).filter(Boolean))) as string[]
+
+  const setQ = (i: number, patch: Partial<Question>) =>
+    setDraft({ ...draft, questions: { ...draft.questions, [s.id]: qs.map((q, j) => (j === i ? { ...q, ...patch } : q)) } })
+  const setKey = (i: number, l: string) =>
+    setDraft({ ...draft, answer_key: { ...draft.answer_key, [s.id]: key.map((k, j) => (j === i ? (k === l ? '' : l) : k)) } })
+
+  // «1-5: Бөлшектер» жолдарын бірден қою
+  const applyBulk = () => {
+    const next = [...qs]
+    let n = 0
+    for (const line of bulk.split('\n')) {
+      const m = line.match(/^\s*(\d+)\s*(?:[-–—]\s*(\d+))?\s*[:.)]\s*(.+)$/)
+      if (!m) continue
+      const a = Number(m[1])
+      const b = Number(m[2] ?? m[1])
+      for (let i = Math.max(1, a); i <= Math.min(s.questions, b); i++) {
+        next[i - 1] = { ...next[i - 1], topic: m[3].trim() }
+        n++
+      }
+    }
+    setDraft({ ...draft, questions: { ...draft.questions, [s.id]: next } })
+    flash(`${n} сұраққа тақырып қойылды. «Сақтау» басыңыз.`)
+    setBulk('')
+  }
+
+  const upload = async (i: number, file: File) => {
+    setUploading(i)
+    try {
+      const info = await post<{ path: string; token: string; publicUrl: string }>({ action: 'upload-url', fileName: file.name })
+      const { error } = await supabase.storage.from('materials').uploadToSignedUrl(info.path, info.token, file)
+      if (error) throw new Error(error.message)
+      setQ(i, { image: info.publicUrl })
+    } catch (e: any) {
+      flash(`Сурет жүктелмеді: ${e.message}`)
+    } finally {
+      setUploading(null)
+    }
+  }
+
+  return (
+    <div className="mt-5">
+      <div className="flex flex-wrap gap-2">
+        {draft.subjects.map((x) => (
+          <button key={x.id} onClick={() => { setSid(x.id); setOpenQ(null) }} className={`rounded-lg border px-3 py-1.5 text-sm font-semibold ${x.id === s.id ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white'}`}>
+            {x.name}
+          </button>
+        ))}
+      </div>
+      <p className="mt-3 text-sm text-slate-500">
+        Сұрақтың мәтіні, суреті және тақырыбы нәтиже жарияланған соң оқушыға көрінеді. Тақырыптар бойынша «қайталау керек тақырыптар» шығады.
+      </p>
+
+      <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
+        <summary className="cursor-pointer text-sm font-semibold">Тақырыптарды тізіммен қою</summary>
+        <p className="mt-2 text-xs text-slate-500">Әр жолға: <code>1-5: Бөлшектер</code> немесе <code>6: Пайыз</code></p>
+        <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={5} className="mt-2 w-full rounded-lg border border-slate-300 p-2 font-mono text-sm" placeholder={'1-5: Бөлшектер\n6-10: Пайыз'} />
+        <button onClick={applyBulk} disabled={!bulk.trim()} className="mt-2 rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40">Қою</button>
+      </details>
+
+      <datalist id="bt-topics">{topics.map((t) => <option key={t} value={t} />)}</datalist>
+      <div className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        {qs.map((q, i) => (
+          <div key={i} className="p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="w-8 text-right font-bold tabular-nums text-slate-400">{i + 1}</span>
+              <div className="flex gap-1">
+                {letters.map((l) => (
+                  <button key={l} onClick={() => setKey(i, l)} className={`h-8 w-8 rounded-full border text-sm font-bold ${key[i] === l ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 text-slate-400'}`}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <input list="bt-topics" value={q.topic ?? ''} onChange={(e) => setQ(i, { topic: e.target.value })} placeholder="Тақырып" className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+              <button onClick={() => setOpenQ(openQ === i ? null : i)} className={`rounded-lg border px-2.5 py-1.5 text-sm ${q.text || q.image ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 text-slate-600'}`}>
+                {q.text || q.image ? 'Мәтін/сурет ✓' : 'Мәтін/сурет'}
+              </button>
+            </div>
+            {openQ === i && (
+              <div className="mt-3 grid gap-3 pl-10 md:grid-cols-2">
+                <textarea value={q.text ?? ''} onChange={(e) => setQ(i, { text: e.target.value })} rows={5} placeholder="Сұрақтың мәтіні (міндетті емес)" className="w-full rounded-lg border border-slate-300 p-2 text-sm" />
+                <div>
+                  {q.image ? (
+                    <div>
+                      <img src={q.image} alt="" className="max-h-48 rounded-lg border border-slate-200 object-contain" />
+                      <button onClick={() => setQ(i, { image: '' })} className="mt-1 text-sm text-red-600">Суретті алып тастау</button>
+                    </div>
+                  ) : (
+                    <label className="flex h-28 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-sm text-slate-500 hover:bg-slate-50">
+                      {uploading === i ? 'Жүктелуде…' : 'Сурет жүктеу (скриншот)'}
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && upload(i, e.target.files[0])} />
+                    </label>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Оқушылар: қосу, атын өзгерту, өшіру, PIN ─────────────
+
+function StudentsTab({
+  group,
+  students,
+  reload,
+  flash,
+}: {
+  group: Group
+  students: Student[]
+  reload: () => Promise<void>
+  flash: (m: string) => void
+}) {
+  const [name, setName] = useState('')
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [showPins, setShowPins] = useState(false)
+
+  const run = async (body: unknown, note: string) => {
+    setBusy(true)
+    try {
+      await post(body)
+      await reload()
+      flash(note)
+      return true
+    } catch (e: any) {
+      flash(e.message)
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const pinList = students.map((s) => `${s.full_name} — ${s.pin}`).join('\n')
+
+  return (
+    <div className="mt-5 space-y-4">
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault()
+          if (await run({ action: 'add-student', group: group.id, name }, 'Оқушы қосылды')) setName('')
+        }}
+        className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-4"
+      >
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Тегі мен аты" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500" />
+        <button disabled={busy || name.trim().length < 3} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:opacity-50">+ Оқушы қосу</button>
+      </form>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button onClick={() => setShowPins(!showPins)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm">
+          {showPins ? 'PIN-дерді жасыру' : 'PIN-дерді көрсету'}
+        </button>
+        <button onClick={() => { navigator.clipboard?.writeText(pinList); flash('Тізім көшірілді') }} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm">
+          «Аты — PIN» тізімін көшіру
+        </button>
+      </div>
+
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        {students.map((s, i) => (
+          <li key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+            <span className="w-6 text-right text-sm tabular-nums text-slate-400">{i + 1}</span>
+            {editing === s.id ? (
+              <form
+                className="flex flex-1 flex-wrap gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  if (await run({ action: 'rename-student', id: s.id, name: editName }, 'Аты өзгертілді')) setEditing(null)
+                }}
+              >
+                <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-blue-400 px-3 py-1.5 outline-none" />
+                <button disabled={busy} className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white">Сақтау</button>
+                <button type="button" onClick={() => setEditing(null)} className="rounded-lg px-3 py-1.5 text-sm">Болдырмау</button>
+              </form>
+            ) : (
+              <>
+                <span className="flex-1 font-medium">{s.full_name}</span>
+                <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-sm tracking-widest">{showPins ? s.pin : '••••'}</span>
+                <button disabled={busy} onClick={() => confirm(`${s.full_name}: жаңа PIN жасалсын ба? Ескі PIN жұмыс істемей қалады.`) && run({ action: 'reset-pin', id: s.id }, 'Жаңа PIN жасалды')} className="rounded-md px-2 py-1 text-sm text-slate-600 hover:bg-slate-100">
+                  Жаңа PIN
+                </button>
+                <button onClick={() => { setEditing(s.id); setEditName(s.full_name) }} className="rounded-md px-2 py-1 text-sm text-blue-600 hover:bg-blue-50">Өзгерту</button>
+                <button
+                  disabled={busy}
+                  onClick={() => confirm(`${s.full_name} тізімнен шығарылады. Оның жауап парақтары да өшеді. Жалғастырасыз ба?`) && run({ action: 'delete-student', id: s.id }, 'Тізімнен шығарылды')}
+                  className="rounded-md px-2 py-1 text-sm text-red-600 hover:bg-red-50"
+                >
+                  Өшіру
+                </button>
+              </>
+            )}
+          </li>
+        ))}
+        {students.length === 0 && <li className="px-4 py-6 text-center text-slate-400">Әзірге оқушы жоқ</li>}
+      </ul>
+      <p className="text-sm text-slate-500">Атын өзгертсеңіз, оқушының нәтижелері мен жауап парақтары жаңа атымен сақталады. 5 рет қате PIN енгізсе, 10 минутқа бұғатталады — «Жаңа PIN» бұғатты алады.</p>
+    </div>
+  )
+}
+
 function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen: (n: string) => void }) {
-  const rk = useMemo(() => ranking(exam, data.submissions), [exam, data.submissions])
+  const subs = useMemo(() => { const n = new Set(data.students.map((s) => s.full_name)); return data.submissions.filter((s) => n.has(s.student_name)) }, [data.students, data.submissions])
+  const rk = useMemo(() => ranking(exam, subs), [exam, subs])
   const submittedBy = useMemo(() => {
     const m: Record<string, Set<string>> = {}
-    for (const s of data.submissions) (m[s.student_name] ??= new Set()).add(s.subject)
+    for (const s of subs) (m[s.student_name] ??= new Set()).add(s.subject)
     return m
-  }, [data.submissions])
+  }, [subs])
   const keyed = exam.subjects.filter((s) => (exam.answer_key[s.id] ?? []).some(Boolean))
   const prev = data.previous
 
@@ -225,7 +685,7 @@ function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen: (n: s
           {prev && <span className="rounded-full bg-slate-100 px-3 py-1">Салыстыру: {prev.title}</span>}
         </div>
         <a
-          href={`/admin/bilim-test/report?exam=${exam.id}`}
+          href={`/admin/bilim-test/report?group=${exam.group_id}&exam=${exam.id}`}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
         >
           Барлығының PDF-і
@@ -279,7 +739,7 @@ function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen: (n: s
                   </td>
                   <td className="px-3 py-2 text-right">
                     {r.count > 0 && (
-                      <a href={`/admin/bilim-test/report?exam=${exam.id}&student=${encodeURIComponent(r.name)}`} className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50">
+                      <a href={`/admin/bilim-test/report?group=${exam.group_id}&exam=${exam.id}&student=${encodeURIComponent(r.name)}`} className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-blue-600 hover:bg-blue-50">
                         PDF
                       </a>
                     )}
@@ -294,14 +754,11 @@ function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen: (n: s
     </div>
   )
 }
-
-// Жалпы балл түсі: жоғары — қою жасыл
 function totalBg(t: number, max: number) {
   const p = Math.min(1, t / max)
   const a = 0.12 + p * 0.6
   return `rgba(22,163,74,${a.toFixed(2)})`
 }
-
 function KeyEditor({ draft, setDraft }: { draft: Exam; setDraft: (e: Exam) => void }) {
   const setKey = (id: SubjectId, arr: string[]) => setDraft({ ...draft, answer_key: { ...draft.answer_key, [id]: arr } })
   return (
@@ -350,204 +807,6 @@ function KeyEditor({ draft, setDraft }: { draft: Exam; setDraft: (e: Exam) => vo
     </div>
   )
 }
-
-function Settings({
-  exam,
-  draft,
-  setDraft,
-  hasSubs,
-  onToggle,
-  busy,
-}: {
-  exam: Exam
-  draft: Exam
-  setDraft: (e: Exam) => void
-  hasSubs: boolean
-  onToggle: (e: Exam) => void
-  busy: boolean
-}) {
-  const [origin, setOrigin] = useState('')
-  useEffect(() => setOrigin(window.location.origin), [])
-  const link = `${origin}/bilim-test`
-  const upd = (id: SubjectId, patch: Record<string, number>) =>
-    setDraft({ ...draft, subjects: draft.subjects.map((s) => (s.id === id ? { ...s, ...patch } : s)) })
-
-  return (
-    <div className="mt-5 space-y-5">
-      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-        <div className="text-sm font-semibold text-blue-800">Оқушыларға жіберетін сілтеме</div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <code className="rounded bg-white px-3 py-1.5 text-sm">{link}</code>
-          <button onClick={() => navigator.clipboard?.writeText(link)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white">Көшіру</button>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
-              <th className="px-3 py-2.5">Пән</th>
-              <th className="px-3 py-2.5">Жауап қабылдау</th>
-              <th className="px-3 py-2.5">Сұрақ саны</th>
-              <th className="px-3 py-2.5">Нұсқа</th>
-              <th className="px-3 py-2.5">Макс. балл</th>
-              <th className="px-3 py-2.5">1 сұрақ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {draft.subjects.map((s) => {
-              const isOpen = exam.open_subjects.includes(s.id)
-              return (
-                <tr key={s.id} className="border-b border-slate-100 last:border-0">
-                  <td className="px-3 py-2 font-semibold">{s.name}</td>
-                  <td className="px-3 py-2">
-                    <button
-                      disabled={busy}
-                      onClick={() =>
-                        onToggle({
-                          ...exam,
-                          open_subjects: isOpen ? exam.open_subjects.filter((x) => x !== s.id) : [...exam.open_subjects, s.id],
-                        })
-                      }
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${isOpen ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}`}
-                    >
-                      {isOpen ? 'Ашық' : 'Жабық'}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2">
-                    <input type="number" min={1} max={100} value={s.questions} onChange={(e) => upd(s.id, { questions: Number(e.target.value) })} className="w-20 rounded border border-slate-300 px-2 py-1" />
-                  </td>
-                  <td className="px-3 py-2">
-                    <select value={s.options} onChange={(e) => upd(s.id, { options: Number(e.target.value) })} className="rounded border border-slate-300 px-2 py-1">
-                      <option value={3}>A–C</option>
-                      <option value={4}>A–D</option>
-                      <option value={5}>A–E</option>
-                    </select>
-                  </td>
-                  <td className="px-3 py-2">
-                    <input type="number" min={1} value={s.max} onChange={(e) => upd(s.id, { max: Number(e.target.value) })} className="w-24 rounded border border-slate-300 px-2 py-1" />
-                  </td>
-                  <td className="px-3 py-2 text-slate-500">{s.questions ? +(s.max / s.questions).toFixed(2) : '—'} балл</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      {hasSubs && (
-        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          Жауап парақтары түсіп қойған. Сұрақ санын өзгертсеңіз, бұрын тапсырылған парақтар жаңа санмен тексеріледі.
-        </p>
-      )}
-      <p className="text-sm text-slate-500">
-        «Жауап қабылдау» бірден сақталады. Мысалы, 30 қазанда тек математика мен жаратылыстануды, 31 қазанда тілдерді ашыңыз.
-      </p>
-    </div>
-  )
-}
-
-function StudentsTab({
-  students,
-  reload,
-  flash,
-}: {
-  students: Student[]
-  reload: () => Promise<void>
-  flash: (m: string) => void
-}) {
-  const [name, setName] = useState('')
-  const [editing, setEditing] = useState<string | null>(null)
-  const [editName, setEditName] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  const run = async (body: unknown, note: string) => {
-    setBusy(true)
-    try {
-      await post(body)
-      await reload()
-      flash(note)
-      return true
-    } catch (e: any) {
-      flash(e.message)
-      return false
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="mt-5 space-y-4">
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault()
-          if (await run({ action: 'add-student', name }, 'Оқушы қосылды')) setName('')
-        }}
-        className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-4"
-      >
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Тегі мен аты, мысалы: Серік Іңкәр"
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
-        />
-        <button disabled={busy || name.trim().length < 3} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:opacity-50">
-          + Оқушы қосу
-        </button>
-      </form>
-
-      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        {students.map((s, i) => (
-          <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
-            <span className="w-6 text-right text-sm tabular-nums text-slate-400">{i + 1}</span>
-            {editing === s.id ? (
-              <form
-                className="flex flex-1 flex-wrap gap-2"
-                onSubmit={async (e) => {
-                  e.preventDefault()
-                  if (await run({ action: 'rename-student', id: s.id, name: editName }, 'Аты өзгертілді')) setEditing(null)
-                }}
-              >
-                <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-blue-400 px-3 py-1.5 outline-none" />
-                <button disabled={busy} className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white">Сақтау</button>
-                <button type="button" onClick={() => setEditing(null)} className="rounded-lg px-3 py-1.5 text-sm">Болдырмау</button>
-              </form>
-            ) : (
-              <>
-                <span className="flex-1 font-medium">{s.full_name}</span>
-                {Object.keys(s.legacy_scores ?? {}).length === 0 && (
-                  <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 sm:inline">қыркүйекте жоқ</span>
-                )}
-                <button
-                  onClick={() => {
-                    setEditing(s.id)
-                    setEditName(s.full_name)
-                  }}
-                  className="rounded-md px-2 py-1 text-sm text-blue-600 hover:bg-blue-50"
-                >
-                  Өзгерту
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={() => {
-                    if (confirm(`${s.full_name} тізімнен шығарылады. Оның барлық жауап парақтары да өшеді. Жалғастырасыз ба?`))
-                      run({ action: 'delete-student', id: s.id }, 'Тізімнен шығарылды')
-                  }}
-                  className="rounded-md px-2 py-1 text-sm text-red-600 hover:bg-red-50"
-                >
-                  Өшіру
-                </button>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-      <p className="text-sm text-slate-500">
-        Атын өзгертсеңіз, оқушының бұрынғы нәтижелері мен жауап парақтары жаңа атымен сақталады.
-      </p>
-    </div>
-  )
-}
-
 function StudentDrawer({
   name,
   exam,

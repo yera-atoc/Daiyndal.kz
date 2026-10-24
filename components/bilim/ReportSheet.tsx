@@ -1,11 +1,12 @@
 import {
-  GROUP_NAME,
   commonDelta,
   examMax,
   prevMax,
   fmtPct,
   gradeSubject,
   monthName,
+  topicStats,
+  weakTopics,
   pct,
   rowTotal,
   sign,
@@ -19,7 +20,8 @@ export type ReportInput = {
   exam: Exam
   student: string
   subs: Submission[] // осы оқушының жауап парақтары
-  prev: { id: string; title: string; row: ScoreRow | undefined } | null
+  prev: { id: string; month: string; title: string; row: ScoreRow | undefined } | null
+  groupName: string
   rank: { place: number; of: number } | null
 }
 
@@ -27,22 +29,23 @@ const MONTHS_GEN = ['қаңтар', 'ақпан', 'наурыз', 'сәуір', 
 const BLUE = '#2563EB'
 const LIGHT = '#A9C2F5'
 
-export default function ReportSheet({ exam, student, subs, prev, rank }: ReportInput) {
+export default function ReportSheet({ exam, student, subs, prev, rank, groupName }: ReportInput) {
   const rows = exam.subjects.map((s) => {
     const sub = subs.find((x) => x.subject === s.id)
     const g: Graded | null = sub ? gradeSubject(s, exam.answer_key[s.id], sub.answers) : null
     const before = prev?.row?.[s.id]
-    return { s, g, now: g?.score ?? null, before: typeof before === 'number' ? before : null }
+    const weak = sub ? weakTopics(topicStats(s, exam.answer_key[s.id], sub.answers, exam.questions?.[s.id])) : []
+    return { s, g, weak, now: g?.score ?? null, before: typeof before === 'number' ? before : null }
   })
   const nowTotal = rows.some((r) => r.now !== null) ? rows.reduce((a, r) => a + (r.now ?? 0), 0) : null
   const prevTotal = rowTotal(prev?.row)
   const nowRow = Object.fromEntries(rows.map((r) => [r.s.id, r.now]))
   const delta = commonDelta(nowRow, prev?.row)
   const commonCount = rows.filter((r) => r.now !== null && r.before !== null).length
-  const nowM = monthName(exam.id)
+  const nowM = monthName(exam.month)
   const MAX = examMax(exam)
   const PMAX = prevMax(exam, prev?.row)
-  const prevM = prev ? monthName(prev.id) : null
+  const prevM = prev ? monthName(prev.month) : null
 
   // Қорытынды мәтіндер
   const diffs = rows
@@ -92,7 +95,7 @@ export default function ReportSheet({ exam, student, subs, prev, rank }: ReportI
 
       <h1 className="mt-[6mm] text-[26pt] font-extrabold leading-none tracking-tight">{student}</h1>
       <p className="mt-[3mm] text-[10.5pt] text-slate-500">
-        {GROUP_NAME} · {hasPrev ? 'екі айлық нәтиже және өзгеріс' : `${nowM} айының нәтижесі`} · барлығы{' '}
+        {groupName} · {hasPrev ? 'екі айлық нәтиже және өзгеріс' : `${nowM} айының нәтижесі`} · барлығы{' '}
         {MAX} баллдан
       </p>
 
@@ -199,6 +202,22 @@ export default function ReportSheet({ exam, student, subs, prev, rank }: ReportI
       </div>
 
       {/* Қате сұрақтар */}
+      {rows.some((r) => r.weak.length) && (
+        <div className="mt-[4mm]">
+          <div className="text-[8.5pt] font-bold uppercase tracking-[.1em] text-red-600">Қайталау керек тақырыптар</div>
+          <div className="mt-[2mm] space-y-[0.6mm] text-[8.5pt] leading-snug">
+            {rows
+              .filter((r) => r.weak.length)
+              .map((r) => (
+                <div key={r.s.id} className="grid grid-cols-[32mm_1fr]">
+                  <span className="font-semibold">{r.s.name}</span>
+                  <span>{r.weak.slice(0, 5).join(' · ')}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {rows.some((r) => r.g && (r.g.wrong.length || r.g.blank.length)) && (
         <div className="mt-[4mm] mb-[3mm] min-h-0 flex-1 overflow-hidden">
           <div className="text-[8.5pt] font-bold uppercase tracking-[.1em] text-slate-500">Қате және бос сұрақтар (нөмірлері)</div>

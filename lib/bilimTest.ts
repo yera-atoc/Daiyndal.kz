@@ -1,7 +1,7 @@
-// Білім тексеру сынағы (НЗМ дайындық тобы): ортақ типтер, тізім, бағалау.
+// Білім тексеру сынағы: ортақ типтер, бағалау. Топтар (НЗМ, 3–11 сыныптар) бірдей жүйемен жұмыс істейді.
 // Бұл файлда құпия дерек жоқ — клиентте де, серверде де қолданылады.
 
-export type SubjectId = 'quant' | 'math' | 'science' | 'english' | 'kazakh' | 'russian'
+export type SubjectId = string
 
 export type SubjectConfig = {
   id: SubjectId
@@ -12,12 +12,26 @@ export type SubjectConfig = {
   options: number // жауап нұсқалары (4 = A–D, 5 = A–E)
 }
 
+// Бір сұрақтың мазмұны (міндетті емес): мәтіні, суреті, тақырыбы
+export type Question = { text?: string; image?: string; topic?: string }
+
+export type Group = {
+  id: string
+  name: string
+  position: number
+  subjects: SubjectConfig[] // жаңа айдың сынағына үлгі
+}
+
 export type Exam = {
-  id: string // 'YYYY-MM'
+  id: string // НЗМ: 'YYYY-MM', басқа топтар: '<топ>_YYYY-MM'
+  group_id: string
+  month: string // 'YYYY-MM'
   title: string
   subjects: SubjectConfig[]
   open_subjects: SubjectId[]
-  answer_key: Partial<Record<SubjectId, string[]>>
+  answer_key: Record<SubjectId, string[]>
+  questions: Record<SubjectId, Question[]>
+  published: boolean // оқушылар нәтижесін көре ала ма
 }
 
 export type Submission = {
@@ -30,13 +44,12 @@ export type Submission = {
 }
 
 // Бір оқушының бір айдағы пән баллдары (null — тапсырмаған)
-export type ScoreRow = Partial<Record<SubjectId, number | null>>
+export type ScoreRow = Record<SubjectId, number | null>
 
-export const GROUP_NAME = 'НЗМ дайындық тобы'
 export const LETTERS = ['A', 'B', 'C', 'D', 'E']
 
+// НЗМ тобының пәндері (үлгі)
 export const DEFAULT_SUBJECTS: SubjectConfig[] = [
-  // Қазаннан бастап қосылды (қыркүйекте болмаған): 60 сұрақ × 5 балл
   { id: 'quant', name: 'Сандық сипаттама', short: 'Сандық сип.', max: 300, questions: 60, options: 4 },
   { id: 'math', name: 'Математика', short: 'Математика', max: 400, questions: 40, options: 4 },
   { id: 'science', name: 'Жаратылыстану', short: 'Жаратылыстану', max: 200, questions: 20, options: 4 },
@@ -45,8 +58,18 @@ export const DEFAULT_SUBJECTS: SubjectConfig[] = [
   { id: 'russian', name: 'Орыс тілі', short: 'Орыс т.', max: 200, questions: 20, options: 4 },
 ]
 
-export const SUBJECT_IDS = DEFAULT_SUBJECTS.map((s) => s.id)
-export const TOTAL_MAX = DEFAULT_SUBJECTS.reduce((a, s) => a + s.max, 0) // 1500
+export const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/
+export const GROUP_ID_RE = /^[a-z0-9-]{2,24}$/
+
+export function examIdFor(groupId: string, month: string) {
+  return groupId === 'nzm' ? month : `${groupId}_${month}`
+}
+
+// Рейтингте басқа оқушының аты қысқа: «Оразалы Ж.»
+export function shortName(full: string) {
+  const [a, b] = full.split(' ')
+  return b ? `${a} ${b[0]}.` : a
+}
 
 // Осы сынақтың жалпы максимумы (пәндер бойынша)
 export function examMax(exam: Exam): number {
@@ -60,7 +83,9 @@ export function prevMax(exam: Exam, row: ScoreRow | undefined): number {
 
 export type Student = {
   id: string
+  group_id: string
   full_name: string
+  pin: string | null
   position: number
   // Сайтқа дейінгі айлардың баллдары: {"2026-09": {"math": 370, ...}}
   legacy_scores: Record<string, ScoreRow>
@@ -117,7 +142,7 @@ const SEPT_ROWS: Row[] = [
   ['Хамитбек Мұстафа', 130, 80, 60, 50, 60],
 ]
 
-export const SEED_STUDENTS: Omit<Student, 'id'>[] = SEED_ROSTER.map((full_name, i) => {
+export const SEED_STUDENTS: Omit<Student, 'id' | 'pin' | 'group_id'>[] = SEED_ROSTER.map((full_name, i) => {
   const r = SEPT_ROWS.find((x) => x[0] === full_name)
   const legacy_scores: Record<string, ScoreRow> = {}
   if (r) legacy_scores['2026-09'] = { math: r[1], science: r[2], english: r[3], kazakh: r[4], russian: r[5] }
@@ -137,16 +162,15 @@ const MONTHS = [
   'Шілде', 'Тамыз', 'Қыркүйек', 'Қазан', 'Қараша', 'Желтоқсан',
 ]
 
-export function monthName(examId: string): string {
-  const m = Number(examId.slice(5, 7))
-  return MONTHS[m - 1] ?? examId
+export function monthName(month: string): string {
+  const m = Number(month.slice(5, 7))
+  return MONTHS[m - 1] ?? month
 }
 
-export function examTitle(examId: string): string {
-  return `${monthName(examId)} ${examId.slice(0, 4)}`
+export function examTitle(month: string): string {
+  return `${monthName(month)} ${month.slice(0, 4)}`
 }
 
-export const EXAM_ID_RE = /^\d{4}-(0[1-9]|1[0-2])$/
 
 // ── Бағалау ──────────────────────────────────────────────
 
@@ -232,7 +256,7 @@ export function commonDelta(now: ScoreRow | undefined, prev: ScoreRow | undefine
   if (!now || !prev) return null
   let d = 0
   let n = 0
-  for (const id of SUBJECT_IDS) {
+  for (const id of Object.keys(now)) {
     const a = now[id]
     const b = prev[id]
     if (typeof a === 'number' && typeof b === 'number') {
@@ -241,4 +265,31 @@ export function commonDelta(now: ScoreRow | undefined, prev: ScoreRow | undefine
     }
   }
   return n ? d : null
+}
+
+// Тақырыптар бойынша нәтиже (сұрақтарға тақырып жазылған болса)
+export function topicStats(
+  s: SubjectConfig,
+  key: string[] | undefined,
+  answers: string[] | undefined,
+  questions: Question[] | undefined
+): { topic: string; correct: number; total: number }[] {
+  const map = new Map<string, { correct: number; total: number }>()
+  for (let i = 0; i < s.questions; i++) {
+    const t = questions?.[i]?.topic?.trim()
+    if (!t || !key?.[i]) continue
+    const e = map.get(t) ?? { correct: 0, total: 0 }
+    e.total++
+    if (answers?.[i] && answers[i] === key[i]) e.correct++
+    map.set(t, e)
+  }
+  return Array.from(map, ([topic, v]) => ({ topic, ...v }))
+}
+
+// Қайталау керек тақырыптар: 70 %-дан төмен орындалғандар, ең әлсізі бірінші
+export function weakTopics(stats: { topic: string; correct: number; total: number }[]) {
+  return stats
+    .filter((t) => t.correct / t.total < 0.7)
+    .sort((a, b) => a.correct / a.total - b.correct / b.total)
+    .map((t) => t.topic)
 }
