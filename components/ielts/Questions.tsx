@@ -43,7 +43,7 @@ export default function Questions({
             <h3 className="text-[15px] font-bold">Questions {first}{last !== first ? `–${last}` : ''}</h3>
             {g.instructions && <p className="mt-1 whitespace-pre-wrap text-[15px] italic" style={{ color: '#374151' }}>{g.instructions}</p>}
 
-            {g.type === 'matching' && g.options?.length ? (
+            {g.type === 'matching' && g.options?.some((o, i) => optionText(o) !== optionKey(o, i)) ? (
               <div className="mt-3 rounded-lg border p-3 text-[15px]" style={{ borderColor: LINE, background: '#F9FAFB' }}>
                 {g.options.map((o, i) => (
                   <div key={i}><b className="mr-2">{optionKey(o, i)}</b>{optionText(o) !== optionKey(o, i) ? optionText(o) : ''}</div>

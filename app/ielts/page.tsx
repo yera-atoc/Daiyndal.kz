@@ -59,7 +59,8 @@ export default function IeltsStudentPage() {
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
           <img src="/beles-logo.png" alt="Beles" className="h-8 w-auto" />
           <div className="ml-1 border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>IELTS mock</div>
-          <div className="ml-auto text-right text-sm">
+          <a href="/ielts/materials" className="ml-auto text-sm font-semibold" style={{ color: BLUE }}>Дайындық материалдары</a>
+          <div className="ml-4 text-right text-sm">
             <div className="font-semibold">{me.student.full_name}</div>
             <button
               onClick={async () => {
@@ -151,7 +152,10 @@ function Login({ onDone }: { onDone: () => void }) {
     <main className="flex min-h-screen items-center justify-center px-4" style={{ background: '#F5F7FB', color: INK }}>
       <div className="w-full max-w-md rounded-2xl border bg-white p-6" style={{ borderColor: LINE }}>
         <img src="/beles-logo.png" alt="Beles" className="h-9 w-auto" />
-        <h1 className="mt-4 text-2xl font-bold">IELTS mock</h1>
+        <div className="mt-4 flex items-baseline justify-between gap-3">
+          <h1 className="text-2xl font-bold">IELTS mock</h1>
+          <a href="/ielts/materials" className="text-sm font-semibold" style={{ color: BLUE }}>Дайындық материалдары →</a>
+        </div>
         {!sel ? (
           <>
             <p className="mt-1 text-sm" style={{ color: MUTED }}>Атыңызды таңдаңыз</p>

@@ -56,7 +56,8 @@ export async function GET(req: NextRequest) {
 }
 
 const clip = (v: unknown, n: number) => String(v ?? '').slice(0, n)
-const url = (v: unknown) => (/^https:\/\/[^\s"'<>]{4,600}$/.test(String(v ?? '')) ? String(v) : undefined)
+// https:// сілтеме немесе сайттың өз файлы (/ielts-media/...)
+const url = (v: unknown) => (/^(https:\/\/[^\s"'<>]{4,600}|\/ielts-media\/[\w.-]{1,120})$/.test(String(v ?? '')) ? String(v) : undefined)
 const num = (v: unknown, lo: number, hi: number, d: number) => Math.min(hi, Math.max(lo, Math.round(Number(v)) || d))
 
 function cleanGroups(gs: any): any[] {
