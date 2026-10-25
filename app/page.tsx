@@ -1,305 +1,186 @@
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import HeroSchedule from '@/components/HeroSchedule'
-import SubjectCard from '@/components/SubjectCard'
-import { subjects } from '@/lib/subjects'
-import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { B, CONTACT, waLink } from '@/components/site/brand'
 
-export const revalidate = 60
-
-type TopStudent = {
-  id: string
-  full_name: string
-  grade: number | null
-  rating_points: number
-  teachers: { name: string; subject: string | null } | null
-}
-
-async function getTopStudents(): Promise<TopStudent[]> {
-  const { data } = await supabaseAdmin
-    .from('students')
-    .select('id, full_name, grade, rating_points, teachers(name, subject)')
-    .gt('rating_points', 0)
-    .order('rating_points', { ascending: false })
-    .limit(5)
-  return (data as any) ?? []
-}
-
-const programs = [
+const PROGRAMS = [
   {
-    name: 'НИШ (НЗМ)',
-    tagline: '5-6 сынып оқушыларына арналған дайындық',
-    subjectList: ['Математика', 'Ағылшын тілі', 'Жаратылыстану'],
-    featured: true,
+    tag: '5–6 сынып',
+    title: 'НЗМ · БИЛ · РФМШ',
+    text: 'Арнайы мектептерге түсу емтихандарына жүйелі дайындық.',
+    items: ['Математика', 'Сандық сипаттама', 'Жаратылыстану', 'Қазақ, орыс, ағылшын тілдері'],
+    color: B.blue,
   },
   {
-    name: 'БИЛ',
-    tagline: '5-6 сынып оқушыларына арналған дайындық',
-    subjectList: ['Математика', 'Ағылшын тілі', 'Қазақ тілі'],
-    featured: false,
+    tag: '9–11 сынып',
+    title: 'ҰБТ',
+    text: 'Міндетті және бейіндік пәндер, ҰБТ форматындағы пробныйлар.',
+    items: ['Қазақстан тарихы', 'Математикалық және оқу сауаттылығы', 'Бейіндік пәндер: 12 комбинация', '140 балдық толық пробный'],
+    color: B.red,
   },
   {
-    name: 'РФМШ',
-    tagline: '5-6 сынып оқушыларына арналған дайындық',
-    subjectList: ['Математика', 'Орыс тілі'],
-    featured: false,
+    tag: 'Ағылшын тілі',
+    title: 'IELTS · TOEFL',
+    text: 'Академиялық ағылшын және халықаралық емтиханға дайындық.',
+    items: ['Listening, Reading', 'Writing – мұғалім тексереді', 'Speaking – жазбамен', 'Нақты форматтағы mock'],
+    color: B.ink,
   },
   {
-    name: 'ЕНТ (ҰБТ)',
-    tagline: '9, 10, 11 сынып оқушыларына арналған дайындық',
-    subjectList: ['Математика', 'Тарих', 'Таңдау пәндері'],
-    featured: true,
+    tag: '3–11 сынып',
+    title: 'Пәндік сабақтар',
+    text: 'Мектеп бағдарламасы бойынша үлгерімді көтеру.',
+    items: ['Математика', 'Қазақ және орыс тілі', 'Ағылшын тілі', 'Ай сайынғы білім тексеру'],
+    color: B.blue,
   },
 ]
 
-export default async function Home() {
-  const topStudents = await getTopStudents()
+const PLATFORM = [
+  { href: '/bilim-test', title: 'Білім тексеру', text: 'Ай сайынғы сынақ: жауап парағын телефоннан белгілейсің, нәтиже, топтағы орын және PDF есеп.', cta: 'Кабинетке кіру' },
+  { href: '/ubt', title: 'ҰБТ пробный', text: '120 тапсырма, 240 минут, 12 комбинация. 140 балл ресми ереже бойынша бірден есептеледі.', cta: 'Пробныйға кіру' },
+  { href: '/ielts', title: 'IELTS mock', text: 'Listening, Reading, Writing, Speaking – таймермен, бір рет ойнайтын аудиомен, нақты емтихандағыдай.', cta: 'Mock-қа кіру' },
+  { href: '/toefl', title: 'TOEFL mock', text: '2026 жылғы жаңа TOEFL iBT форматы: Complete the Words, Build a Sentence, Interview.', cta: 'Mock-қа кіру' },
+  { href: '/materials', title: 'Оқу материалдары', text: 'Мұғалімдер жүктеген конспектілер, тапсырмалар және пайдалы сілтемелер.', cta: 'Ашу' },
+  { href: '/ielts/materials', title: 'IELTS · TOEFL кеңестері', text: 'Формат, бағалау критерийлері, пайдалы тіркестер және ресми тегін ресурстар.', cta: 'Ашу' },
+]
 
+const STEPS = [
+  ['Жазылу', 'WhatsApp арқылы жазыласыз, біз сынып пен мақсатқа қарай топ ұсынамыз.'],
+  ['Деңгейді анықтау', 'Алғашқы Білім тексеру сынағы оқушының күшті және әлсіз тұстарын көрсетеді.'],
+  ['Сабақтар', 'Тәжірибелі мұғалімдермен топтық сабақтар, үй тапсырмасы мен материалдар.'],
+  ['Ай сайынғы нәтиже', 'Әр айдың соңында сынақ, рейтинг және ата-анаға арналған PDF есеп.'],
+]
+
+export default function Home() {
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-zinc-900 flex flex-col font-sans">
+    <div className="flex min-h-screen flex-col" style={{ background: B.paper, color: B.ink }}>
       <Header />
 
-      {/* Hero Section */}
-      <section className="bg-white border-b border-zinc-200/80">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-16 sm:py-24 lg:grid-cols-2">
+      {/* Hero */}
+      <section className="border-b bg-white" style={{ borderColor: B.line }}>
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <div className="flex flex-wrap gap-2 mb-4">
-              <span className="inline-block px-3 py-1 bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-semibold rounded-full">
-                5-6 сынып: НИШ, БИЛ, РФМШ
-              </span>
-              <span className="inline-block px-3 py-1 bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-semibold rounded-full">
-                9-11 сынып: ҰБТ (ЕНТ)
-              </span>
-            </div>
-
-            <h1 className="text-4xl font-extrabold leading-tight text-zinc-900 sm:text-5xl tracking-tight">
-              НИШ(НЗМ), БИЛ, РФМШ және ҰБТ(ЕНТ) емтихандарына дайындал
+            <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: B.line, color: B.muted }}>
+              <span className="h-2 w-2 rounded-full" style={{ background: B.red }} /> Жезқазған · сабақтар және онлайн платформа
+            </span>
+            <h1 className="font-display mt-5 text-[2rem] font-semibold leading-[1.15] sm:text-5xl">
+              НЗМ, БИЛ, РФМШ және ҰБТ-ға <span style={{ color: B.blue }}>сенімді</span> дайындық
             </h1>
-            <p className="mt-5 max-w-md text-zinc-600 leading-relaxed">
-              Апта сайынғы онлайн тесттер мен жаттығулар. Барлық материал қазақ тілінде, нәтижелер бірден шығады.
+            <p className="mt-5 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: B.muted }}>
+              Beles education – тәжірибелі мұғалімдер, ай сайынғы Білім тексеру сынағы және ҰБТ, IELTS, TOEFL пробныйлары бір жерде. Оқушы нәтижесін кабинетінен, ата-ана – PDF есептен көреді.
             </p>
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Link
-                href="/tests"
-                className="bg-zinc-900 px-6 py-3 text-sm font-semibold text-white rounded-xl transition hover:bg-zinc-800 shadow-sm"
-              >
-                Тест банкін көру
-              </Link>
-              <Link
-                href="/login"
-                className="border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 rounded-xl transition hover:border-zinc-900 bg-white"
-              >
-                Жүйеге кіру
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a href={waLink('Сәлеметсіз бе! Балама дайындық сабағына жазылғым келеді.')} target="_blank" rel="noopener noreferrer" className="rounded-xl px-6 py-3.5 text-center text-sm font-semibold text-white transition hover:opacity-90" style={{ background: B.blue }}>
+                Сабаққа жазылу (WhatsApp)
+              </a>
+              <Link href="/login" className="rounded-xl border bg-white px-6 py-3.5 text-center text-sm font-semibold transition hover:border-black" style={{ borderColor: B.line }}>
+                Кабинетке кіру
               </Link>
             </div>
           </div>
-          <div className="flex justify-center border border-zinc-200 bg-zinc-50 rounded-2xl p-6 lg:justify-end shadow-sm">
-            <HeroSchedule />
+
+          {/* Нәтиже парағының үлгісі */}
+          <div className="rounded-3xl border p-5 shadow-sm sm:p-6" style={{ borderColor: B.line, background: B.paper }}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: B.muted }}>Білім тексеру · нәтиже үлгісі</span>
+              <span className="flex h-5 items-stretch gap-[3px]" aria-hidden>
+                {[3, 1, 2, 1, 3, 1, 1, 2].map((w, i) => <span key={i} style={{ width: w * 2, background: i % 3 === 2 ? B.blue : B.ink }} />)}
+              </span>
+            </div>
+            <div className="mt-4 rounded-2xl bg-white p-4">
+              <div className="flex items-end justify-between">
+                <div>
+                  <div className="text-xs" style={{ color: B.muted }}>Жалпы балл</div>
+                  <div className="font-display text-4xl font-semibold">1 180<span className="text-lg" style={{ color: B.muted }}> / 1500</span></div>
+                </div>
+                <span className="rounded-lg px-2.5 py-1 text-xs font-bold text-white" style={{ background: B.red }}>+120 өткен айдан</span>
+              </div>
+              <div className="mt-4 space-y-2.5">
+                {[['Математика', 84], ['Сандық сипаттама', 76], ['Жаратылыстану', 81], ['Қазақ тілі', 70], ['Ағылшын тілі', 88]].map(([n, v]) => (
+                  <div key={n as string}>
+                    <div className="flex justify-between text-xs"><span>{n}</span><span className="font-semibold">{v}%</span></div>
+                    <div className="mt-1 h-2 rounded-full" style={{ background: B.line }}><div className="h-2 rounded-full" style={{ width: `${v}%`, background: (v as number) >= 80 ? B.blue : B.ink }} /></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="mt-3 text-xs" style={{ color: B.muted }}>Әр оқушы сынақтан кейін осындай нәтиже, тақырыптар бойынша талдау және болжам алады.</p>
           </div>
         </div>
       </section>
 
-      {/* Оқушылар мен Ата-аналарға арналған ақпарат (БИЛ картасы, күндері & NIS) */}
-      <section className="mx-auto max-w-6xl px-6 py-20 w-full">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-xs font-bold uppercase tracking-wider bg-zinc-200 text-zinc-700 px-3 py-1 rounded-full">
-            Ата-аналар мен оқушыларға
-          </span>
-          <h2 className="text-3xl font-extrabold text-zinc-900 tracking-tight mt-3">
-            БИЛ лицейлері және NIS туралы маңызды ақпарат
-          </h2>
-          <p className="mt-2 text-zinc-600 text-sm">
-            Тіркелу мерзімдері, қажетті құжаттар және емтихан кестелері
-          </p>
-        </div>
-
-        <div className="grid gap-8 lg:grid-cols-2">
-          {/* БИЛ бөлімі & Өңірлер картасы */}
-          <div className="bg-white rounded-3xl border border-zinc-200/80 p-8 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-zinc-900">БИЛ (Білім-инновация лицейлері)</h3>
-                <span className="text-xs bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-md font-medium">Тіркелу ашық</span>
-              </div>
-              <p className="text-zinc-600 text-sm leading-relaxed mb-6">
-                Қазақстанның барлық өңірлеріндегі БИЛ лицейлерінің байланыстары, орналасқан мекенжайлары және қабылдау емтихандарының мерзімдері.
-              </p>
-              
-              <div className="space-y-3 bg-zinc-50 p-4 rounded-2xl border border-zinc-100 text-xs">
-                <div className="flex justify-between py-1 border-b border-zinc-200/60">
-                  <span className="font-semibold text-zinc-700">Тіркелу мерзімі:</span>
-                  <span className="text-zinc-900 font-medium">01.02 — 26.04</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-zinc-200/60">
-                  <span className="font-semibold text-zinc-700">Емтихан күні:</span>
-                  <span className="text-zinc-900 font-medium">17.05</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="font-semibold text-zinc-700">Астана ерлер БИЛ (ІВ):</span>
-                  <span className="text-zinc-900">+7 7172 53 88 54</span>
-                </div>
-              </div>
+      {/* Бағдарламалар */}
+      <section id="programs" className="mx-auto w-full max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6">
+        <h2 className="font-display text-2xl font-semibold sm:text-3xl">Бағдарламалар</h2>
+        <p className="mt-2 max-w-2xl" style={{ color: B.muted }}>Оқушының сыныбы мен мақсатына қарай топ таңдаймыз. Бағасы мен кестесі бойынша WhatsApp-қа жазыңыз.</p>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {PROGRAMS.map((p) => (
+            <div key={p.title} className="flex flex-col rounded-2xl border bg-white p-5" style={{ borderColor: B.line }}>
+              <span className="self-start rounded-md px-2 py-0.5 text-xs font-semibold text-white" style={{ background: p.color }}>{p.tag}</span>
+              <h3 className="font-display mt-3 text-xl font-semibold">{p.title}</h3>
+              <p className="mt-2 text-sm" style={{ color: B.muted }}>{p.text}</p>
+              <ul className="mt-4 flex-1 space-y-1.5 text-sm">
+                {p.items.map((it) => <li key={it} className="flex gap-2"><span style={{ color: p.color }}>—</span>{it}</li>)}
+              </ul>
+              <a href={waLink(`Сәлеметсіз бе! «${p.title}» (${p.tag}) бағдарламасы туралы білгім келеді.`)} target="_blank" rel="noopener noreferrer" className="mt-5 rounded-lg border px-4 py-2.5 text-center text-sm font-semibold transition hover:border-black" style={{ borderColor: B.line }}>
+                Толығырақ білу
+              </a>
             </div>
-
-            <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
-              <span>📍 Барлық өңірлер қамтылған</span>
-              <span className="font-semibold text-zinc-900">БИЛ картасы қолжетімді</span>
-            </div>
-          </div>
-
-          {/* NIS (Назарбаев Зияткерлік мектептері) бөлімі */}
-          <div className="bg-white rounded-3xl border border-zinc-200/80 p-8 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-zinc-900">NIS (Назарбаев Зияткерлік мектебі)</h3>
-                <span className="text-xs bg-blue-50 text-blue-600 px-2.5 py-1 rounded-md font-medium">Дайындық материалдары</span>
-              </div>
-              <p className="text-zinc-600 text-sm leading-relaxed mb-6">
-                NIS-ке түсу үшін қажетті құжаттар тізімі, тілдік тесттер және математикалық логикадан дайындық тапсырмалары.
-              </p>
-
-              <div className="space-y-2 text-xs text-zinc-700">
-                <div className="flex items-center gap-2 bg-zinc-50 p-2.5 rounded-xl border border-zinc-100">
-                  <span className="w-2 h-2 rounded-full bg-zinc-900"></span>
-                  <span><strong>Құжаттар тізімі:</strong> ЖСН, анықтама, фотосурет және өтініш.</span>
-                </div>
-                <div className="flex items-center gap-2 bg-zinc-50 p-2.5 rounded-xl border border-zinc-100">
-                  <span className="w-2 h-2 rounded-full bg-zinc-900"></span>
-                  <span><strong>Тілдік тесттер:</strong> Қазақ/Орыс тілінен мәтінмен жұмыс.</span>
-                </div>
-                <div className="flex items-center gap-2 bg-zinc-50 p-2.5 rounded-xl border border-zinc-100">
-                  <span className="w-2 h-2 rounded-full bg-zinc-900"></span>
-                  <span><strong>Математика тесттері:</strong> Логикалық және сандық есептер.</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
-              <span>📚 Толық нұсқаулық</span>
-              <span className="font-semibold text-zinc-900">nis.edu.kz негізінде</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Subjects Section */}
-      <section id="pans" className="mx-auto max-w-6xl px-6 py-10 w-full">
-        <h2 className="text-3xl font-extrabold text-zinc-900 tracking-tight">
-          Бір платформада — барлық пәндер
-        </h2>
-        <p className="mt-2 max-w-xl text-zinc-600">
-          Әр пән бойынша дайын тесттер мен жаттығулар, оқушының жасына және мектеп талабына сай.
-        </p>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {subjects.map((subject) => (
-            <SubjectCard key={subject.id} subject={subject} />
           ))}
         </div>
       </section>
 
-      {/* Top-5 Rating Preview */}
-      {topStudents.length > 0 && (
-        <section className="mx-auto max-w-3xl px-6 py-10 w-full">
-          <div className="flex items-end justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider bg-zinc-200 text-zinc-700 px-3 py-1 rounded-full">
-                Апта үздіктері
-              </span>
-              <h2 className="mt-3 text-2xl font-extrabold text-zinc-900 tracking-tight">
-                Оқушылар рейтингі
-              </h2>
-            </div>
-            <Link href="/rating" className="hidden sm:block text-sm font-semibold text-zinc-900 hover:underline">
-              Толығын көру →
-            </Link>
-          </div>
-
-          <div className="mt-6 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white shadow-sm">
-            {topStudents.map((s, i) => (
-              <div key={s.id} className="flex items-center justify-between gap-4 px-5 py-3.5">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                      i === 0 ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600'
-                    }`}
-                  >
-                    {i + 1}
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-900">{s.full_name}</p>
-                    <p className="text-xs text-zinc-500">
-                      {s.grade ? `${s.grade}-сынып` : ''}
-                      {s.teachers?.subject ? ` · ${s.teachers.subject}` : ''}
-                    </p>
-                  </div>
-                </div>
-                <span className="text-base font-black text-zinc-900">{s.rating_points}</span>
-              </div>
-            ))}
-          </div>
-
-          <Link href="/rating" className="mt-4 block text-center text-sm font-semibold text-zinc-900 hover:underline sm:hidden">
-            Толық рейтингті көру →
-          </Link>
-        </section>
-      )}
-
-      {/* Programs Section */}
-      <section id="bagdarlama" className="bg-white border-y border-zinc-200/80 my-10">
-        <div className="mx-auto max-w-6xl px-6 py-20">
-          <h2 className="text-3xl font-extrabold text-zinc-900 tracking-tight">
-            Дайындық бағытын таңдаңыз
-          </h2>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {programs.map((program) => (
-              <div
-                key={program.name}
-                className="border border-zinc-200 bg-zinc-50/50 p-6 rounded-2xl shadow-sm transition hover:border-zinc-900 flex flex-col justify-between"
-              >
-                <div>
-                  {program.featured && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-zinc-900 text-white px-2 py-0.5 rounded">
-                      Танымал
-                    </span>
-                  )}
-                  <p className="mt-3 text-2xl font-extrabold text-zinc-900">
-                    {program.name}
-                  </p>
-                  <p className="mt-2 text-xs font-medium text-zinc-500 leading-snug">{program.tagline}</p>
-                  <ul className="mt-4 space-y-1 text-sm text-zinc-700">
-                    {program.subjectList.map((s) => (
-                      <li key={s} className="flex items-center gap-1.5">
-                        <span className="text-zinc-400">—</span> {s}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <p className="mt-6 text-xs font-medium text-zinc-400 border-t border-zinc-200/60 pt-3">
-                  Бағасы: сұраныс бойынша
-                </p>
-              </div>
+      {/* Платформа */}
+      <section id="platform" className="scroll-mt-16 text-white" style={{ background: B.ink }}>
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+          <h2 className="font-display text-2xl font-semibold sm:text-3xl">Онлайн платформа</h2>
+          <p className="mt-2 max-w-2xl text-white/70">Орталық оқушылары үшін. Кіру үшін аты-жөніңізді таңдап, мұғалім берген 4 таңбалы PIN кодты енгізесіз.</p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {PLATFORM.map((c) => (
+              <Link key={c.href} href={c.href} className="group flex flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-5 transition hover:border-white/40 hover:bg-white/[0.08]">
+                <h3 className="text-lg font-semibold">{c.title}</h3>
+                <p className="mt-2 flex-1 text-sm text-white/70">{c.text}</p>
+                <span className="mt-4 text-sm font-semibold" style={{ color: '#8FB3FF' }}>{c.cta} →</span>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-[#F8F9FA]">
-        <div className="mx-auto max-w-3xl px-6 py-20 text-center">
-          <h2 className="text-3xl font-extrabold text-zinc-900 tracking-tight">
-            Дайындықты бүгіннен бастаңыз
-          </h2>
-          <p className="mt-3 text-zinc-600">
-            Жүйеге кіріп, апталық тесттерге қатысыңыз.
-          </p>
-          <div className="mt-8 flex justify-center gap-4">
-            <Link
-              href="/login"
-              className="bg-zinc-900 px-8 py-3.5 text-sm font-semibold text-white rounded-xl transition hover:bg-zinc-800 shadow-sm"
-            >
-              Жеке кабинетке кіру
-            </Link>
+      {/* Қалай оқимыз */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
+        <h2 className="font-display text-2xl font-semibold sm:text-3xl">Қалай оқимыз</h2>
+        <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {STEPS.map(([t, d], i) => (
+            <li key={t} className="rounded-2xl border bg-white p-5" style={{ borderColor: B.line }}>
+              <span className="font-display text-3xl font-semibold" style={{ color: i % 2 ? B.red : B.blue }}>0{i + 1}</span>
+              <h3 className="mt-2 font-semibold">{t}</h3>
+              <p className="mt-1 text-sm" style={{ color: B.muted }}>{d}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* Байланыс */}
+      <section id="contact" className="scroll-mt-20 border-t bg-white" style={{ borderColor: B.line }}>
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-16 sm:px-6 lg:grid-cols-2">
+          <div>
+            <h2 className="font-display text-2xl font-semibold sm:text-3xl">Байланыс</h2>
+            <p className="mt-2" style={{ color: B.muted }}>Сабақ кестесі, бағасы және бос орындар туралы сұрақтарға WhatsApp-та жауап береміз.</p>
+            <dl className="mt-6 space-y-4 text-sm">
+              <div><dt style={{ color: B.muted }}>Мекенжай</dt><dd className="mt-0.5 text-base font-semibold">{CONTACT.address}</dd></div>
+              <div><dt style={{ color: B.muted }}>WhatsApp</dt><dd className="mt-0.5 text-base font-semibold"><a href={waLink()} target="_blank" rel="noopener noreferrer" className="hover:underline">{CONTACT.phone}</a></dd></div>
+              <div><dt style={{ color: B.muted }}>Instagram</dt><dd className="mt-0.5 text-base font-semibold"><a href={CONTACT.instagram} target="_blank" rel="noopener noreferrer" className="hover:underline">{CONTACT.instagramHandle}</a></dd></div>
+            </dl>
+          </div>
+          <div className="flex flex-col justify-between gap-6 rounded-3xl p-6 text-white sm:p-8" style={{ background: B.blue }}>
+            <div>
+              <h3 className="font-display text-xl font-semibold sm:text-2xl">Алғашқы сынаққа келіңіз</h3>
+              <p className="mt-2 text-white/85">Білім тексеру сынағы оқушының қазіргі деңгейін көрсетеді – сол бойынша дайындық жоспарын құрамыз.</p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <a href={waLink('Сәлеметсіз бе! Білім тексеру сынағына жазылғым келеді.')} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-white px-5 py-3 text-center text-sm font-semibold" style={{ color: B.blue }}>WhatsApp-қа жазу</a>
+              <a href={CONTACT.gis} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-white/50 px-5 py-3 text-center text-sm font-semibold">2GIS картасы ↗</a>
+            </div>
           </div>
         </div>
       </section>

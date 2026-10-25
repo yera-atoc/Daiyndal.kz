@@ -1,87 +1,44 @@
 import Link from 'next/link'
+import { B, CONTACT, waLink } from './site/brand'
 
 export default function Footer() {
   return (
-    <footer className="border-t border-zinc-200 bg-zinc-50 text-zinc-600 text-sm">
-      <div className="mx-auto max-w-6xl px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          
-          {/* Бренд ақпараты */}
-          <div>
-            <h3 className="font-bold text-black text-lg mb-2">BELES EDUCATION</h3>
-            <p className="text-xs text-zinc-500 leading-relaxed">
-              НИШ (НЗМ), БИЛ, РФМШ және ҰБТ (ЕНТ) емтихандарына сапалы дайындық платформасы.
-            </p>
-          </div>
-
-          {/* Навигация */}
-          <div>
-            <h4 className="font-semibold text-black mb-3 text-xs uppercase tracking-wider">Навигация</h4>
-            <ul className="space-y-2 text-xs">
-              <li><Link href="/#pans" className="hover:text-black transition">Пәндер</Link></li>
-              <li><Link href="/#bagdarlama" className="hover:text-black transition">Бағдарламалар</Link></li>
-              <li><Link href="/tests" className="hover:text-black transition">Тест банкі</Link></li>
-              <li><Link href="/materials" className="hover:text-black transition">Материалдар</Link></li>
-            </ul>
-          </div>
-
-          {/* Байланыс / Контактілер */}
-          <div>
-            <h4 className="font-semibold text-black mb-3 text-xs uppercase tracking-wider">Байланыс</h4>
-            <ul className="space-y-2 text-xs">
-              <li>
-                <span className="text-zinc-400 block">WhatsApp:</span>
-                <a 
-                  href="https://wa.me/77772739248" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="font-medium text-black hover:underline"
-                >
-                  +7 (777) 273-92-48
-                </a>
-              </li>
-              <li>
-                <span className="text-zinc-400 block">Мекенжай:</span>
-                <span className="font-medium text-black">Жезқазған қ., Анарқұлова көшесі, 12</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Әлеуметтік желілер & 2GIS */}
-          <div>
-            <h4 className="font-semibold text-black mb-3 text-xs uppercase tracking-wider">Біз әлеуметтік желіде</h4>
-            <div className="flex flex-col gap-2.5 text-xs">
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 font-medium text-black hover:opacity-80 transition"
-              >
-                <span>📸 Instagram:</span>
-                <span className="underline">@beles.education</span>
-              </a>
-
-              <a
-                href="https://go.2gis.com/SgduX"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 font-medium text-emerald-600 hover:underline transition"
-              >
-                <span>🗺️ 2GIS картадан ашу</span>
-              </a>
-            </div>
-          </div>
-
+    <footer className="border-t bg-white text-sm" style={{ borderColor: B.line, color: B.muted }}>
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-4">
+        <div>
+          <img src="/beles-logo.png" alt="Beles education" className="h-9 w-auto" />
+          <p className="mt-3 text-xs leading-relaxed">НЗМ, БИЛ, РФМШ, ҰБТ, IELTS және TOEFL емтихандарына дайындық орталығы.</p>
         </div>
-
-        {/* Төменгі авторлық құқық бөлігі */}
-        <div className="border-t border-zinc-200 pt-6 flex flex-col sm:flex-row justify-between items-center text-xs text-zinc-400">
-          <p>© {new Date().getFullYear()} Beles Education. Барлық құқықтар қорғалған.</p>
-          <div className="flex gap-4 mt-2 sm:mt-0">
-            <Link href="/privacy" className="hover:underline">Құпиялылық саясаты</Link>
-            <Link href="/terms" className="hover:underline">Қолдану шарттары</Link>
-          </div>
+        <div>
+          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-black">Орталық</h4>
+          <ul className="space-y-2 text-xs">
+            <li><Link href="/#programs" className="hover:text-black">Бағдарламалар</Link></li>
+            <li><Link href="/#platform" className="hover:text-black">Платформа</Link></li>
+            <li><Link href="/materials" className="hover:text-black">Оқу материалдары</Link></li>
+            <li><Link href="/ielts/materials" className="hover:text-black">IELTS · TOEFL материалдары</Link></li>
+          </ul>
         </div>
+        <div>
+          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-black">Кабинеттер</h4>
+          <ul className="space-y-2 text-xs">
+            <li><Link href="/bilim-test" className="hover:text-black">Білім тексеру</Link></li>
+            <li><Link href="/ubt" className="hover:text-black">ҰБТ · IELTS · TOEFL пробный</Link></li>
+            <li><Link href="/teacher/login" className="hover:text-black">Мұғалімдерге</Link></li>
+            <li><Link href="/admin/login" className="hover:text-black">Әкімші</Link></li>
+          </ul>
+        </div>
+        <div id="footer-contact">
+          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-black">Байланыс</h4>
+          <ul className="space-y-2 text-xs">
+            <li><a href={waLink()} target="_blank" rel="noopener noreferrer" className="font-medium text-black hover:underline">WhatsApp: {CONTACT.phone}</a></li>
+            <li className="text-black">{CONTACT.address}</li>
+            <li><a href={CONTACT.gis} target="_blank" rel="noopener noreferrer" className="hover:text-black">2GIS картасынан ашу ↗</a></li>
+            <li><a href={CONTACT.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-black">Instagram {CONTACT.instagramHandle} ↗</a></li>
+          </ul>
+        </div>
+      </div>
+      <div className="border-t" style={{ borderColor: B.line }}>
+        <div className="mx-auto max-w-6xl px-4 py-5 text-xs sm:px-6">© {new Date().getFullYear()} Beles education. Барлық құқықтар қорғалған.</div>
       </div>
     </footer>
   )

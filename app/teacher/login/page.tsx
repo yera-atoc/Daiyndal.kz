@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import AuthShell, { field, primaryBtn } from '@/components/site/AuthShell'
 
 export default function TeacherLoginPage() {
   const router = useRouter()
@@ -36,54 +37,21 @@ export default function TeacherLoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-paper px-6">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm border border-ink/10 bg-white p-8 shadow-sm"
-      >
-        <p className="font-serif text-2xl font-bold text-ink">
-          Beles · Оқытушы кіруі
-        </p>
-        <p className="mt-2 text-sm text-ink/60">
-          Материалдар мен тесттер қосу үшін логин мен құпия сөзіңізді
-          енгізіңіз. Оларды әкімші береді.
-        </p>
-
-        <label className="mt-6 block text-sm text-ink/70">
+    <AuthShell title="Мұғалім кабинеті" subtitle="Логин мен құпия сөзді әкімші береді. Кіргеннен кейін материалдар, тесттер және оқушы жұмыстары ашылады.">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="block text-sm font-medium">
           Логин
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoFocus
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            autoComplete="username"
-            className="mt-2 w-full border border-ink/20 bg-paper px-4 py-2 text-ink outline-none focus:border-mustard"
-          />
+          <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" className={field} />
         </label>
-
-        <label className="mt-4 block text-sm text-ink/70">
+        <label className="block text-sm font-medium">
           Құпия сөз
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            className="mt-2 w-full border border-ink/20 bg-paper px-4 py-2 text-ink outline-none focus:border-mustard"
-          />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className={field} />
         </label>
-
-        {error && <p className="mt-3 text-sm text-coral">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-6 w-full bg-mustard py-2.5 text-sm font-semibold text-board transition hover:bg-card disabled:opacity-60"
-        >
+        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-[#E5383B]">{error}</p>}
+        <button type="submit" disabled={loading} className={primaryBtn}>
           {loading ? 'Тексерілуде...' : 'Кіру'}
         </button>
       </form>
-    </main>
+    </AuthShell>
   )
 }

@@ -77,7 +77,6 @@ export default function BilimTestPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <style>{`a[aria-label="WhatsApp арқылы хабарласу"]{display:none}`}</style>
       {error && <p className="mx-auto mt-4 max-w-xl rounded-xl bg-rose-50 p-4 text-rose-700">Қате: {error}</p>}
       {state === 'loading' && <p className="py-24 text-center text-slate-400">Жүктелуде…</p>}
       {state === 'login' && <Login onDone={refresh} />}
@@ -114,10 +113,15 @@ function Login({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    api<{ groups: LoginGroup[] }>('/api/bilim-test').then((j) => {
-      setGroups(j.groups)
-      if (j.groups.length === 1) setGroup(j.groups[0])
-    })
+    api<{ groups: LoginGroup[] }>('/api/bilim-test')
+      .then((j) => {
+        setGroups(j.groups)
+        if (j.groups.length === 1) setGroup(j.groups[0])
+      })
+      .catch((e) => {
+        setGroups([])
+        setErr(`Тізім жүктелмеді: ${e.message}. Бетті жаңартып көріңіз.`)
+      })
   }, [])
 
   const submit = async (code: string) => {
@@ -155,7 +159,7 @@ function Login({ onDone }: { onDone: () => void }) {
                   <span className="text-sm font-normal text-slate-400">{g.students.length} оқушы</span>
                 </button>
               ))}
-              {groups.length === 0 && <p className="text-slate-500">Әзірге топ жоқ.</p>}
+              {groups.length === 0 && (err ? <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{err}</p> : <p className="text-slate-500">Әзірге топ жоқ.</p>)}
             </div>
           </>
         )}

@@ -312,7 +312,6 @@ function Empty({ text, action, onAction }: { text: string; action?: string; onAc
 export default function Page() {
   return (
     <>
-      <style>{`a[aria-label="WhatsApp арқылы хабарласу"]{display:none}`}</style>
       <Suspense fallback={null}>
         <Admin />
       </Suspense>

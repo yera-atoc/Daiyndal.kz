@@ -169,7 +169,6 @@ function Crm() {
 export default function Page() {
   return (
     <>
-      <style>{`a[aria-label="WhatsApp арқылы хабарласу"]{display:none}`}</style>
       <Suspense fallback={null}>
         <Crm />
       </Suspense>

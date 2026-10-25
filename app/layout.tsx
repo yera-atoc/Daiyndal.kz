@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { PT_Serif, Inter, Caveat } from 'next/font/google'
-import WhatsAppButton from '@/components/WhatsAppButton' // <-- 1. Импорттаймыз
+import { PT_Serif, Inter, Caveat, Unbounded } from 'next/font/google'
+import WhatsAppButton from '@/components/WhatsAppButton'
 import './globals.css'
 
 const ptSerif = PT_Serif({
@@ -16,6 +16,9 @@ const inter = Inter({
   display: 'swap',
 })
 
+// Beles логотипіне үндес кең шрифт: тақырыптар мен үлкен сандар үшін
+const display = Unbounded({ subsets: ['latin', 'cyrillic'], weight: ['500', '600'], variable: '--font-display', display: 'swap' })
+
 const caveat = Caveat({
   subsets: ['cyrillic', 'latin'],
   weight: ['600', '700'],
@@ -24,9 +27,9 @@ const caveat = Caveat({
 })
 
 export const metadata: Metadata = {
-  title: 'Beles — НИШ(НЗМ), БІЛ, РФМШ, ЕНТ(ҰБТ) дайындық платформасы',
+  title: 'Beles education — НЗМ, БИЛ, РФМШ, ҰБТ, IELTS дайындық орталығы',
   description:
-    '5-6 сынып оқушыларына арналған көп пәнді дайындық платформасы. НИШ(НЗМ), БІЛ, РФМШ, ЕНТ(ҰБТ) емтихандарына апта сайын — сәрсенбі мен жексенбіде — тесттер.',
+    'Жезқазғандағы Beles education оқу орталығы: НЗМ, БИЛ, РФМШ, ҰБТ, IELTS және TOEFL емтихандарына дайындық. Ай сайынғы Білім тексеру сынағы, онлайн пробныйлар және оқушының жеке кабинеті.',
 }
 
 export default function RootLayout({
@@ -37,10 +40,10 @@ export default function RootLayout({
   return (
     <html lang="kk">
       <body
-        className={`${ptSerif.variable} ${inter.variable} ${caveat.variable} font-sans bg-paper text-ink antialiased`}
+        className={`${ptSerif.variable} ${inter.variable} ${caveat.variable} ${display.variable} font-sans bg-[#F5F7FB] text-ink antialiased`}
       >
         {children}
-        <WhatsAppButton /> {/* <-- 2. Осы жерге қосамыз */}
+        <WhatsAppButton />
       </body>
     </html>
   )

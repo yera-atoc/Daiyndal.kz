@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation'
 
 export default function WhatsAppButton() {
   const pathname = usePathname()
-  if (pathname?.startsWith('/ielts')) return null // емтихан кезінде батырма сұрақтарды жаппасын
+  // Тек ашық беттерде: кабинеттерде және емтихан кезінде батырма сұрақтарды жаппасын
+  const PUBLIC = ['/', '/materials', '/ielts/materials']
+  if (!pathname || !PUBLIC.includes(pathname)) return null
   const phoneNumber = '77772739248' 
   const message = 'Сәлеметсіз бе! Beles платформасы бойынша сұрағым бар еді.'
 

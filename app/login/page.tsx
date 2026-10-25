@@ -1,148 +1,29 @@
-'use client'
-
-import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import AuthShell from '@/components/site/AuthShell'
+import { B } from '@/components/site/brand'
 
-type Role = 'student' | 'teacher'
+export const metadata = { title: 'Кабинетке кіру — Beles education' }
 
-export default function LoginPage() {
-  const router = useRouter()
-  const [role, setRole] = useState<Role>('student')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+const ROLES = [
+  { href: '/bilim-test', title: 'Білім тексеру', who: 'Оқушы', text: 'Ай сайынғы сынақ, нәтиже және PDF есеп.', color: B.blue },
+  { href: '/ielts', title: 'ҰБТ · IELTS · TOEFL', who: 'Оқушы', text: 'Онлайн пробныйлар мен mock емтихандар.', color: B.red },
+  { href: '/teacher/login', title: 'Мұғалім', who: 'Қызметкер', text: 'Материалдар, тесттер, Writing/Speaking тексеру.', color: B.ink },
+  { href: '/admin/login', title: 'Әкімші', who: 'Қызметкер', text: 'Оқушылар, топтар, қатысу және сынақтар.', color: B.muted },
+]
 
-  function switchRole(next: Role) {
-    setRole(next)
-    setError(null)
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
-    const endpoint = role === 'student' ? '/api/student/login' : '/api/teacher/login'
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username.trim(), password }),
-    })
-
-    setLoading(false)
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      setError(data.error ?? 'Логин немесе құпия сөз қате')
-      return
-    }
-
-    router.push(role === 'student' ? '/student' : '/teacher')
-    router.refresh()
-  }
-
+export default function LoginHub() {
   return (
-    <div className="w-full flex justify-center items-center px-4 py-12">
-      <div className="w-full max-w-md space-y-8 bg-zinc-50 p-8 rounded-2xl border border-zinc-200 shadow-sm">
-
-        {/* Логотип */}
-        <div className="flex flex-col items-center">
-          <Link href="/" className="flex flex-col items-center group mb-2">
-            <span className="text-3xl font-black tracking-tight text-black leading-none group-hover:opacity-80 transition-opacity">
-              BELES
-            </span>
-            <span className="text-xs font-bold tracking-widest text-sky-500 uppercase leading-tight">
-              education
-            </span>
+    <AuthShell wide title="Кабинетке кіру" subtitle="Қай кабинетке кіретініңізді таңдаңыз. Оқушылар аты-жөнін таңдап, мұғалім берген 4 таңбалы PIN кодпен кіреді.">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {ROLES.map((r) => (
+          <Link key={r.href} href={r.href} className="group flex flex-col rounded-2xl border p-5 transition hover:-translate-y-0.5 hover:shadow-md" style={{ borderColor: B.line }}>
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: r.color }}>{r.who}</span>
+            <span className="mt-1 text-lg font-semibold">{r.title}</span>
+            <span className="mt-1 flex-1 text-sm" style={{ color: B.muted }}>{r.text}</span>
+            <span className="mt-3 text-sm font-semibold" style={{ color: B.blue }}>Кіру →</span>
           </Link>
-
-          <h2 className="mt-4 text-2xl font-extrabold text-black tracking-tight">
-            Жүйеге кіру
-          </h2>
-          <p className="mt-2 text-sm text-zinc-600 text-center">
-            Аккаунтыңызға кіріп, оқуды жалғастырыңыз.
-          </p>
-        </div>
-
-        {/* Табуляция */}
-        <div className="grid grid-cols-2 gap-1 bg-zinc-200/60 p-1 rounded-xl text-center text-sm font-semibold">
-          <button
-            type="button"
-            onClick={() => switchRole('student')}
-            className={`py-2 rounded-lg transition-colors ${
-              role === 'student' ? 'bg-white text-black shadow-sm' : 'text-zinc-600 hover:text-black'
-            }`}
-          >
-            Оқушы
-          </button>
-          <button
-            type="button"
-            onClick={() => switchRole('teacher')}
-            className={`py-2 rounded-lg transition-colors ${
-              role === 'teacher' ? 'bg-white text-black shadow-sm' : 'text-zinc-600 hover:text-black'
-            }`}
-          >
-            Мұғалім
-          </button>
-        </div>
-
-        {/* Форма */}
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1">
-              Логин
-            </label>
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              autoFocus
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              autoComplete="username"
-              placeholder={role === 'student' ? 'Мысалы: aigul25' : 'Мысалы: ielts1'}
-              className="w-full px-4 py-3 bg-white border border-zinc-300 rounded-lg text-sm text-black placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 mb-1">
-              ҚҰПИЯ СӨЗ
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              placeholder="••••••••"
-              className="w-full px-4 py-3 bg-white border border-zinc-300 rounded-lg text-sm text-black placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
-            />
-          </div>
-
-          {error && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 px-4 bg-black text-white text-sm font-semibold rounded-lg hover:bg-zinc-800 transition-all shadow-sm disabled:opacity-60"
-          >
-            {loading ? 'Тексерілуде...' : 'Кіру'}
-          </button>
-        </form>
-
-        <p className="text-center text-xs text-zinc-500 pt-2">
-          Логин мен құпия сөзді әкімші (немесе мұғаліміңіз) береді — өзіңіз тіркеле алмайсыз.
-        </p>
-
+        ))}
       </div>
-    </div>
+    </AuthShell>
   )
 }

@@ -5,7 +5,6 @@ export default function PrintStyles() {
       .bt-sheet { width: 210mm; height: 297mm; padding: 13mm 16mm 9mm; box-sizing: border-box; overflow: hidden; }
       .bt-flow { width: 210mm; min-height: 297mm; padding: 13mm 16mm 9mm; box-sizing: border-box; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
       @page { size: A4; margin: 0; }
-      a[aria-label="WhatsApp арқылы хабарласу"] { display: none; }
       @media print {
         body > :not(#bt-report) { display: none !important; }
         html, body, #bt-report { background: #fff !important; }
