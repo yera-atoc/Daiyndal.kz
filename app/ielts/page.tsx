@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Runner, { type AttemptView } from '@/components/ielts/Runner'
+import Runner, { UbtAnswer, UbtResult, type AttemptView } from '@/components/ielts/Runner'
+import { UBT_COMBOS, comboName } from '@/lib/ubt'
 import Questions, { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
 import { CEFR, EXAM_NAME, SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, isCorrect, sectionItems, type Exam, type Scores, type Section } from '@/lib/ielts'
 
@@ -14,7 +15,7 @@ type MyTest = {
   mode: 'exam' | 'practice'
   sections: Section[]
   canStart: boolean
-  attempts: { id: string; status: string; started_at: string; submitted_at: string | null; published: boolean; scores: Scores }[]
+  attempts: { id: string; status: string; started_at: string; submitted_at: string | null; published: boolean; scores: Scores; combo?: [string, string] | null }[]
 }
 
 const band = (b: number | null | undefined) => (typeof b === 'number' ? b.toFixed(1) : '—')
@@ -24,6 +25,7 @@ export default function IeltsStudentPage() {
   const [run, setRun] = useState<AttemptView | null>(null)
   const [review, setReview] = useState<AttemptView | null>(null)
   const [err, setErr] = useState('')
+  const [pick, setPick] = useState<string | null>(null) // ҰБТ: комбинация таңдау терезесі
 
   const load = useCallback(async () => {
     const r = await fetch('/api/ielts/me', { cache: 'no-store' })
@@ -41,9 +43,10 @@ export default function IeltsStudentPage() {
     if (mode === 'run' && j.attempt.status === 'in_progress') setRun(j)
     else setReview(j)
   }
-  const start = async (testId: string) => {
+  const start = async (testId: string, combo?: [string, string]) => {
     setErr('')
-    const r = await fetch('/api/ielts/attempt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start', testId }) })
+    setPick(null)
+    const r = await fetch('/api/ielts/attempt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start', testId, combo }) })
     const j = await r.json()
     if (!r.ok) return setErr(j.error || 'Қате')
     open(j.id, 'run')
@@ -59,7 +62,7 @@ export default function IeltsStudentPage() {
       <header className="border-b bg-white" style={{ borderColor: LINE }}>
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
           <img src="/beles-logo.png" alt="Beles" className="h-8 w-auto" />
-          <div className="ml-1 border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>IELTS · TOEFL mock</div>
+          <div className="ml-1 border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>IELTS · TOEFL · ҰБТ</div>
           <a href="/ielts/materials" className="ml-auto text-sm font-semibold" style={{ color: BLUE }}>Дайындық материалдары</a>
           <div className="ml-4 text-right text-sm">
             <div className="font-semibold">{me.student.full_name}</div>
@@ -89,31 +92,40 @@ export default function IeltsStudentPage() {
                   <div className="min-w-0 flex-1">
                     <h2 className="text-lg font-bold">{t.title}</h2>
                     <div className="mt-1 text-sm" style={{ color: MUTED }}>
-                      {t.exam === 'toefl' ? 'TOEFL iBT' : t.variant === 'academic' ? 'IELTS Academic' : 'IELTS General Training'} · {t.sections.map((s) => SECTION_NAME[s]).join(', ')} · {t.mode === 'exam' ? 'емтихан режимі (уақытпен)' : 'жаттығу'}
+                      {t.exam === 'ubt' ? 'ҰБТ · 120 тапсырма · 140 балл · 240 минут' : t.exam === 'toefl' ? 'TOEFL iBT' : t.variant === 'academic' ? 'IELTS Academic' : 'IELTS General Training'} {t.exam !== 'ubt' && <> · {t.sections.map((s) => SECTION_NAME[s]).join(', ')} · {t.mode === 'exam' ? 'емтихан режимі (уақытпен)' : 'жаттығу'}</>}
                     </div>
                   </div>
                   {open_ ? (
                     <button onClick={() => open(open_.id, 'run')} className="rounded-lg px-4 py-2.5 font-semibold text-white" style={{ background: BLUE }}>Жалғастыру</button>
                   ) : t.canStart ? (
-                    <button onClick={() => start(t.id)} className="rounded-lg px-4 py-2.5 font-semibold text-white" style={{ background: INK }}>Тестті бастау</button>
+                    <button onClick={() => (t.exam === 'ubt' ? setPick(t.id) : start(t.id))} className="rounded-lg px-4 py-2.5 font-semibold text-white" style={{ background: INK }}>Тестті бастау</button>
                   ) : null}
                 </div>
                 {!open_ && t.canStart && t.mode === 'exam' && (
                   <p className="mt-3 rounded-lg px-3 py-2 text-sm" style={{ background: '#FFF7ED', color: '#9A3412' }}>
-                    Бастағаннан кейін таймер тоқтамайды. Listening аудиосы бір-ақ рет ойнайды. Құлаққап пен микрофонды алдын ала дайындаңыз.
+                    {t.exam === 'ubt' ? 'Бастағаннан кейін 240 минуттық таймер тоқтамайды. Калькулятор, Менделеев кестесі және ерігіштік кестесі рұқсат етіледі.' : 'Бастағаннан кейін таймер тоқтамайды. Listening аудиосы бір-ақ рет ойнайды. Құлаққап пен микрофонды алдын ала дайындаңыз.'}
                   </p>
                 )}
                 {t.attempts.filter((a) => a.status !== 'in_progress').map((a) => (
                   <div key={a.id} className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4" style={{ borderColor: LINE }}>
                     <span className="mr-2 text-sm" style={{ color: MUTED }}>{new Date(a.submitted_at ?? a.started_at).toLocaleDateString('kk-KZ')}</span>
-                    {t.sections.map((s) => (
-                      <span key={s} className="rounded-lg border px-2.5 py-1 text-sm" style={{ borderColor: LINE }}>
-                        {SECTION_NAME[s]} <b>{band(a.scores?.[s]?.band)}</b>
-                      </span>
-                    ))}
-                    <span className="rounded-lg px-2.5 py-1 text-sm font-bold text-white" style={{ background: a.published ? BLUE : '#9CA3AF' }}>
-                      Overall {a.published ? band(a.scores?.overall) : '· тексерілуде'}
-                    </span>
+                    {t.exam === 'ubt' && a.scores?.ubt ? (
+                      <>
+                        <span className="text-sm">{comboName(a.scores.ubt.combo)}</span>
+                        <span className="rounded-lg px-2.5 py-1 text-sm font-bold text-white" style={{ background: BLUE }}>{a.scores.ubt.total} / {a.scores.ubt.max}</span>
+                      </>
+                    ) : (
+                      <>
+                        {t.sections.map((s) => (
+                          <span key={s} className="rounded-lg border px-2.5 py-1 text-sm" style={{ borderColor: LINE }}>
+                            {SECTION_NAME[s]} <b>{band(a.scores?.[s]?.band)}</b>
+                          </span>
+                        ))}
+                        <span className="rounded-lg px-2.5 py-1 text-sm font-bold text-white" style={{ background: a.published ? BLUE : '#9CA3AF' }}>
+                          Overall {a.published ? band(a.scores?.overall) : '· тексерілуде'}
+                        </span>
+                      </>
+                    )}
                     <button onClick={() => open(a.id, 'review')} className="ml-auto text-sm font-semibold underline" style={{ color: BLUE }}>Толық нәтиже</button>
                   </div>
                 ))}
@@ -122,6 +134,21 @@ export default function IeltsStudentPage() {
           })}
         </div>
       </div>
+      {pick && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPick(null)}>
+          <div role="dialog" className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold">Бейіндік пәндер комбинациясын таңдаңыз</h2>
+            <p className="mt-1 text-sm" style={{ color: MUTED }}>Міндетті пәндер: Қазақстан тарихы, Математикалық сауаттылық, Оқу сауаттылығы.</p>
+            <div className="mt-4 grid gap-2">
+              {UBT_COMBOS.map((c) => (
+                <button key={c.join()} onClick={() => start(pick, c)} className="rounded-lg border px-4 py-3 text-left font-semibold hover:border-[#2B6BF3] hover:bg-[#EEF3FE]" style={{ borderColor: LINE }}>
+                  {comboName(c)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
@@ -154,7 +181,7 @@ function Login({ onDone }: { onDone: () => void }) {
       <div className="w-full max-w-md rounded-2xl border bg-white p-6" style={{ borderColor: LINE }}>
         <img src="/beles-logo.png" alt="Beles" className="h-9 w-auto" />
         <div className="mt-4 flex items-baseline justify-between gap-3">
-          <h1 className="text-2xl font-bold">IELTS · TOEFL mock</h1>
+          <h1 className="text-2xl font-bold">Beles mock тесттер</h1>
           <a href="/ielts/materials" className="text-sm font-semibold" style={{ color: BLUE }}>Дайындық материалдары →</a>
         </div>
         {!sel ? (
@@ -199,6 +226,7 @@ function Review({ v, onBack }: { v: AttemptView; onBack: () => void }) {
   const s: Scores = a.scores ?? {}
   const order = a.state.order
   const toefl = v.test.exam === 'toefl'
+  if (v.test.content.ubt) return <UbtReview v={v} onBack={onBack} />
   return (
     <main className="min-h-screen" style={{ background: '#F5F7FB', color: INK }}>
       <div className="mx-auto max-w-4xl px-4 py-6">
@@ -315,5 +343,36 @@ function CriteriaTable({ rows, cols }: { rows: [string, string][]; cols: [string
         ))}
       </tbody>
     </table>
+  )
+}
+
+function UbtReview({ v, onBack }: { v: AttemptView; onBack: () => void }) {
+  const u = v.test.content.ubt!
+  const ans = v.attempt.answers?.ubt ?? {}
+  const sc = v.attempt.scores?.ubt
+  return (
+    <main className="min-h-screen" style={{ background: '#F5F7FB', color: INK }}>
+      <div className="mx-auto max-w-4xl px-4 py-6">
+        <button onClick={onBack} className="text-sm font-semibold" style={{ color: BLUE }}>← Кабинет</button>
+        <h1 className="mt-3 text-2xl font-bold">{v.test.title}</h1>
+        {sc && <UbtResult s={sc} />}
+        {v.attempt.published ? (
+          [...u.compulsory, ...u.profile].map((s) => (
+            <section key={s.key} className="mt-5 rounded-xl border bg-white p-5" style={{ borderColor: LINE }}>
+              <h2 className="font-bold">{s.name}</h2>
+              {s.questions.map((q, i) => (
+                <div key={q.id} className="mt-5 border-t pt-4" style={{ borderColor: LINE }}>
+                  {q.context && i > 0 && s.questions[i - 1].context === q.context ? null : q.context && <div className="mb-3 whitespace-pre-wrap rounded-lg border p-3 text-sm leading-6" style={{ borderColor: LINE, background: '#FAFBFD' }}>{q.context}</div>}
+                  <p className="whitespace-pre-wrap font-medium"><b>{i + 1}.</b> {q.text}</p>
+                  <UbtAnswer q={q} value={ans[q.id] ?? []} onChange={() => {}} disabled review />
+                </div>
+              ))}
+            </section>
+          ))
+        ) : (
+          <p className="mt-6 text-sm" style={{ color: MUTED }}>Дұрыс жауаптар мен талдау мұғалім нәтижені жариялағанда ашылады.</p>
+        )}
+      </div>
+    </main>
   )
 }

@@ -36,7 +36,8 @@ export async function GET() {
           submitted_at: a.submitted_at,
           published: a.published,
           // L/R бірден көрінеді; W/S мен overall — мұғалім жариялағанда
-          scores: a.published ? a.scores : { listening: a.scores?.listening, reading: a.scores?.reading },
+          combo: (a.state as any)?.combo ?? null,
+          scores: a.published || t.exam === 'ubt' ? a.scores : { listening: a.scores?.listening, reading: a.scores?.reading },
         })),
       }
     })

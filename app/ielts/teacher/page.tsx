@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Builder, { inp, tcall } from '@/components/ielts/Builder'
+import { UbtResult } from '@/components/ielts/Runner'
+import { comboName } from '@/lib/ubt'
 import { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
 import { SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, speakingBand, writingBand, overallBand, toeflOverall, toeflSpeakingBand, toeflWritingBand, wordCount, type Attempt, type Exam, type IeltsTest, type Scores } from '@/lib/ielts'
 
@@ -23,7 +25,7 @@ const STATUS: Record<string, [string, string]> = {
 
 export default function IeltsTeacherPage() {
   const [data, setData] = useState<Data | null>(null)
-  const [view, setView] = useState<{ k: 'list' } | { k: 'edit'; test: any } | { k: 'access'; id: string } | { k: 'grade'; id: string }>({ k: 'list' })
+  const [view, setView] = useState<{ k: 'list' } | { k: 'edit'; test: any } | { k: 'ubtmeta'; test: any } | { k: 'access'; id: string } | { k: 'grade'; id: string }>({ k: 'list' })
   const [err, setErr] = useState('')
 
   const load = useCallback(async () => {
@@ -43,12 +45,15 @@ export default function IeltsTeacherPage() {
   const edit = async (id?: string, exam: Exam = 'ielts') => {
     if (!id) return setView({ k: 'edit', test: exam === 'toefl' ? { exam: 'toefl' } : null })
     const r = await fetch(`/api/ielts/teacher?test=${id}`, { cache: 'no-store' })
-    if (r.ok) setView({ k: 'edit', test: await r.json() })
+    if (!r.ok) return
+    const t = await r.json()
+    setView(t.content?.ubt ? { k: 'ubtmeta', test: t } : { k: 'edit', test: t })
   }
 
   if (err) return <Shell><div className="m-6 rounded-lg bg-red-50 p-4 text-sm text-red-700">{err}. Supabase-та <code>migration_ielts.sql</code> іске қосылғанын тексеріңіз.</div></Shell>
   if (!data) return <Shell><div className="p-10 text-center" style={{ color: MUTED }}>Жүктелуде…</div></Shell>
 
+  if (view.k === 'ubtmeta') return <Shell data={data}><UbtMeta test={view.test} onClose={(s) => { setView({ k: 'list' }); if (s) load() }} /></Shell>
   if (view.k === 'edit') return <Shell data={data}><Builder initial={view.test} onClose={(s) => { setView({ k: 'list' }); if (s) load() }} /></Shell>
   if (view.k === 'access') return <Shell data={data}><Access data={data} testId={view.id} onBack={() => { setView({ k: 'list' }); load() }} reload={load} /></Shell>
   if (view.k === 'grade') return <Shell data={data}><Grade id={view.id} onBack={() => { setView({ k: 'list' }); load() }} /></Shell>
@@ -96,7 +101,7 @@ export default function IeltsTeacherPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-base font-bold">{t.title}</h3>
                   <span className="rounded px-2 py-0.5 text-xs font-semibold" style={t.published ? { background: '#DCFCE7', color: '#15803D' } : { background: '#F3F4F6', color: MUTED }}>{t.published ? 'Ашық' : 'Жабық'}</span>
-                  <span className="text-xs" style={{ color: MUTED }}>{t.exam === 'toefl' ? 'TOEFL iBT' : t.variant === 'academic' ? 'IELTS Academic' : 'IELTS General'} · {t.mode === 'exam' ? 'емтихан' : 'жаттығу'}</span>
+                  <span className="text-xs" style={{ color: MUTED }}>{t.exam === 'ubt' ? 'ҰБТ · 12 комбинация' : t.exam === 'toefl' ? 'TOEFL iBT' : t.variant === 'academic' ? 'IELTS Academic' : 'IELTS General'} · {t.mode === 'exam' ? 'емтихан' : 'жаттығу'}</span>
                   <div className="ml-auto flex gap-2">
                     <button onClick={() => edit(t.id)} className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: LINE }}>Өңдеу</button>
                     <button onClick={() => setView({ k: 'access', id: t.id })} className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: LINE }}>Оқушылар · {acc.length}</button>
@@ -112,7 +117,23 @@ export default function IeltsTeacherPage() {
                     </button>
                   </div>
                 </div>
-                {att.length > 0 && (
+                {att.length > 0 && t.exam === 'ubt' && (
+                  <table className="mt-3 w-full text-sm">
+                    <thead><tr className="text-left text-xs" style={{ color: MUTED }}><th className="py-1 font-medium">Оқушы</th><th className="font-medium">Комбинация</th><th className="font-medium">Балл</th><th className="font-medium">Күйі</th><th /></tr></thead>
+                    <tbody>
+                      {att.map((a) => (
+                        <tr key={a.id} className="border-t" style={{ borderColor: LINE }}>
+                          <td className="py-2 font-medium">{name(a.student_id)}</td>
+                          <td className="text-xs">{comboName(a.scores?.ubt?.combo)}</td>
+                          <td className="font-bold">{a.scores?.ubt ? `${a.scores.ubt.total} / ${a.scores.ubt.max}` : '—'}</td>
+                          <td><span className="text-xs font-semibold" style={{ color: STATUS[a.status]?.[1] }}>{a.status === 'in_progress' ? STATUS.in_progress[0] : 'Аяқталды'}{a.published ? ' · жауаптар ашық' : ''}</span></td>
+                          <td className="text-right"><button onClick={() => setView({ k: 'grade', id: a.id })} className="text-sm font-semibold" style={{ color: BLUE }}>Ашу</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {att.length > 0 && t.exam !== 'ubt' && (
                   <table className="mt-3 w-full text-sm">
                     <thead>
                       <tr className="text-left text-xs" style={{ color: MUTED }}>
@@ -150,7 +171,7 @@ function Shell({ children, data }: { children: React.ReactNode; data?: Data }) {
       <header className="border-b bg-white" style={{ borderColor: LINE }}>
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <img src="/beles-logo.png" alt="Beles" className="h-8 w-auto" />
-          <div className="border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>IELTS · TOEFL · мұғалім кабинеті</div>
+          <div className="border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>Mock тесттер · мұғалім кабинеті</div>
           <div className="ml-auto flex items-center gap-3 text-sm">
             {data && <span style={{ color: MUTED }}>{data.me.teacher?.name ?? (data.me.admin ? 'Әкімші' : '')}</span>}
             <a href="/ielts" target="_blank" className="font-semibold" style={{ color: BLUE }}>Оқушы беті ↗</a>
@@ -305,6 +326,40 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
   }, [id])
 
   if (!d) return <div className="p-10 text-center" style={{ color: MUTED }}>{msg || 'Жүктелуде…'}</div>
+  if (d.test.content.ubt) {
+    const a0 = d.attempt
+    const pub = async (publish: boolean) => {
+      setBusy(true)
+      try {
+        await tcall({ action: 'grade', attemptId: a0.id, feedback: fb, publish })
+        setD({ ...d, attempt: { ...a0, published: publish } })
+        setMsg(publish ? 'Жауаптар оқушыға ашылды ✓' : 'Сақталды ✓')
+      } catch (e: any) {
+        setMsg(e.message)
+      } finally {
+        setBusy(false)
+      }
+    }
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-6">
+        <button onClick={onBack} className="text-sm font-semibold" style={{ color: BLUE }}>← Тесттер</button>
+        <h1 className="mt-2 text-xl font-bold">{d.student?.full_name} · {d.test.title}</h1>
+        {a0.scores?.ubt ? <UbtResult s={a0.scores.ubt} /> : <p className="mt-4" style={{ color: MUTED }}>Оқушы әлі тапсырып жатыр.</p>}
+        <textarea value={fb.general} onChange={(e) => setFb({ ...fb, general: e.target.value })} rows={3} placeholder="Оқушыға пікір (міндетті емес)" className={inp + ' mt-2'} />
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <span className="text-sm" style={{ color: msg.includes('✓') ? '#15803D' : MUTED }}>{msg || (a0.published ? 'Дұрыс жауаптар оқушыға көрініп тұр' : 'Оқушы балын көреді, дұрыс жауаптар жабық')}</span>
+          <button disabled={busy} onClick={() => pub(false)} className="ml-auto rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold" style={{ borderColor: LINE }}>{a0.published ? 'Жауаптарды жабу' : 'Сақтау'}</button>
+          <button disabled={busy} onClick={() => pub(true)} className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: BLUE }}>Дұрыс жауаптарды ашу</button>
+          <button
+            onClick={async () => { if (!confirm('Тапсыруды өшіру керек пе? Оқушы қайта тапсыра алады.')) return; await tcall({ action: 'delete-attempt', attemptId: a0.id }); onBack() }}
+            className="text-sm text-red-600"
+          >
+            Өшіру
+          </button>
+        </div>
+      </div>
+    )
+  }
   const a = d.attempt
   const c = d.test.content
   const order = a.state.order
@@ -452,6 +507,35 @@ function BandInputs({ rows, vals, set, scale = BANDS }: { rows: [string, string]
           </select>
         </label>
       ))}
+    </div>
+  )
+}
+
+function UbtMeta({ test, onClose }: { test: any; onClose: (saved: boolean) => void }) {
+  const [t, setT] = useState({ title: test.title, mode: test.mode, published: test.published })
+  const [msg, setMsg] = useState('')
+  const u = test.content.ubt
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-6">
+      <button onClick={() => onClose(false)} className="text-sm font-semibold" style={{ color: BLUE }}>← Тесттер</button>
+      <div className="mt-3 space-y-3 rounded-2xl border bg-white p-5" style={{ borderColor: LINE }}>
+        <input value={t.title} onChange={(e) => setT({ ...t, title: e.target.value })} className={inp + ' font-semibold'} />
+        <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={t.published} onChange={(e) => setT({ ...t, published: e.target.checked })} /> Оқушыларға ашық</label>
+        <p className="text-sm" style={{ color: MUTED }}>ҰБТ тестінің сұрақтары SQL арқылы жүктелген. Мұнда атауы мен ашықтығын өзгертуге болады.</p>
+        <div className="text-sm">
+          {[...u.compulsory, ...u.profile].map((s: any) => <div key={s.key} className="flex justify-between border-t py-1.5" style={{ borderColor: LINE }}><span>{s.name}</span><span style={{ color: MUTED }}>{s.questions.length} тапсырма</span></div>)}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-red-600">{msg}</span>
+          <button
+            onClick={async () => { try { await tcall({ action: 'save-test', test: { id: test.id, exam: 'ubt', ...t } }); onClose(true) } catch (e: any) { setMsg(e.message) } }}
+            className="ml-auto rounded-lg px-4 py-2.5 text-sm font-semibold text-white"
+            style={{ background: INK }}
+          >
+            Сақтау
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

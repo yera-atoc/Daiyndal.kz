@@ -1,3 +1,5 @@
+import type { UbtContent, UbtScores } from './ubt'
+
 // IELTS mock: ортақ типтер, band кестелері, тексеру. Клиентте де, серверде де қолданылады (құпия жоқ).
 
 // cloze — мәтін ішіндегі әріп толтыру (TOEFL Complete the Words), order — сөйлем құрау (TOEFL Build a Sentence)
@@ -29,6 +31,7 @@ export type IeltsContent = {
   reading?: { minutes: number; passages: ReadingPassage[] }
   writing?: { minutes: number; task1: WritingTask; task2: WritingTask; build?: QGroup[] }
   speaking?: { parts: SpeakingPart[] }
+  ubt?: UbtContent // ҰБТ пробный (exam = 'ubt')
 }
 
 export type IeltsTest = {
@@ -44,22 +47,24 @@ export type IeltsTest = {
   updated_at?: string
 }
 
-export type Exam = 'ielts' | 'toefl'
-export const EXAM_NAME: Record<Exam, string> = { ielts: 'IELTS', toefl: 'TOEFL' }
+export type Exam = 'ielts' | 'toefl' | 'ubt'
+export const EXAM_NAME: Record<Exam, string> = { ielts: 'IELTS', toefl: 'TOEFL', ubt: 'ҰБТ' }
 
-export type Section = 'listening' | 'reading' | 'writing' | 'speaking'
+export type Section = 'listening' | 'reading' | 'writing' | 'speaking' | 'ubt'
 export const SECTIONS: Section[] = ['listening', 'reading', 'writing', 'speaking']
 export const SECTION_NAME: Record<Section, string> = {
   listening: 'Listening',
   reading: 'Reading',
   writing: 'Writing',
   speaking: 'Speaking',
+  ubt: 'ҰБТ',
 }
 
 export type AttemptState = {
   order: Section[] // осы тесттегі бөлімдер реті
   current: number // ағымдағы бөлім индексі; order.length — бәрі бітті
   startedAt: Partial<Record<Section, string>> // ISO
+  combo?: [string, string] // ҰБТ: таңдалған бейіндік пәндер
 }
 
 export type Criteria = Record<string, number | null>
@@ -72,6 +77,7 @@ export type Scores = {
   // IELTS: criteria; TOEFL: repeat, interview (1–6)
   speaking?: { criteria?: Criteria; repeat?: number | null; interview?: number | null; band?: number | null }
   overall?: number | null
+  ubt?: UbtScores
 }
 
 export type Attempt = {
@@ -80,7 +86,7 @@ export type Attempt = {
   student_id: string
   status: 'in_progress' | 'submitted' | 'graded'
   state: AttemptState
-  answers: Partial<Record<'listening' | 'reading' | 'build', Record<string, string>>>
+  answers: Partial<Record<'listening' | 'reading' | 'build', Record<string, string>>> & { ubt?: Record<string, number[]> }
   writing: { task1?: string; task2?: string }
   speaking: Record<string, string>
   scores: Scores
@@ -214,6 +220,7 @@ export function stripAnswers(c: IeltsContent): IeltsContent {
 }
 
 export function sectionsOf(c: IeltsContent): Section[] {
+  if (c.ubt) return ['ubt']
   return SECTIONS.filter((s) => {
     if (s === 'listening') return (c.listening?.parts ?? []).some((p) => p.groups.some((g) => g.items.length))
     if (s === 'reading') return (c.reading?.passages ?? []).some((p) => p.groups.some((g) => g.items.length))
@@ -226,6 +233,7 @@ export function sectionMinutes(c: IeltsContent, s: Section): number | null {
   if (s === 'listening') return c.listening?.minutes ?? DEFAULT_MINUTES.listening
   if (s === 'reading') return c.reading?.minutes ?? DEFAULT_MINUTES.reading
   if (s === 'writing') return c.writing?.minutes ?? DEFAULT_MINUTES.writing
+  if (s === 'ubt') return c.ubt?.minutes ?? 240
   return null // Speaking: әр сұрақтың өз уақыты бар
 }
 

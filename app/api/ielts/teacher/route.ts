@@ -32,13 +32,13 @@ export async function GET(req: NextRequest) {
   }
 
   // exam бағаны migration_toefl.sql іске қосылғанға дейін болмауы мүмкін
-  const listTests = async (cols: string) => {
+  const listTests = async (cols: string, withUbt: boolean) => {
     let tq = sb.from('ielts_tests').select(cols).order('created_at', { ascending: false })
-    if (!who.admin) tq = tq.eq('teacher_id', who.teacherId!)
+    if (!who.admin) tq = withUbt ? tq.or(`teacher_id.eq.${who.teacherId},exam.eq.ubt`) : tq.eq('teacher_id', who.teacherId!)
     return tq
   }
-  let { data: tests, error } = (await listTests('id, teacher_id, title, exam, variant, mode, published, created_at, updated_at')) as { data: any[] | null; error: any }
-  if (error && /exam/.test(error.message)) ({ data: tests, error } = (await listTests('id, teacher_id, title, variant, mode, published, created_at, updated_at')) as { data: any[] | null; error: any })
+  let { data: tests, error } = (await listTests('id, teacher_id, title, exam, variant, mode, published, created_at, updated_at', true)) as { data: any[] | null; error: any }
+  if (error && /exam/.test(error.message)) ({ data: tests, error } = (await listTests('id, teacher_id, title, variant, mode, published, created_at, updated_at', false)) as { data: any[] | null; error: any })
   if (error) return bad(error.message, 500)
   const ids = (tests ?? []).map((t) => t.id)
   const [teacher, students, groups, access, attempts] = await Promise.all([
@@ -131,6 +131,17 @@ export async function POST(req: NextRequest) {
         published: !!t.published,
         updated_at: new Date().toISOString(),
       }
+      // ҰБТ тесттерінің мазмұны тек SQL арқылы жүктеледі: мұнда атауы, режимі, ашықтығы ғана өзгереді
+      if (t.id) {
+        const old0 = await getTest(String(t.id))
+        if (old0?.content?.ubt) {
+          if (!canEdit(who, old0)) return bad('Тест табылмады', 404)
+          const { error } = await sb.from('ielts_tests').update({ title: row.title, mode: row.mode, published: row.published, updated_at: row.updated_at }).eq('id', old0.id)
+          if (error) return bad(error.message, 500)
+          return NextResponse.json({ ok: true, id: old0.id })
+        }
+      }
+      if (t.exam === 'ubt') return bad('ҰБТ тесттері SQL арқылы қосылады')
       if (row.exam === 'ielts' && t.exam !== 'toefl') delete (row as Partial<typeof row>).exam // ескі базамен үйлесімділік
       if (t.id) {
         const old = await getTest(String(t.id))
@@ -147,6 +158,7 @@ export async function POST(req: NextRequest) {
     if (action === 'delete-test') {
       const t = await getTest(String(b.id))
       if (!t || !canEdit(who, t)) return bad('Тест табылмады', 404)
+      if (t.exam === 'ubt' && !who.admin) return bad('ҰБТ тестін тек әкімші өшіре алады', 403)
       const { error } = await sb.from('ielts_tests').delete().eq('id', t.id)
       if (error) return bad(error.message, 500)
       return NextResponse.json({ ok: true })
@@ -187,7 +199,9 @@ export async function POST(req: NextRequest) {
       }
       const crit = (o: any, keys: string[]) => Object.fromEntries(keys.map((k) => [k, band(o?.[k])]))
       const scores: Scores = { ...a.scores }
-      if (t.exam === 'toefl') {
+      if (t.content.ubt) {
+        // ҰБТ: балл автоматты, мұнда тек пікір мен жариялау
+      } else if (t.exam === 'toefl') {
         const b16 = (v: unknown) => {
           const n = Number(v)
           return v === '' || v === null || v === undefined || Number.isNaN(n) ? null : Math.min(6, Math.max(1, Math.round(n * 2) / 2))
@@ -212,7 +226,7 @@ export async function POST(req: NextRequest) {
       }
       scores.overall = overallBand(scores, a.state.order)
       }
-      const complete = scores.overall !== null
+      const complete = t.content.ubt ? true : scores.overall !== null
       const patch: Partial<Attempt> = {
         scores,
         feedback: { writing: clip(b.feedback?.writing, 4000), speaking: clip(b.feedback?.speaking, 4000), general: clip(b.feedback?.general, 4000) },

@@ -24,8 +24,9 @@ export async function staff(): Promise<{ teacherId: string | null; admin: boolea
   return { teacherId, admin }
 }
 
-export function canEdit(who: { teacherId: string | null; admin: boolean }, test: Pick<IeltsTest, 'teacher_id'>) {
-  return who.admin || (!!who.teacherId && test.teacher_id === who.teacherId)
+export function canEdit(who: { teacherId: string | null; admin: boolean }, test: Pick<IeltsTest, 'teacher_id'> & { exam?: string }) {
+  // ҰБТ пробныйлары – орталықтың ортақ тесттері: кез келген мұғалім рұқсат бере алады
+  return who.admin || (!!who.teacherId && (test.teacher_id === who.teacherId || test.exam === 'ubt'))
 }
 
 // ── Оқушы сессиясы (HMAC қолтаңбалы cookie) ─────────────────
@@ -107,6 +108,11 @@ export async function finishSection(test: IeltsTest, a: Attempt): Promise<Attemp
   const scores = { ...a.scores }
   const exam = test.exam ?? 'ielts'
   if (sec === 'listening' || sec === 'reading') scores[sec] = scoreSection(test.content, sec, a.answers?.[sec], test.variant, exam)
+  // ҰБТ — бәрі автоматты
+  if (sec === 'ubt' && test.content.ubt && a.state.combo) {
+    const { scoreUbt } = await import('./ubt')
+    scores.ubt = scoreUbt(test.content.ubt, a.state.combo, a.answers?.ubt)
+  }
   // TOEFL Build a Sentence — автоматты тексеріледі
   if (sec === 'writing' && test.content.writing?.build?.length) scores.writing = { ...scores.writing, build: scoreSection(test.content, 'build', a.answers?.build, test.variant, 'toefl') }
   const nextIdx = a.state.current + 1
@@ -125,7 +131,7 @@ export async function finishSection(test: IeltsTest, a: Attempt): Promise<Attemp
   }
   if (done && !needsTeacher) {
     const { overallBand, toeflOverall } = await import('./ielts')
-    patch.scores = { ...scores, overall: exam === 'toefl' ? toeflOverall(scores, a.state.order) : overallBand(scores, a.state.order) }
+    patch.scores = { ...scores, overall: exam === 'ubt' ? scores.ubt?.total ?? null : exam === 'toefl' ? toeflOverall(scores, a.state.order) : overallBand(scores, a.state.order) }
   }
   const { data, error } = await (await db()).from('ielts_attempts').update(patch).eq('id', a.id).select('*').single()
   if (error) throw new Error(error.message)

@@ -13,20 +13,21 @@ import {
 } from '@/lib/ielts'
 import Questions, { BLUE, INK, LINE, MUTED } from './Questions'
 import type { QGroup } from '@/lib/ielts'
+import { LETTERS, comboName, pointsOf, type UbtQ, type UbtScores } from '@/lib/ubt'
 
 export type AttemptView = {
   attempt: {
     id: string
     status: 'in_progress' | 'submitted' | 'graded'
     state: AttemptState
-    answers: Partial<Record<'listening' | 'reading' | 'build', Record<string, string>>>
+    answers: Partial<Record<'listening' | 'reading' | 'build', Record<string, string>>> & { ubt?: Record<string, number[]> }
     writing: { task1?: string; task2?: string }
     speaking: Record<string, string>
     published: boolean
     scores: any
     feedback: any
   }
-  test: { id: string; title: string; exam?: 'ielts' | 'toefl'; variant: 'academic' | 'general'; mode: 'exam' | 'practice'; content: IeltsContent }
+  test: { id: string; title: string; exam?: 'ielts' | 'toefl' | 'ubt'; variant: 'academic' | 'general'; mode: 'exam' | 'practice'; content: IeltsContent }
   now: number
   deadline: number | null
 }
@@ -83,6 +84,7 @@ export default function Runner({ initial, student, onExit }: { initial: AttemptV
   const saveRef = useRef<(() => Promise<void>) | null>(null)
 
   if (!sec || v.attempt.status !== 'in_progress') {
+    if (v.attempt.scores?.ubt) return <UbtResult s={v.attempt.scores.ubt} onExit={onExit} />
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <div className="text-5xl">✓</div>
@@ -126,12 +128,13 @@ export default function Runner({ initial, student, onExit }: { initial: AttemptV
       {(sec === 'listening' || sec === 'reading') && <LRSection key={sec} v={v} sec={sec} exam={exam} now={now} saveRef={saveRef} />}
       {sec === 'writing' && <WritingSection key={sec} v={v} saveRef={saveRef} />}
       {sec === 'speaking' && <SpeakingSection key={sec} v={v} onDone={() => setConfirm(true)} />}
+      {sec === 'ubt' && <UbtSection key={sec} v={v} saveRef={saveRef} />}
 
       {confirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !busy && setConfirm(false)}>
           <div role="dialog" className="w-full max-w-md rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold">{SECTION_NAME[sec]} бөлімін аяқтайсыз ба?</h2>
-            <p className="mt-2 text-sm" style={{ color: MUTED }}>Аяқтағаннан кейін бұл бөлімге қайта оралу мүмкін емес.</p>
+            <h2 className="text-lg font-bold">{sec === 'ubt' ? 'Тестті аяқтайсыз ба?' : `${SECTION_NAME[sec]} бөлімін аяқтайсыз ба?`}</h2>
+            <p className="mt-2 text-sm" style={{ color: MUTED }}>{sec === 'ubt' ? 'Аяқтағаннан кейін жауаптарды өзгерту мүмкін емес. Нәтиже бірден шығады.' : 'Аяқтағаннан кейін бұл бөлімге қайта оралу мүмкін емес.'}</p>
             <div className="mt-5 flex justify-end gap-2">
               <button disabled={busy} onClick={() => setConfirm(false)} className="rounded-lg border px-4 py-2 text-sm" style={{ borderColor: LINE }}>Қайту</button>
               <button disabled={busy} onClick={async () => { await saveRef.current?.(); await finish() }} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: BLUE }}>
@@ -518,6 +521,157 @@ function Recorder({ attemptId, stepKey, text, cue, audio, limit, prep, onSaved }
         {phase === 'upload' && <span style={{ color: MUTED }}>Жазба сақталуда…</span>}
       </div>
       {err && <p className="mt-3 text-sm" style={{ color: '#B91C1C' }}>{err}</p>}
+    </div>
+  )
+}
+
+// ── ҰБТ ──────────────────────────────────────────────────
+
+export function UbtResult({ s, onExit }: { s: UbtScores; onExit?: () => void }) {
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-10">
+      <div className="rounded-2xl p-6 text-white" style={{ background: INK }}>
+        <div className="text-sm opacity-70">{comboName(s.combo)}</div>
+        <div className="mt-1 text-5xl font-bold">{s.total} <span className="text-2xl opacity-60">/ {s.max}</span></div>
+        <div className="mt-2 text-sm" style={{ color: s.passed ? '#86EFAC' : '#FCA5A5' }}>{s.passed ? 'Барлық пән бойынша шекті балдан өтті' : 'Кейбір пәндер бойынша шекті балл жиналмады'}</div>
+      </div>
+      <div className="mt-4 divide-y rounded-2xl border bg-white" style={{ borderColor: LINE }}>
+        {s.subjects.map((x) => (
+          <div key={x.key} className="flex items-center gap-3 px-5 py-3">
+            <span className="flex-1 font-medium">{x.name}</span>
+            <span className="text-xs" style={{ color: x.passed ? '#15803D' : '#B91C1C' }}>шекті {x.threshold}</span>
+            <span className="w-20 text-right font-bold tabular-nums">{x.points} / {x.max}</span>
+          </div>
+        ))}
+      </div>
+      {onExit && <button onClick={onExit} className="mt-6 rounded-lg px-5 py-2.5 font-semibold text-white" style={{ background: BLUE }}>Кабинетке оралу</button>}
+    </div>
+  )
+}
+
+const TYPE_HINT: Record<string, string> = {
+  single: 'Бір дұрыс жауапты таңдаңыз',
+  context: 'Мәтінді оқып, бір дұрыс жауапты таңдаңыз',
+  matching: 'Сәйкестендіріңіз: әр элементке бір жауап',
+  multiple: 'Бір немесе бірнеше дұрыс жауапты таңдаңыз (ең көбі 3)',
+}
+
+function UbtSection({ v, saveRef }: { v: AttemptView; saveRef: React.MutableRefObject<(() => Promise<void>) | null> }) {
+  const u = v.test.content.ubt!
+  const subjects = [...u.compulsory, ...u.profile]
+  const [answers, setAnswers] = useState<Record<string, number[]>>(v.attempt.answers?.ubt ?? {})
+  const [si, setSi] = useState(0)
+  const [qi, setQi] = useState(0)
+  const status = useAutosave(
+    useCallback(() => call({ action: 'save', id: v.attempt.id, section: 'ubt', answers }).then(() => {}), [answers, v.attempt.id]),
+    [answers],
+    saveRef
+  )
+  const subj = subjects[si]
+  const q = subj?.questions[qi]
+  const done = (x: UbtQ) => (answers[x.id] ?? []).some((a) => a >= 0)
+  const set = (id: string, val: number[]) => setAnswers((a) => ({ ...a, [id]: val }))
+  const go = (s: number, i: number) => {
+    setSi(s)
+    setQi(i)
+    window.scrollTo({ top: 0 })
+  }
+  const next = () => (qi < subj.questions.length - 1 ? go(si, qi + 1) : si < subjects.length - 1 ? go(si + 1, 0) : null)
+  const prev = () => (qi > 0 ? go(si, qi - 1) : si > 0 ? go(si - 1, subjects[si - 1].questions.length - 1) : null)
+
+  return (
+    <>
+      <div className="flex gap-1 overflow-x-auto border-b px-4" style={{ borderColor: LINE }}>
+        {subjects.map((s, i) => {
+          const n = s.questions.filter(done).length
+          return (
+            <button key={s.key} onClick={() => go(i, 0)} className="-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-semibold" style={{ borderColor: i === si ? BLUE : 'transparent', color: i === si ? BLUE : MUTED }}>
+              {s.name} <span className="font-normal">· {n}/{s.questions.length}</span>
+            </button>
+          )
+        })}
+        <span className="ml-auto self-center pl-3"><SaveBadge s={status} /></span>
+      </div>
+      <div className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-4 py-5 lg:grid-cols-[1fr_280px]">
+        {q && (
+          <div>
+            <div className="flex items-center gap-2 text-sm" style={{ color: MUTED }}>
+              <span className="rounded border px-2 py-0.5 font-bold" style={{ borderColor: INK, color: INK }}>{qi + 1}</span>
+              <span>{TYPE_HINT[q.type]}</span>
+              <span className="ml-auto">{pointsOf(q)} балл</span>
+            </div>
+            {q.context && <div className="mt-3 max-h-[45vh] overflow-y-auto whitespace-pre-wrap rounded-xl border p-4 text-[15px] leading-7" style={{ borderColor: LINE, background: '#FAFBFD' }}>{q.context}</div>}
+            <p className="mt-4 whitespace-pre-wrap text-[17px] font-medium leading-8">{q.text}</p>
+            <UbtAnswer q={q} value={answers[q.id] ?? []} onChange={(val) => set(q.id, val)} />
+            <div className="mt-6 flex gap-2">
+              <button onClick={prev} className="rounded-lg border px-4 py-2 text-sm font-semibold" style={{ borderColor: LINE }}>← Алдыңғы</button>
+              <button onClick={next} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: INK }}>Келесі →</button>
+            </div>
+          </div>
+        )}
+        <aside className="self-start rounded-xl border p-3 lg:sticky lg:top-20" style={{ borderColor: LINE }}>
+          <div className="mb-2 text-sm font-semibold">{subj?.name}</div>
+          <div className="grid grid-cols-8 gap-1 lg:grid-cols-6">
+            {subj?.questions.map((x, i) => (
+              <button key={x.id} onClick={() => go(si, i)} className="h-8 rounded text-xs font-bold" style={i === qi ? { background: BLUE, color: '#fff' } : done(x) ? { background: INK, color: '#fff' } : { border: `1px solid ${LINE}`, color: MUTED }}>
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </>
+  )
+}
+
+export function UbtAnswer({ q, value, onChange, disabled, review }: { q: UbtQ; value: number[]; onChange: (v: number[]) => void; disabled?: boolean; review?: boolean }) {
+  const ans = q.answer ?? []
+  const mark = (i: number) => (review ? (ans.includes(i) ? { borderColor: '#15803D', background: '#DCFCE7' } : value.includes(i) ? { borderColor: '#B91C1C', background: '#FEE2E2' } : {}) : {})
+  if (q.type === 'matching') {
+    return (
+      <div className="mt-4 space-y-4">
+        <div className="rounded-lg border p-3 text-[15px]" style={{ borderColor: LINE, background: '#F9FAFB' }}>
+          {q.options.map((o, i) => <div key={i}><b className="mr-2">{LETTERS[i]})</b>{o}</div>)}
+        </div>
+        {(q.left ?? []).map((l, li) => (
+          <label key={li} className="flex flex-wrap items-center gap-3 text-[15px]">
+            <span className="min-w-0 flex-1"><b>{li + 1}.</b> {l}</span>
+            <select
+              disabled={disabled}
+              value={value[li] ?? -1}
+              onChange={(e) => { const nv = [value[0] ?? -1, value[1] ?? -1]; nv[li] = Number(e.target.value); onChange(nv) }}
+              className="w-28 rounded-lg border px-2 py-2 font-bold"
+              style={{ borderColor: review ? (value[li] === ans[li] ? '#15803D' : '#B91C1C') : LINE }}
+            >
+              <option value={-1}>—</option>
+              {q.options.map((_, i) => <option key={i} value={i}>{LETTERS[i]}</option>)}
+            </select>
+            {review && value[li] !== ans[li] && <span className="text-sm font-bold text-green-700">{LETTERS[ans[li]]}</span>}
+          </label>
+        ))}
+      </div>
+    )
+  }
+  const multi = q.type === 'multiple'
+  return (
+    <div className="mt-4 space-y-2">
+      {q.options.map((o, i) => {
+        const on = value.includes(i)
+        return (
+          <label key={i} className={`flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 text-[15px] ${disabled ? 'cursor-default' : 'hover:bg-slate-50'}`} style={{ borderColor: on ? BLUE : LINE, background: on ? '#EEF3FE' : '#fff', ...mark(i) }}>
+            <input
+              type={multi ? 'checkbox' : 'radio'}
+              name={q.id}
+              checked={on}
+              disabled={disabled}
+              onChange={() => onChange(multi ? (on ? value.filter((x) => x !== i) : value.length >= 3 ? value : [...value, i]) : [i])}
+              className="mt-1 accent-[#2B6BF3]"
+            />
+            <b>{LETTERS[i]})</b>
+            <span className="whitespace-pre-wrap">{o}</span>
+          </label>
+        )
+      })}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { canWrite, catchUp, currentStudent, db, deadline, finishSection, getAttempt, getTest, newState } from '@/lib/ieltsServer'
 import { sectionItems, stripAnswers, type Attempt } from '@/lib/ielts'
+import { isCombo, subjectsFor, ubtForStudent } from '@/lib/ubt'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -19,6 +20,7 @@ async function load(id: string, studentId: string) {
 function view(a: Attempt, t: Awaited<ReturnType<typeof getTest>>) {
   const sec = a.state.order[a.state.current]
   const review = a.published
+  const ubt = t!.content.ubt
   return {
     attempt: {
       id: a.id,
@@ -28,10 +30,11 @@ function view(a: Attempt, t: Awaited<ReturnType<typeof getTest>>) {
       writing: a.writing,
       speaking: a.speaking,
       published: a.published,
-      scores: a.published ? a.scores : { listening: a.scores?.listening, reading: a.scores?.reading },
+      // ҰБТ балы бірден көрінеді (бәрі автоматты); дұрыс жауаптар — мұғалім жариялағанда
+      scores: a.published || ubt ? a.scores : { listening: a.scores?.listening, reading: a.scores?.reading },
       feedback: a.published ? a.feedback : {},
     },
-    test: { id: t!.id, title: t!.title, exam: t!.exam ?? 'ielts', variant: t!.variant, mode: t!.mode, content: review ? t!.content : stripAnswers(t!.content) },
+    test: { id: t!.id, title: t!.title, exam: t!.exam ?? 'ielts', variant: t!.variant, mode: t!.mode, content: ubt ? { ubt: ubtForStudent(ubt, a.state.combo, review) } : review ? t!.content : stripAnswers(t!.content) },
     now: Date.now(),
     deadline: sec ? deadline(t!, a, sec) : null,
   }
@@ -64,6 +67,10 @@ export async function POST(req: NextRequest) {
       if ((prev?.length ?? 0) >= acc.attempts_allowed) return bad('Тапсыру саны біткен. Мұғалімге хабарласыңыз.', 403)
       const state = newState(t)
       if (!state.order.length) return bad('Тест әлі толтырылмаған', 400)
+      if (t.content.ubt) {
+        if (!isCombo(b.combo)) return bad('Бейіндік пәндер комбинациясын таңдаңыз')
+        state.combo = b.combo
+      }
       const { data, error } = await sb.from('ielts_attempts').insert({ test_id: t.id, student_id: me.id, state }).select('id').single()
       if (error) return bad(error.message, 500)
       return NextResponse.json({ ok: true, id: data.id })
@@ -82,6 +89,16 @@ export async function POST(req: NextRequest) {
         const ans: Record<string, string> = {}
         for (const [k, v] of Object.entries(b.answers ?? {})) if (valid.has(k)) ans[k] = String(v ?? '').slice(0, 200)
         const { error } = await sb.from('ielts_attempts').update({ answers: { ...a.answers, [sec]: ans } }).eq('id', a.id)
+        if (error) return bad(error.message, 500)
+      } else if (sec === 'ubt' && t.content.ubt && a.state.combo) {
+        const valid = new Map(subjectsFor(t.content.ubt, a.state.combo).flatMap((s) => s.questions.map((q) => [q.id, q.type === 'multiple' ? 6 : q.options.length] as const)))
+        const ans: Record<string, number[]> = {}
+        for (const [k, v] of Object.entries(b.answers ?? {})) {
+          const n = valid.get(k)
+          if (n === undefined || !Array.isArray(v)) continue
+          ans[k] = v.slice(0, 6).map((x) => (typeof x === 'number' && x >= 0 && x < n ? x : -1))
+        }
+        const { error } = await sb.from('ielts_attempts').update({ answers: { ...a.answers, ubt: ans } }).eq('id', a.id)
         if (error) return bad(error.message, 500)
       } else if (sec === 'writing') {
         const w = { task1: String(b.writing?.task1 ?? '').slice(0, 20000), task2: String(b.writing?.task2 ?? '').slice(0, 20000) }
