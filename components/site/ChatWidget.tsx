@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { MessageCircle, Send, X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 import { waLink } from './brand'
 
 // ИИ-көмекші + WhatsApp. Тек ашық беттерде (кабинеттер мен тест кезінде көрінбейді).
@@ -100,10 +100,13 @@ export default function ChatWidget() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Сұрақ қою"
-        className={`fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full py-3 pl-4 pr-5 text-[15px] font-semibold text-white shadow-[0_10px_30px_-8px_rgba(14,20,36,.45)] transition-all duration-300 hover:-translate-y-0.5 active:scale-95 ${open ? 'pointer-events-none translate-y-4 opacity-0' : ''}`}
-        style={{ background: INK }}
+        className={`fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-full bg-white py-2 pl-2 pr-5 text-[15px] font-semibold shadow-[0_12px_32px_-10px_rgba(14,20,36,.35)] ring-1 ring-[#E3E7F0] transition-all duration-300 hover:-translate-y-0.5 active:scale-95 ${open ? 'pointer-events-none translate-y-4 opacity-0' : ''}`}
+        style={{ color: INK }}
       >
-        <MessageCircle size={20} strokeWidth={2.2} />
+        <span className="relative grid h-10 w-10 place-items-center rounded-full bg-white ring-1 ring-[#E3E7F0]">
+          <img src="/beles-mark.png" alt="" className="h-7 w-7" />
+          <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-[#22C55E]" aria-hidden />
+        </span>
         Сұрақ қою
       </button>
 
@@ -116,8 +119,8 @@ export default function ChatWidget() {
           className={`absolute inset-x-0 bottom-0 flex h-[86dvh] flex-col overflow-hidden rounded-t-[28px] bg-[#F5F7FB] shadow-2xl transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)] sm:inset-x-auto sm:bottom-5 sm:right-5 sm:h-[600px] sm:max-h-[calc(100dvh-40px)] sm:w-[400px] sm:rounded-[28px] ${open ? 'translate-y-0' : 'translate-y-[110%]'}`}
         >
           <header className="flex items-center gap-3 border-b border-[#E3E7F0] bg-white px-4 py-3.5">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white" style={{ background: BLUE }}>
-              <MessageCircle size={20} />
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white ring-1 ring-[#E3E7F0]">
+              <img src="/beles-mark.png" alt="Beles" className="h-7 w-7" />
             </span>
             <div className="min-w-0 flex-1 leading-tight">
               <div className="font-semibold">Beles көмекшісі</div>
@@ -135,7 +138,8 @@ export default function ChatWidget() {
               <Bubble key={i} role={m.role} text={m.content} />
             ))}
             {busy && (
-              <div className="flex">
+              <div className="flex items-end gap-2">
+                <img src="/beles-mark.png" alt="" className="mb-0.5 h-7 w-7 shrink-0 rounded-full bg-white p-0.5 ring-1 ring-[#E3E7F0]" />
                 <div className="flex gap-1 rounded-[20px] rounded-bl-md bg-white px-4 py-3.5 shadow-sm" aria-label="Жауап жазылып жатыр">
                   {[0, 1, 2].map((i) => (
                     <span key={i} className="h-2 w-2 animate-bounce rounded-full bg-[#B8BFCC]" style={{ animationDelay: `${i * 120}ms` }} />
@@ -188,7 +192,8 @@ export default function ChatWidget() {
 function Bubble({ role, text }: { role: 'user' | 'assistant'; text: string }) {
   const me = role === 'user'
   return (
-    <div className={`flex ${me ? 'justify-end' : ''}`}>
+    <div className={`flex items-end gap-2 ${me ? 'justify-end' : ''}`}>
+      {!me && <img src="/beles-mark.png" alt="" className="mb-0.5 h-7 w-7 shrink-0 rounded-full bg-white p-0.5 ring-1 ring-[#E3E7F0]" />}
       <div
         className={`max-w-[85%] whitespace-pre-wrap rounded-[20px] px-4 py-2.5 text-[15px] leading-relaxed ${me ? 'rounded-br-md text-white' : 'rounded-bl-md bg-white shadow-sm'}`}
         style={me ? { background: BLUE } : { color: INK }}
