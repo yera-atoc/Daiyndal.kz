@@ -13,13 +13,15 @@ import {
   UsersRound,
   Wallet,
   Headphones,
+  ShieldCheck,
 } from 'lucide-react'
 import { BRAND, dmy, type CrmData } from '@/components/crm/core'
 import Overview from '@/components/crm/Overview'
 import Students from '@/components/crm/Students'
 import { Attendance, Groups, Payments, Schedule, Teachers } from '@/components/crm/Views'
+import Journal from '@/components/crm/Journal'
 
-type View = 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers'
+type View = 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal'
 
 const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Шолу', icon: LayoutDashboard },
@@ -29,6 +31,7 @@ const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'schedule', label: 'Кесте', icon: CalendarDays },
   { id: 'groups', label: 'Топтар', icon: UsersRound },
   { id: 'teachers', label: 'Мұғалімдер', icon: GraduationCap },
+  { id: 'journal', label: 'Журнал', icon: ShieldCheck },
 ]
 
 function Crm() {
@@ -159,6 +162,7 @@ function Crm() {
         {view === 'schedule' && <Schedule data={data} reload={load} flash={flash} />}
         {view === 'groups' && <Groups data={data} reload={load} flash={flash} onOpenGroup={(id) => { setAttGroup(id); go('attendance') }} />}
         {view === 'teachers' && <Teachers data={data} reload={load} flash={flash} />}
+        {view === 'journal' && <Journal />}
       </main>
 
       {msg && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg px-4 py-2 text-sm text-white" style={{ background: BRAND.ink }} role="status">{msg}</div>}

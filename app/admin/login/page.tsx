@@ -6,6 +6,7 @@ import AuthShell, { field, primaryBtn } from '@/components/site/AuthShell'
 
 export default function AdminLoginPage() {
   const router = useRouter()
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -18,7 +19,7 @@ export default function AdminLoginPage() {
     const res = await fetch('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username: username.trim(), password }),
     })
 
     setLoading(false)
@@ -36,6 +37,10 @@ export default function AdminLoginPage() {
   return (
     <AuthShell title="Әкімші кабинеті" subtitle="Оқушылар, топтар, қатысу және Білім тексеру сынақтарын басқару.">
       <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="block text-sm font-medium">
+          Логин <span className="font-normal text-[#6B7385]">(әкімші құқығы бар мұғалім үшін)</span>
+          <input value={username} onChange={(e) => setUsername(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" placeholder="Иесі болсаңыз – бос қалдырыңыз" className={field} />
+        </label>
         <label className="block text-sm font-medium">
           Құпия сөз
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus autoComplete="current-password" className={field} />

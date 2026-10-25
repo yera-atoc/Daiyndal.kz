@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { hashStudentPassword, signStudentSession, STUDENT_COOKIE_NAME } from '@/lib/studentAuth'
+import { clientIp, lockedMessage, throttleCheck, throttleClear, throttleFail } from '@/lib/security'
 
 export async function POST(req: NextRequest) {
   const { username, password } = await req.json().catch(() => ({ username: '', password: '' }))
@@ -9,7 +10,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Логин мен құпия сөзді енгізіңіз' }, { status: 400 })
   }
 
-  const typed = String(username).trim()
+  const typed = String(username).trim().slice(0, 60)
+  const keys = [`ip:${clientIp(req.headers)}`, `student:${typed.toLowerCase()}`]
+  const wait = await throttleCheck(keys)
+  if (wait) return NextResponse.json({ error: lockedMessage(wait) }, { status: 429 })
   const candidates = Array.from(new Set([typed, typed.toLowerCase()]))
   const { data: rows, error } = await supabaseAdmin
     .from('students')
@@ -19,14 +23,17 @@ export async function POST(req: NextRequest) {
   const student = rows?.[0]
 
   if (error || !student || !student.password_hash || !student.password_salt) {
+    await throttleFail(keys)
     return NextResponse.json({ error: 'Логин немесе құпия сөз қате' }, { status: 401 })
   }
 
   const attemptHash = await hashStudentPassword(password, student.password_salt)
   if (attemptHash !== student.password_hash) {
+    await throttleFail(keys)
     return NextResponse.json({ error: 'Логин немесе құпия сөз қате' }, { status: 401 })
   }
 
+  await throttleClear([keys[1]])
   const token = await signStudentSession(student.id)
   const res = NextResponse.json({ ok: true })
   res.cookies.set(STUDENT_COOKIE_NAME, token, {

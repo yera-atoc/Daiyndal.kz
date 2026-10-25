@@ -510,7 +510,7 @@ function Recorder({ attemptId, stepKey, text, cue, audio, limit, prep, onSaved }
           const ext = mime.includes('mp4') ? 'mp4' : mime.includes('ogg') ? 'ogg' : 'webm'
           const blob = new Blob(chunks.current, { type: mime })
           const info = await call({ action: 'speaking-url', id: attemptId, key: stepKey, ext })
-          const { error } = await supabase.storage.from('materials').uploadToSignedUrl(info.path, info.token, blob, { contentType: mime })
+          const { error } = await supabase.storage.from(info.bucket ?? 'materials').uploadToSignedUrl(info.path, info.token, blob, { contentType: mime })
           if (error) throw new Error(error.message)
           await call({ action: 'speaking-save', id: attemptId, key: stepKey, url: info.publicUrl })
           onSaved(info.publicUrl)

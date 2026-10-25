@@ -1,3 +1,4 @@
+import { logServerError } from '@/lib/serverLog'
 import { NextRequest, NextResponse } from 'next/server'
 import { LETTERS } from '@/lib/bilimTest'
 import { addSubmission, getExam } from '@/lib/bilimTestStore'
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
     if (res === 'duplicate') return NextResponse.json({ error: 'Бұл пәнді бұрын тапсырдың' }, { status: 409 })
     return NextResponse.json({ ok: true })
   } catch (e: any) {
+    await logServerError('bilim-test/submit', e)
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }

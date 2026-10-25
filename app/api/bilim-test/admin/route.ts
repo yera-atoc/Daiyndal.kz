@@ -1,3 +1,4 @@
+import { logServerError } from '@/lib/serverLog'
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/requireAdmin'
 import { syncBtAddToCrm, syncBtDeleteToCrm, syncBtGroupToCrm, syncBtRenameToCrm } from '@/lib/crmSync'
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
       histories: exam ? await groupHistories(exam) : {},
     })
   } catch (e: any) {
+    await logServerError('bilim-test/admin', e)
     return bad(e.message, 500)
   }
 }
@@ -199,6 +201,7 @@ export async function POST(req: NextRequest) {
 
     return bad('Белгісіз әрекет')
   } catch (e: any) {
+    await logServerError('bilim-test/admin', e)
     return bad(e.message, 500)
   }
 }

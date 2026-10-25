@@ -28,7 +28,7 @@ export type CStudent = {
   bt_student_id?: string | null
 }
 export type CGroup = { id: string; name: string; bt_group_id?: string | null; monthly_fee?: number | null }
-export type CTeacher = { id: string; name: string; subject: string | null; username: string | null }
+export type CTeacher = { id: string; name: string; subject: string | null; username: string | null; is_admin?: boolean }
 export type CPayment = { id: string; student_id: string | null; student_name: string; amount: number | null; paid_on: string; period_end: string | null; note: string | null }
 export type CAttendance = { student_id: string; date: string; present: boolean; excused: boolean | null }
 export type CSlot = { id: string; teacher_id: string; group_id: string | null; day_of_week: number; start_time: string; end_time: string; title: string | null; note: string | null; room: string | null }
@@ -43,6 +43,7 @@ export type CrmData = {
   schedule: CSlot[]
   btGroups: { id: string; name: string }[]
   missing: string[]
+  me?: { kind: 'owner' | 'teacher'; name: string }
   error?: string
 }
 

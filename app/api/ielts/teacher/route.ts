@@ -1,3 +1,5 @@
+import { logServerError } from '@/lib/serverLog'
+import { resolveSpeaking } from '@/lib/speakingStorage'
 import { NextRequest, NextResponse } from 'next/server'
 import { canEdit, db, getAttempt, getTest, randomPin, staff } from '@/lib/ieltsServer'
 import { overallBand, speakingBand, toeflOverall, toeflSpeakingBand, toeflWritingBand, writingBand, type Attempt, type IeltsTest, type Scores } from '@/lib/ielts'
@@ -28,7 +30,7 @@ export async function GET(req: NextRequest) {
     const t = a && (await getTest(a.test_id))
     if (!a || !t || !canEdit(who, t)) return bad('Табылмады', 404)
     const { data: st } = await sb.from('students').select('id, full_name').eq('id', a.student_id).maybeSingle()
-    return NextResponse.json({ attempt: a, test: t, student: st })
+    return NextResponse.json({ attempt: { ...a, speaking: await resolveSpeaking(a.speaking) }, test: t, student: st })
   }
 
   // exam бағаны migration_toefl.sql іске қосылғанға дейін болмауы мүмкін
@@ -260,6 +262,7 @@ export async function POST(req: NextRequest) {
 
     return bad('Белгісіз әрекет')
   } catch (e: any) {
+    await logServerError('ielts/teacher', e)
     return bad(e.message, 500)
   }
 }

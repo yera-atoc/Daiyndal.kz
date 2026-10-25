@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { isAdmin } from '@/lib/requireAdmin'
-import { generateSalt, hashTeacherPassword } from '@/lib/teacherAuth'
+import { generateSalt, hashPasswordV2 } from '@/lib/teacherAuth'
 import { PASSWORD_HINT, PASSWORD_MIN_LENGTH, USERNAME_HINT, normalizeUsername } from '@/lib/credentials'
 
 export async function GET() {
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const salt = generateSalt()
     insert.username = username
     insert.password_salt = salt
-    insert.password_hash = await hashTeacherPassword(password, salt)
+    insert.password_hash = await hashPasswordV2(password, salt)
   }
 
   const { data, error } = await supabaseAdmin

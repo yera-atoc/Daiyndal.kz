@@ -65,3 +65,35 @@ export function generateSalt(): string {
 export async function hashTeacherPassword(password: string, salt: string): Promise<string> {
   return sha256Hex(`${salt}:${password}`)
 }
+
+// ── Құпия сөз хэші v2: PBKDF2-SHA256 ─────────────────────────────────
+// Ескі хэштер (sha256(salt:password)) әлі жұмыс істейді; дұрыс кірген сәтте v2-ге көшіріледі.
+const PBKDF2_ITER = 210_000
+
+async function pbkdf2Hex(password: string, salt: string, iter: number): Promise<string> {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: new TextEncoder().encode(salt), iterations: iter }, base, 256)
+  return Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+export async function hashPasswordV2(password: string, salt: string): Promise<string> {
+  return `pbkdf2$${PBKDF2_ITER}$${await pbkdf2Hex(password, salt, PBKDF2_ITER)}`
+}
+
+/** Кез келген нұсқадағы хэшті тексереді. rehash=true болса – v2-ге жаңарту керек. */
+export async function verifyPassword(password: string, salt: string, stored: string): Promise<{ ok: boolean; rehash: boolean }> {
+  if (stored.startsWith('pbkdf2$')) {
+    const [, iter, hex] = stored.split('$')
+    const got = await pbkdf2Hex(password, salt, Number(iter))
+    return { ok: constEq(got, hex), rehash: Number(iter) < PBKDF2_ITER }
+  }
+  const ok = constEq(await hashTeacherPassword(password, salt), stored)
+  return { ok, rehash: ok }
+}
+
+function constEq(a: string, b: string) {
+  if (a.length !== b.length) return false
+  let d = 0
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return d === 0
+}

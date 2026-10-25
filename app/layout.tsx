@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { PT_Serif, Inter, Caveat, Unbounded } from 'next/font/google'
 import WhatsAppButton from '@/components/WhatsAppButton'
+import ErrorReporter from '@/components/ErrorReporter'
 import './globals.css'
 
 const ptSerif = PT_Serif({
@@ -44,6 +45,7 @@ export default function RootLayout({
       >
         {children}
         <WhatsAppButton />
+        <ErrorReporter />
       </body>
     </html>
   )

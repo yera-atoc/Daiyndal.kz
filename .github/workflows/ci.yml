@@ -1,0 +1,35 @@
+name: CI
+
+# Әр push және PR сайын: типтер, тесттер, толық build.
+# Vercel-де «Ignored Build Step»/branch protection арқылы CI сәтсіз болса, main-ге қосылмайтын етуге болады.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Типтерді тексеру
+        run: npm run typecheck
+      - name: Unit тесттер
+        run: npm test
+      - name: Build
+        run: npm run build
+        env:
+          # Build кезінде нақты базаға қосылмайды – жалған мәндер жеткілікті
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder

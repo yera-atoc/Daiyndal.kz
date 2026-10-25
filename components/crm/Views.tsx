@@ -473,12 +473,13 @@ export function Teachers({ data, reload, flash }: { data: CrmData; reload: () =>
         <button onClick={() => { setErr(''); setForm({ name: '', subject: '', username: '', password: '' }) }} className={`${btnDark} flex items-center gap-1.5`} style={{ background: BRAND.ink }}><Plus size={15} /> Мұғалім қосу</button>
       </div>
       <div className="overflow-x-auto rounded-2xl border bg-white" style={style}>
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b text-left text-xs" style={{ borderColor: BRAND.line, color: BRAND.muted }}>
               <th className="px-4 py-3 font-medium">Мұғалім</th>
               <th className="px-4 py-3 font-medium">Пәні</th>
               <th className="px-4 py-3 font-medium">Кабинетке кіру</th>
+              <th className="px-4 py-3 font-medium">Әкімші</th>
               <th className="px-4 py-3 text-right font-medium">Аптасына сабақ</th>
               <th className="px-4 py-3 text-right font-medium">Оқушылар</th>
               <th className="px-4 py-3" />
@@ -494,6 +495,24 @@ export function Teachers({ data, reload, flash }: { data: CrmData; reload: () =>
                   <td className="px-4 py-2.5 font-semibold">{t.name}</td>
                   <td className="px-4 py-2.5">{t.subject ?? '—'}</td>
                   <td className="px-4 py-2.5">{t.username ? <span className="font-medium">{t.username}</span> : <span style={{ color: BRAND.muted }}>логин жоқ</span>}</td>
+                  <td className="px-4 py-2.5">
+                    {data.me?.kind === 'owner' ? (
+                      <label className={`inline-flex items-center gap-2 ${t.username ? 'cursor-pointer' : 'opacity-40'}`} title={t.username ? 'Өз логинімен әкімші кабинетіне кіре алады' : 'Алдымен логин беріңіз'}>
+                        <input
+                          type="checkbox"
+                          disabled={!t.username}
+                          checked={!!t.is_admin}
+                          onChange={async (e) => {
+                            const on = e.target.checked
+                            if (on && !confirm(`${t.name} әкімші кабинетіне өз логинімен кіре алады (оқушылар, төлемдер, топтар). Рұқсат бересіз бе?`)) return
+                            try { await api(`/api/teachers/${t.id}`, 'PATCH', { is_admin: on }); await reload(); flash(on ? 'Әкімші құқығы берілді' : 'Әкімші құқығы алынды') } catch (er: any) { flash(er.message) }
+                          }}
+                          className="h-4 w-4 accent-[#2B6BF3]"
+                        />
+                        <span className="text-xs" style={{ color: BRAND.muted }}>{t.is_admin ? 'иә' : 'жоқ'}</span>
+                      </label>
+                    ) : t.is_admin ? <span className="text-xs font-semibold" style={{ color: BRAND.blue }}>әкімші</span> : <span style={{ color: BRAND.muted }}>—</span>}
+                  </td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{slots.length} · {Math.round(hours * 10) / 10} сағ</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{students}</td>
                   <td className="px-4 py-2.5 text-right">

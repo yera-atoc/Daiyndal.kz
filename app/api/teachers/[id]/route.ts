@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { isAdmin } from '@/lib/requireAdmin'
-import { generateSalt, hashTeacherPassword } from '@/lib/teacherAuth'
+import { isAdmin, isOwner } from '@/lib/requireAdmin'
+import { generateSalt, hashPasswordV2 } from '@/lib/teacherAuth'
 import { PASSWORD_HINT, PASSWORD_MIN_LENGTH, USERNAME_HINT, normalizeUsername } from '@/lib/credentials'
 
 export async function PUT(
@@ -40,6 +40,15 @@ export async function PATCH(
   }
 
   const body = await req.json().catch(() => null)
+
+  // Әкімші құқығын тек иесі (ADMIN_PASSWORD) бере не ала алады
+  if (typeof body?.is_admin === 'boolean' && body.username === undefined && body.password === undefined) {
+    if (!(await isOwner())) return NextResponse.json({ error: 'Әкімші құқығын тек иесі бере алады' }, { status: 403 })
+    const { error } = await supabaseAdmin.from('teachers').update({ is_admin: body.is_admin }).eq('id', params.id)
+    if (error) return NextResponse.json({ error: error.message.includes('is_admin') ? 'Алдымен жаңа SQL-ді (security) іске қосыңыз' : error.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+
   const rawUsername = typeof body?.username === 'string' ? body.username : ''
   const password = typeof body?.password === 'string' ? body.password : ''
 
@@ -78,7 +87,7 @@ export async function PATCH(
   if (password) {
     const salt = generateSalt()
     update.password_salt = salt
-    update.password_hash = await hashTeacherPassword(password, salt)
+    update.password_hash = await hashPasswordV2(password, salt)
   }
 
   const { data, error } = await supabaseAdmin

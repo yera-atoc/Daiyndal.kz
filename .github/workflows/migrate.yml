@@ -1,0 +1,38 @@
+name: DB migrations
+
+# main-ге supabase/migrations ішінде өзгеріс түссе – жаңа миграцияларды қолданады.
+# Іске қосу үшін: GitHub → Settings → Secrets and variables → Actions → New secret
+#   DATABASE_URL = Supabase → Project Settings → Database → Connection string (URI, "Session pooler")
+# Секрет жоқ болса – жұмыс үнсіз өтіп кетеді.
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/migrations/**']
+  workflow_dispatch:
+
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Секретті тексеру
+        id: has
+        run: echo "ok=${{ env.DATABASE_URL != '' }}" >> "$GITHUB_OUTPUT"
+      - if: steps.has.outputs.ok == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.has.outputs.ok == 'true'
+        name: Миграцияларды қолдану
+        run: npm run migrate
+      - if: steps.has.outputs.ok != 'true'
+        run: echo "DATABASE_URL секреті жоқ – миграциялар өткізілді. Оларды Supabase SQL Editor-да қолмен іске қосыңыз."

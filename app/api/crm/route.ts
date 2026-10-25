@@ -1,5 +1,6 @@
+import { logServerError } from '@/lib/serverLog'
 import { NextRequest, NextResponse } from 'next/server'
-import { isAdmin } from '@/lib/requireAdmin'
+import { currentAdmin, isAdmin } from '@/lib/requireAdmin'
 import { ISO_RE, addMonthsISO, todayAlmatyISO } from '@/lib/payments'
 import { syncCrmDeleteToBt, syncCrmStudentToBt } from '@/lib/crmSync'
 
@@ -23,7 +24,8 @@ const GROUP_EXTRA = ', bt_group_id, monthly_fee'
 
 // GET — CRM-нің барлық деректері бір сұраныспен. Кесте жоқ болса, `missing` тізіміне жазылады.
 export async function GET() {
-  if (!(await isAdmin())) return denied()
+  const me = await currentAdmin()
+  if (!me) return denied()
   const sb = await db()
   const today = todayAlmatyISO()
   const yearAgo = addMonthsISO(today, -12)
@@ -49,7 +51,7 @@ export async function GET() {
   const [students, groups, teachers, payments, attendance, schedule, btGroups] = await Promise.all([
     withFallback('students', () => sb.from('students').select(STUDENT_FIELDS + STUDENT_EXTRA).order('full_name'), () => sb.from('students').select(STUDENT_FIELDS).order('full_name')),
     withFallback('student_groups', () => sb.from('student_groups').select('id, name, created_at' + GROUP_EXTRA).order('name'), () => sb.from('student_groups').select('id, name, created_at').order('name')),
-    safe('teachers', sb.from('teachers').select('id, name, subject, username').order('name')),
+    withFallback('teachers', () => sb.from('teachers').select('id, name, subject, username, is_admin').order('name'), () => sb.from('teachers').select('id, name, subject, username').order('name')),
     safe('crm_payments', sb.from('crm_payments').select('id, student_id, student_name, amount, paid_on, period_end, note').gte('paid_on', yearAgo).order('paid_on', { ascending: false })),
     safe('crm_attendance', sb.from('crm_attendance').select('student_id, date, present, excused').gte('date', twoMonths)),
     safe('schedule_slots', sb.from('schedule_slots').select('id, teacher_id, group_id, day_of_week, start_time, end_time, title, note, room').order('day_of_week').order('start_time')),
@@ -57,7 +59,7 @@ export async function GET() {
   ])
 
   return NextResponse.json(
-    { today, students, groups, teachers, payments, attendance, schedule, btGroups, missing },
+    { today, students, groups, teachers, payments, attendance, schedule, btGroups, missing, me: { kind: me.kind, name: me.name } },
     { headers: { 'Cache-Control': 'no-store' } }
   )
 }
@@ -224,6 +226,7 @@ export async function POST(req: NextRequest) {
 
     return bad('Белгісіз әрекет')
   } catch (e: any) {
+    await logServerError('crm', e)
     return bad(e.message, 500)
   }
 }

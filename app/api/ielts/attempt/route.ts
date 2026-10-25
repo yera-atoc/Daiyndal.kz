@@ -1,7 +1,9 @@
+import { logServerError } from '@/lib/serverLog'
 import { NextRequest, NextResponse } from 'next/server'
 import { canWrite, catchUp, currentStudent, db, deadline, finishSection, getAttempt, getTest, newState } from '@/lib/ieltsServer'
 import { sectionItems, stripAnswers, type Attempt } from '@/lib/ielts'
 import { isCombo, subjectsFor, ubtForStudent } from '@/lib/ubt'
+import { speakingUploadUrl } from '@/lib/speakingStorage'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -130,10 +132,9 @@ export async function POST(req: NextRequest) {
       const key = String(b.key ?? '').replace(/[^a-z0-9]/gi, '').slice(0, 10)
       const ext = ['webm', 'ogg', 'mp4', 'm4a'].includes(b.ext) ? b.ext : 'webm'
       const path = `ielts/speaking/${a.id}/${key}-${crypto.randomUUID().slice(0, 12)}.${ext}`
-      const { data, error } = await sb.storage.from('materials').createSignedUploadUrl(path)
-      if (error) return bad(error.message, 500)
-      const { data: pub } = sb.storage.from('materials').getPublicUrl(path)
-      return NextResponse.json({ path: data.path, token: data.token, publicUrl: pub.publicUrl })
+      const up = await speakingUploadUrl(path)
+      // publicUrl атауы ескі клиенттер үшін сақталды; енді бұл жабық қоймадағы белгі болуы мүмкін
+      return NextResponse.json({ bucket: up.bucket, path: up.path, token: up.token, publicUrl: up.ref })
     }
     if (action === 'speaking-save') {
       if (!canWrite(t, a, 'speaking')) return bad('Speaking бөлімі ашық емес', 403)
@@ -147,6 +148,7 @@ export async function POST(req: NextRequest) {
 
     return bad('Белгісіз әрекет')
   } catch (e: any) {
+    await logServerError('ielts/attempt', e)
     return bad(e.message, 500)
   }
 }

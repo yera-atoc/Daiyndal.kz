@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { listGroups, listStudents } from '@/lib/bilimTestStore'
+import { maskNames } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -13,7 +14,7 @@ export async function GET() {
       groups.map(async (g) => ({
         id: g.id,
         name: g.name,
-        students: (await listStudents(g.id)).map((s) => ({ id: s.id, name: s.full_name })),
+        students: maskNames((await listStudents(g.id)).map((s) => ({ id: s.id, name: s.full_name }))), // «Айтбек А.»
       }))
     )
     return NextResponse.json({ groups: out.filter((g) => g.students.length) }, { headers: { 'Cache-Control': 'no-store' } })

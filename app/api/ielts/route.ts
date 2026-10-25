@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { db } from '@/lib/ieltsServer'
+import { maskNames } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -20,7 +21,8 @@ export async function GET(req: NextRequest) {
     if (!sids.length) return NextResponse.json({ students: [] })
     const { data: st } = await sb.from('students').select('id, full_name, group_id, student_groups(name)').in('id', sids).order('full_name')
     return NextResponse.json(
-      { students: (st ?? []).map((s: any) => ({ id: s.id, name: s.full_name, group: s.student_groups?.name ?? '' })) },
+      // Ашық тізімде толық тегі көрсетілмейді: «Айтбек А.»
+      { students: maskNames((st ?? []).map((s: any) => ({ id: s.id, name: s.full_name, group: s.student_groups?.name ?? '' }))) },
       { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (e: any) {
