@@ -14,6 +14,7 @@ import {
 import Questions, { BLUE, INK, LINE, MUTED } from './Questions'
 import type { QGroup } from '@/lib/ielts'
 import { LETTERS, comboName, pointsOf, type UbtQ, type UbtScores } from '@/lib/ubt'
+import { UbtPlanView } from './UbtGrowth'
 
 export type AttemptView = {
   attempt: {
@@ -105,9 +106,11 @@ export default function Runner({ initial, student, onExit, onReview }: { initial
             </p>
           </div>
           {ubt && <div className="mt-6"><UbtResult s={ubt} /></div>}
+          {ubt && <div className="mt-4 rounded-3xl bg-white p-5 ring-1 ring-[#E3E7F0] sm:p-6"><UbtPlanView s={ubt} /></div>}
           <div className="mx-auto mt-8 flex max-w-sm flex-col gap-2">
+            {ubt && <a href={`/ubt/report?a=${v.attempt.id}`} className="rounded-xl py-3.5 text-center font-semibold text-white" style={{ background: INK }}>PDF есепті жүктеу</a>}
             {onReview && !ubt && <button onClick={onReview} className="rounded-xl py-3.5 font-semibold text-white" style={{ background: BLUE }}>Нәтижені көру</button>}
-            <button onClick={onExit} className="rounded-xl py-3.5 font-semibold" style={ubt || !onReview ? { background: BLUE, color: '#fff' } : { background: '#fff', border: `1px solid ${LINE}` }}>Тесттер тізіміне оралу</button>
+            <button onClick={onExit} className="rounded-xl py-3.5 font-semibold" style={!ubt && !onReview ? { background: BLUE, color: '#fff' } : { background: '#fff', border: `1px solid ${LINE}` }}>Тесттер тізіміне оралу</button>
             <a href="/" className="py-2 text-center text-sm font-medium" style={{ color: MUTED }}>Басты бет</a>
           </div>
         </div>

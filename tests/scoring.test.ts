@@ -44,3 +44,28 @@ describe('IELTS band', () => {
     expect(isCorrect('tfng', 'false', 'NOT GIVEN')).toBe(false)
   })
 })
+
+import { ubtPlan } from '@/lib/ubtPlan'
+describe('ҰБТ жоспары', () => {
+  const s = {
+    combo: ['math', 'physics'] as [string, string], total: 0, max: 140, passed: false,
+    subjects: [
+      { key: 'history_kz', name: 'Қазақстан тарихы', points: 4, max: 20, threshold: 5, passed: false },
+      { key: 'math_lit', name: 'Мат. сауаттылық', points: 9, max: 10, threshold: 3, passed: true },
+      { key: 'math', name: 'Математика', points: 30, max: 50, threshold: 5, passed: true },
+      { key: 'physics', name: 'Физика', points: 50, max: 50, threshold: 5, passed: true },
+    ],
+  }
+  it('шекті балдан төмен пән бірінші, мақсат шектен жоғары', () => {
+    const p = ubtPlan(s)
+    expect(p.focus[0].key).toBe('history_kz')
+    expect(p.rows[0].target).toBeGreaterThan(5)
+  })
+  it('мақсат максимумнан аспайды, толық балда өсім жоқ', () => {
+    const p = ubtPlan(s)
+    const ph = p.rows.find((r) => r.key === 'physics')!
+    expect(ph.target).toBe(50)
+    expect(ph.gain).toBe(0)
+    expect(p.rows.find((r) => r.key === 'math')!.target).toBe(35) // 30 + 25% × 20
+  })
+})

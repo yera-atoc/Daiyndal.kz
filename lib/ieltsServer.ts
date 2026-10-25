@@ -25,7 +25,7 @@ export async function staff(): Promise<{ teacherId: string | null; admin: boolea
 }
 
 export function canEdit(who: { teacherId: string | null; admin: boolean }, test: Pick<IeltsTest, 'teacher_id'> & { exam?: string }) {
-  // ҰБТ пробныйлары – орталықтың ортақ тесттері: кез келген мұғалім рұқсат бере алады
+  // ҰБТ сынақтары – орталықтың ортақ тесттері: кез келген мұғалім рұқсат бере алады
   return who.admin || (!!who.teacherId && (test.teacher_id === who.teacherId || test.exam === 'ubt'))
 }
 

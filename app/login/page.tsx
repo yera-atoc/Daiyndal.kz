@@ -8,7 +8,7 @@ type Item = { href: string; title: string; text: string; icon: LucideIcon; tint:
 
 const STUDENTS: Item[] = [
   { href: '/bilim-test', title: 'Білім тексеру', text: 'Ай сайынғы сынақ және ата-анаға PDF есеп', icon: ClipboardCheck, tint: '#2B6BF3' },
-  { href: '/ubt', title: 'ҰБТ пробный', text: '140 балдық сынақ, нәтиже бірден шығады', icon: GraduationCap, tint: '#5B4CF0' },
+  { href: '/ubt', title: 'ҰБТ сынағы', text: '140 балдық сынақ, нәтиже бірден шығады', icon: GraduationCap, tint: '#5B4CF0' },
   { href: '/ielts', title: 'IELTS mock', text: 'Төрт бөлім, емтихандағыдай таймермен', icon: Headphones, tint: '#E5383B' },
   { href: '/toefl', title: 'TOEFL iBT mock', text: '2026 жылғы жаңа формат', icon: Globe2, tint: '#0E1424' },
 ]

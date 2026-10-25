@@ -16,6 +16,7 @@ import {
 import type { StudentResult } from '@/lib/bilimTestResults'
 import ProgressChart, { type ChartPoint } from '@/components/bilim/ProgressChart'
 import { buildForecast } from '@/lib/bilimTestForecast'
+import { UbtTrend } from '@/components/ielts/UbtGrowth'
 import { monthName } from '@/lib/bilimTest'
 
 type OpenExam = { id: string; title: string; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
@@ -356,10 +357,18 @@ function Tests({ me, done, onOpen }: { me: Me; done: string | null; onOpen: (exa
     </div>
   )
 }
-
 function Results({ list, onOpen }: { list: Summary[]; onOpen: (id: string) => void }) {
   if (!list.length) return <Empty title="Нәтиже әлі жоқ" text="Мұғалім нәтижені жариялағанда осында шығады." />
+  const scored = list.filter((r) => r.score !== null)
   return (
+    <>
+    {scored.length > 0 && (
+      <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+        <h3 className="mb-3 font-bold">Менің өсуім</h3>
+        <UbtTrend points={[...scored].reverse().slice(-8).map((r) => ({ label: r.title, total: r.score!, max: r.max }))} compact />
+        <p className="mt-3 text-xs text-slate-400">Әр айдың нәтижесін ашсаң – тақырыптар бойынша талдау және келесі айға жоспар шығады.</p>
+      </div>
+    )}
     <div className="grid gap-4 sm:grid-cols-2">
       {list.map((r) => (
         <div key={r.examId} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -383,6 +392,7 @@ function Results({ list, onOpen }: { list: Summary[]; onOpen: (id: string) => vo
         </div>
       ))}
     </div>
+    </>
   )
 }
 
@@ -470,6 +480,45 @@ function ResultDetail({ examId, onBack }: { examId: string; onBack: () => void }
             </div>
             <ProgressChart points={pts} target={end} />
             <p className="text-xs text-slate-400">Тұтас сызық — нақты нәтиже, үзік сызық — жүйелі дайындық жалғасқандағы болжам.</p>
+          </div>
+        )
+      })()}
+
+      {(() => {
+        // Келесі айға жоспар: әр пән бойынша мақсат және қайталайтын тақырыптар
+        const fc = buildForecast(exam, nowRow, data.history)
+        if (!fc) return null
+        const rows = graded
+          .filter((x) => x.g && fc.perSubject[x.s.id])
+          .map((x) => {
+            const next = fc.perSubject[x.s.id][0]
+            const st = x.sub ? topicStats(x.s, exam.answer_key[x.s.id] ?? [], x.sub.answers, exam.questions?.[x.s.id] ?? []) : []
+            return { id: x.s.id, name: x.s.name, now: x.g!.score, next, max: x.s.max, weak: weakTopics(st).slice(0, 3) }
+          })
+          .sort((a, b) => b.next - b.now - (a.next - a.now))
+        if (!rows.length) return null
+        const month = monthName(fc.months[0])
+        return (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="font-bold">Келесі айға жоспар</h3>
+              <span className="text-sm text-slate-500">{month}: <b className="text-blue-600">{fc.totals[0]}</b> балл мақсат</span>
+            </div>
+            <div className="mt-3 space-y-3.5">
+              {rows.map((r) => (
+                <div key={r.id}>
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="font-medium">{r.name}</span>
+                    <span className="tabular-nums"><b>{r.now}</b>{r.next > r.now && <span className="text-blue-600"> → {r.next} (+{r.next - r.now})</span>}<span className="text-slate-400"> / {r.max}</span></span>
+                  </div>
+                  <div className="relative mt-1.5 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className="absolute inset-y-0 left-0 rounded-full bg-blue-200" style={{ width: `${(r.next / r.max) * 100}%` }} />
+                    <div className="absolute inset-y-0 left-0 rounded-full bg-blue-600" style={{ width: `${(r.now / r.max) * 100}%` }} />
+                  </div>
+                  {r.weak.length > 0 && <p className="mt-1 text-xs text-slate-500">Қайталау: {r.weak.join(', ')}</p>}
+                </div>
+              ))}
+            </div>
           </div>
         )
       })()}

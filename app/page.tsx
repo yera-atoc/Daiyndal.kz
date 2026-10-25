@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { B, CONTACT, waLink } from '@/components/site/brand'
+import { B, CONTACT, MORE_SUBJECTS, TEACHERS, waLink } from '@/components/site/brand'
+import Stripes from '@/components/site/Stripes'
 
 const PROGRAMS = [
   {
@@ -14,8 +15,8 @@ const PROGRAMS = [
   {
     tag: '9–11 сынып',
     title: 'ҰБТ',
-    text: 'Міндетті және бейіндік пәндер, ҰБТ форматындағы пробныйлар.',
-    items: ['Қазақстан тарихы', 'Математикалық және оқу сауаттылығы', 'Бейіндік пәндер: 12 комбинация', '140 балдық толық пробный'],
+    text: 'Міндетті және бейіндік пәндер, ҰБТ форматындағы сынақтар.',
+    items: ['Қазақстан тарихы', 'Математикалық және оқу сауаттылығы', 'Бейіндік пәндер: 12 комбинация', '140 балдық толық сынақ'],
     color: B.red,
   },
   {
@@ -36,7 +37,7 @@ const PROGRAMS = [
 
 const PLATFORM = [
   { href: '/bilim-test', title: 'Білім тексеру', text: 'Ай сайынғы сынақ: жауап парағын телефоннан белгілейсің, нәтиже, топтағы орын және PDF есеп.', cta: 'Кабинетке кіру' },
-  { href: '/ubt', title: 'ҰБТ пробный', text: '120 тапсырма, 240 минут, 12 комбинация. 140 балл ресми ереже бойынша бірден есептеледі.', cta: 'Пробныйға кіру' },
+  { href: '/ubt', title: 'ҰБТ сынағы', text: '120 тапсырма, 240 минут, 12 комбинация. 140 балл ресми ереже бойынша бірден есептеледі.', cta: 'Сынаққа кіру' },
   { href: '/ielts', title: 'IELTS mock', text: 'Listening, Reading, Writing, Speaking – таймермен, бір рет ойнайтын аудиомен, нақты емтихандағыдай.', cta: 'Mock-қа кіру' },
   { href: '/toefl', title: 'TOEFL mock', text: '2026 жылғы жаңа TOEFL iBT форматы: Complete the Words, Build a Sentence, Interview.', cta: 'Mock-қа кіру' },
   { href: '/materials', title: 'Оқу материалдары', text: 'Мұғалімдер жүктеген конспектілер, тапсырмалар және пайдалы сілтемелер.', cta: 'Ашу' },
@@ -60,13 +61,13 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: B.line, color: B.muted }}>
-              <span className="h-2 w-2 rounded-full" style={{ background: B.red }} /> Жезқазған · сабақтар және онлайн платформа
+              <span className="h-2 w-2 rounded-full" style={{ background: B.red }} /> Жезқазғандағы оқу орталығы
             </span>
-            <h1 className="font-display mt-5 text-[2rem] font-semibold leading-[1.15] sm:text-5xl">
-              НЗМ, БИЛ, РФМШ және ҰБТ-ға <span style={{ color: B.blue }}>сенімді</span> дайындық
+            <h1 className="font-display mt-5 text-[2.1rem] font-semibold leading-[1.1] tracking-[-0.015em] sm:text-[3.4rem]">
+              НЗМ, БИЛ, РФМШ және ҰБТ-ға сенімді дайындық
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: B.muted }}>
-              Beles education – тәжірибелі мұғалімдер, ай сайынғы Білім тексеру сынағы және ҰБТ, IELTS, TOEFL пробныйлары бір жерде. Оқушы нәтижесін кабинетінен, ата-ана – PDF есептен көреді.
+              Beles education – тәжірибелі мұғалімдер, ай сайынғы Білім тексеру сынағы және ҰБТ, IELTS, TOEFL сынақтары бір жерде. Оқушы нәтижесін кабинетінен, ата-ана – PDF есептен көреді.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a href={waLink('Сәлеметсіз бе! Балама дайындық сабағына жазылғым келеді.')} target="_blank" rel="noopener noreferrer" className="rounded-xl px-6 py-3.5 text-center text-sm font-semibold text-white transition hover:opacity-90" style={{ background: B.blue }}>
@@ -81,7 +82,7 @@ export default function Home() {
           {/* Нәтиже парағының үлгісі */}
           <div className="rounded-3xl border p-5 shadow-sm sm:p-6" style={{ borderColor: B.line, background: B.paper }}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: B.muted }}>Білім тексеру · нәтиже үлгісі</span>
+              <span className="text-sm font-medium" style={{ color: B.muted }}>Нәтиже үлгісі</span>
               <span className="flex h-5 items-stretch gap-[3px]" aria-hidden>
                 {[3, 1, 2, 1, 3, 1, 1, 2].map((w, i) => <span key={i} style={{ width: w * 2, background: i % 3 === 2 ? B.blue : B.ink }} />)}
               </span>
@@ -105,6 +106,10 @@ export default function Home() {
             </div>
             <p className="mt-3 text-xs" style={{ color: B.muted }}>Әр оқушы сынақтан кейін осындай нәтиже, тақырыптар бойынша талдау және болжам алады.</p>
           </div>
+        </div>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <Stripes count={30} height="h-10" className="sm:hidden" />
+          <Stripes count={64} height="h-16" className="hidden sm:flex" />
         </div>
       </section>
 
@@ -144,6 +149,26 @@ export default function Home() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* Мұғалімдер */}
+      <section id="teachers" className="mx-auto w-full max-w-6xl scroll-mt-20 px-4 pt-16 sm:px-6">
+        <h2 className="font-display text-2xl font-semibold sm:text-3xl">Мұғалімдер</h2>
+        <p className="mt-2 max-w-2xl" style={{ color: B.muted }}>Әр пәнге өз маманы. Оқушының нәтижесін мұғалім ай сайын бақылап отырады.</p>
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {TEACHERS.map((t, i) => {
+            const tint = [B.blue, B.red, B.ink, '#5B4CF0', '#0F9D6B'][i % 5]
+            const initials = t.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('')
+            return (
+              <div key={t.name} className="rounded-[22px] bg-white p-4 ring-1 ring-[#E3E7F0]/80 sm:p-5">
+                <span className="font-display grid h-14 w-14 place-items-center rounded-2xl text-lg font-semibold text-white" style={{ background: tint }}>{initials}</span>
+                <p className="mt-4 font-semibold leading-snug">{t.name}</p>
+                <p className="mt-0.5 text-sm" style={{ color: B.muted }}>{t.subject}</p>
+              </div>
+            )
+          })}
+        </div>
+        <p className="mt-4 text-sm" style={{ color: B.muted }}>Сонымен қатар: {MORE_SUBJECTS.join(', ').toLowerCase().replace(/қазақстан/, 'Қазақстан')}.</p>
       </section>
 
       {/* Қалай оқимыз */}

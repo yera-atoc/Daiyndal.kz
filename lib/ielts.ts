@@ -31,7 +31,7 @@ export type IeltsContent = {
   reading?: { minutes: number; passages: ReadingPassage[] }
   writing?: { minutes: number; task1: WritingTask; task2: WritingTask; build?: QGroup[] }
   speaking?: { parts: SpeakingPart[] }
-  ubt?: UbtContent // ҰБТ пробный (exam = 'ubt')
+  ubt?: UbtContent // ҰБТ сынағы (exam = 'ubt')
 }
 
 export type IeltsTest = {

@@ -5,13 +5,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Runner, { UbtAnswer, UbtResult, type AttemptView } from '@/components/ielts/Runner'
 import { UBT_COMBOS, comboName } from '@/lib/ubt'
+import { UbtPlanView, UbtTrend } from '@/components/ielts/UbtGrowth'
 import Questions, { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
 import { CEFR, SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, isCorrect, sectionItems, type Exam, type Scores, type Section } from '@/lib/ielts'
 
 // ── Әр емтиханның өз беті: /ubt, /ielts, /toefl ─────────────────────────────
 
 export const EXAMS: Record<Exam, { name: string; title: string; tagline: string; accent: string; soft: string; href: string; materials?: string }> = {
-  ubt: { name: 'ҰБТ', title: 'ҰБТ пробный', tagline: '120 тапсырма · 140 балл · 240 минут', accent: '#2B6BF3', soft: '#EEF3FE', href: '/ubt' },
+  ubt: { name: 'ҰБТ', title: 'ҰБТ сынағы', tagline: '120 тапсырма · 140 балл · 240 минут', accent: '#2B6BF3', soft: '#EEF3FE', href: '/ubt' },
   ielts: { name: 'IELTS', title: 'IELTS mock', tagline: 'Listening · Reading · Writing · Speaking', accent: '#E5383B', soft: '#FDEDEE', href: '/ielts', materials: '/ielts/materials' },
   toefl: { name: 'TOEFL', title: 'TOEFL iBT mock', tagline: 'Reading · Listening · Writing · Speaking · 2026 формат', accent: '#0B0F19', soft: '#EDEFF3', href: '/toefl', materials: '/ielts/materials' },
 }
@@ -139,6 +140,31 @@ export default function Portal({ exam }: { exam: Exam }) {
 
       {err && <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>}
 
+      {exam === 'ubt' && (() => {
+        // Менің өсуім: сынақтан сынаққа балл және келесі сынаққа жоспар
+        const hist = done
+          .filter((a) => a.scores?.ubt)
+          .sort((a, b) => (a.submitted_at ?? a.started_at).localeCompare(b.submitted_at ?? b.started_at))
+        if (!hist.length) return null
+        const last = hist[hist.length - 1]
+        return (
+          <section className="mt-5 grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+            <div className="rounded-3xl bg-white p-5 ring-1 ring-[#E3E7F0] sm:p-6">
+              <h2 className="font-display text-lg font-semibold">Менің өсуім</h2>
+              <div className="mt-4">
+                <UbtTrend points={hist.slice(-8).map((a) => ({ label: date(a.submitted_at ?? a.started_at), total: a.scores.ubt!.total, max: a.scores.ubt!.max }))} />
+              </div>
+              <a href={`/ubt/report?a=${last.id}`} className="mt-5 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold text-white" style={{ background: INK }}>
+                Соңғы нәтиженің PDF есебі
+              </a>
+            </div>
+            <div className="rounded-3xl bg-white p-5 ring-1 ring-[#E3E7F0] sm:p-6">
+              <UbtPlanView s={last.scores.ubt!} />
+            </div>
+          </section>
+        )
+      })()}
+
       <div className="mt-5 space-y-4">
         {tests.map((t) => (
           <TestCard key={t.id} t={t} exam={exam} busy={busy} onOpen={open} onStart={() => (exam === 'ubt' ? setPick(t.id) : start(t.id))} />
@@ -217,8 +243,8 @@ function Switcher({ exam, count, className = 'flex' }: { exam: Exam; count: (x: 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-white/80 px-3 py-2.5 sm:px-4">
-      <div className="truncate text-[10px] font-semibold uppercase tracking-wider sm:text-[11px]" style={{ color: MUTED }}>{label}</div>
-      <div className="text-lg font-bold tabular-nums">{value}</div>
+      <div className="truncate text-xs" style={{ color: MUTED }}>{label}</div>
+      <div className="whitespace-nowrap text-lg font-bold tabular-nums">{value}</div>
     </div>
   )
 }
@@ -561,7 +587,15 @@ function UbtReview({ v }: { v: AttemptView }) {
   return (
     <>
       <h1 className="mt-3 text-2xl font-bold">{v.test.title}</h1>
-      {sc && <UbtResult s={sc} />}
+      {sc && (
+        <>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a href={`/ubt/report?a=${v.attempt.id}`} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white" style={{ background: INK }}>PDF есеп</a>
+          </div>
+          <UbtResult s={sc} />
+          <div className="mt-4 rounded-3xl bg-white p-5 ring-1 ring-[#E3E7F0] sm:p-6"><UbtPlanView s={sc} /></div>
+        </>
+      )}
       {v.attempt.published ? (
         [...u.compulsory, ...u.profile].map((s) => (
           <section key={s.key} className="mt-5 rounded-2xl border bg-white p-5" style={{ borderColor: LINE }}>

@@ -18,9 +18,7 @@ const config: Config = {
         sky: '#5B93A3',
       },
       fontFamily: {
-        serif: ['var(--font-pt-serif)', 'Georgia', 'serif'],
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        hand: ['var(--font-caveat)', 'cursive'],
       },
       backgroundImage: {
         chalk: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.05), transparent 45%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04), transparent 40%)',

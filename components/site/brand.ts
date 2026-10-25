@@ -19,3 +19,14 @@ export const CONTACT = {
 
 export const waLink = (text = 'Сәлеметсіз бе! Beles education орталығы туралы білгім келеді.') =>
   `https://wa.me/${CONTACT.wa}?text=${encodeURIComponent(text)}`
+
+// Мұғалімдер (басты беттегі «Мұғалімдер» бөлімі). Жаңа мұғалімді осы тізімге қосу жеткілікті.
+export const TEACHERS: { name: string; subject: string }[] = [
+  { name: 'Yernar Belgibayev', subject: 'Ағылшын тілі' },
+  { name: 'Айдын Әбілқайыр', subject: 'Математика' },
+  { name: 'Жолтай Қайрат', subject: 'Математика' },
+  { name: 'Асан', subject: 'Физика' },
+  { name: 'Ақниет Рамазанова', subject: 'Қазақ тілі' },
+]
+// Аты әлі қосылмаған, бірақ сабағы бар пәндер
+export const MORE_SUBJECTS = ['Қазақстан тарихы', 'Дүниежүзі тарихы', 'Информатика', 'Химия', 'Орыс тілі']

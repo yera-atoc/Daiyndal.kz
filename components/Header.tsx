@@ -6,6 +6,7 @@ import { B } from './site/brand'
 
 const NAV: [string, string][] = [
   ['Бағдарламалар', '/#programs'],
+  ['Мұғалімдер', '/#teachers'],
   ['Платформа', '/#platform'],
   ['Материалдар', '/materials'],
   ['Байланыс', '/#contact'],
