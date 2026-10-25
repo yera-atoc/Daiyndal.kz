@@ -8,7 +8,7 @@ export default function AuthShell({ title, subtitle, children, wide = false }: {
       <Link href="/" aria-label="Басты бет" className="mb-8 rounded-xl bg-white px-3 py-2">
         <img src="/beles-logo.png" alt="Beles education" className="h-10 w-auto" />
       </Link>
-      <div className={`w-full ${wide ? 'max-w-4xl' : 'max-w-sm'} rounded-3xl border bg-white p-6 shadow-sm sm:p-8`} style={{ borderColor: B.line }}>
+      <div className={`w-full ${wide ? 'max-w-md' : 'max-w-sm'} rounded-3xl border bg-white p-6 shadow-sm sm:p-8`} style={{ borderColor: B.line }}>
         <h1 className="font-display text-xl font-semibold sm:text-2xl">{title}</h1>
         {subtitle && <p className="mt-2 text-sm leading-relaxed" style={{ color: B.muted }}>{subtitle}</p>}
         <div className="mt-6">{children}</div>
