@@ -37,7 +37,7 @@ export default function TeacherLoginPage() {
   }
 
   return (
-    <AuthShell title="Мұғалім кабинеті" subtitle="Логин мен құпия сөзді әкімші береді. Кіргеннен кейін материалдар, тесттер және оқушы жұмыстары ашылады.">
+    <AuthShell title="Мұғалім кабинеті" subtitle="Логин мен құпия сөзді орталық әкімшісі береді.">
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block text-sm font-medium">
           Логин

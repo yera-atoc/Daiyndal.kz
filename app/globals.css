@@ -25,3 +25,8 @@ body {
 }
 
 .font-display { font-family: var(--font-display), var(--font-inter), system-ui, sans-serif; }
+
+/* Beles жолақтары: логотиптегі тік штрихтар. Бет ашылғанда бір рет өседі. */
+@keyframes stripe-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.stripe { transform-origin: bottom; animation: stripe-rise .9s cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .stripe { animation: none; } }
