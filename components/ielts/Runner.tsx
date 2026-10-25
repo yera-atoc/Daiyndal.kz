@@ -19,14 +19,14 @@ export type AttemptView = {
     id: string
     status: 'in_progress' | 'submitted' | 'graded'
     state: AttemptState
-    answers: Partial<Record<'listening' | 'reading', Record<string, string>>>
+    answers: Partial<Record<'listening' | 'reading' | 'build', Record<string, string>>>
     writing: { task1?: string; task2?: string }
     speaking: Record<string, string>
     published: boolean
     scores: any
     feedback: any
   }
-  test: { id: string; title: string; variant: 'academic' | 'general'; mode: 'exam' | 'practice'; content: IeltsContent }
+  test: { id: string; title: string; exam?: 'ielts' | 'toefl'; variant: 'academic' | 'general'; mode: 'exam' | 'practice'; content: IeltsContent }
   now: number
   deadline: number | null
 }
@@ -222,7 +222,7 @@ function LRSection({ v, sec, exam, now, saveRef }: { v: AttemptView; sec: 'liste
         <span className="ml-auto self-center"><SaveBadge s={status} /></span>
       </div>
 
-      {sec === 'reading' && p ? (
+      {sec === 'reading' && p && p.text?.trim() ? (
         <div className="grid flex-1 md:grid-cols-2" style={{ minHeight: 0 }}>
           <article className="overflow-y-auto border-b px-6 py-5 md:max-h-[calc(100vh-170px)] md:border-b-0 md:border-r" style={{ borderColor: LINE }}>
             <h2 className="text-xl font-bold">{p.title}</h2>
@@ -304,28 +304,47 @@ function ListeningAudio({ v, exam, now }: { v: AttemptView; exam: boolean; now: 
 
 function WritingSection({ v, saveRef }: { v: AttemptView; saveRef: React.MutableRefObject<(() => Promise<void>) | null> }) {
   const w = v.test.content.writing!
-  const [task, setTask] = useState<'task1' | 'task2'>('task1')
+  const toefl = v.test.exam === 'toefl'
+  const build = w.build?.filter((g) => g.items.length) ?? []
+  const [task, setTask] = useState<'build' | 'task1' | 'task2'>(build.length ? 'build' : 'task1')
   const [text, setText] = useState({ task1: v.attempt.writing?.task1 ?? '', task2: v.attempt.writing?.task2 ?? '' })
+  const [built, setBuilt] = useState<Record<string, string>>(v.attempt.answers?.build ?? {})
   const status = useAutosave(
-    useCallback(() => call({ action: 'save', id: v.attempt.id, section: 'writing', writing: text }).then(() => {}), [text, v.attempt.id]),
-    [text],
+    useCallback(() => call({ action: 'save', id: v.attempt.id, section: 'writing', writing: text, ...(build.length ? { build: built } : {}) }).then(() => {}), [text, built, build.length, v.attempt.id]),
+    [text, built],
     saveRef
   )
+  const label = (k: 'build' | 'task1' | 'task2') => (k === 'build' ? 'Build a Sentence' : toefl ? (k === 'task1' ? 'Write an Email' : 'Academic Discussion') : k === 'task1' ? 'Task 1' : 'Task 2')
+  const tabs = (build.length ? ['build', 'task1', 'task2'] : ['task1', 'task2']) as ('build' | 'task1' | 'task2')[]
+  const tabBar = (
+    <div className="flex gap-1 border-b px-4" style={{ borderColor: LINE }}>
+      {tabs.map((k) => (
+        <button key={k} onClick={() => setTask(k)} className="-mb-px border-b-2 px-3 py-2 text-sm font-semibold" style={{ borderColor: k === task ? BLUE : 'transparent', color: k === task ? BLUE : MUTED }}>
+          {label(k)} <span className="font-normal">· {k === 'build' ? `${Object.values(built).filter(Boolean).length}/${build.reduce((n, g) => n + g.items.length, 0)}` : `${wordCount(text[k])} сөз`}</span>
+        </button>
+      ))}
+      <span className="ml-auto self-center"><SaveBadge s={status} /></span>
+    </div>
+  )
+  if (task === 'build') {
+    return (
+      <>
+        {tabBar}
+        <div className="mx-auto w-full max-w-3xl flex-1 px-6 py-5">
+          <Questions groups={build} answers={built} onChange={(n, val) => setBuilt((a) => ({ ...a, [n]: val }))} />
+        </div>
+      </>
+    )
+  }
   const t = w[task]
   const wc = wordCount(text[task])
+  const hint = toefl ? `You have about ${task === 'task1' ? 7 : 10} minutes for this task.${t.minWords ? ` Write at least ${t.minWords} words.` : ''}` : `You should spend about ${task === 'task1' ? 20 : 40} minutes on this task. Write at least ${t.minWords} words.`
   return (
     <>
-      <div className="flex gap-1 border-b px-4" style={{ borderColor: LINE }}>
-        {(['task1', 'task2'] as const).map((k) => (
-          <button key={k} onClick={() => setTask(k)} className="-mb-px border-b-2 px-3 py-2 text-sm font-semibold" style={{ borderColor: k === task ? BLUE : 'transparent', color: k === task ? BLUE : MUTED }}>
-            {k === 'task1' ? 'Task 1' : 'Task 2'} <span className="font-normal">· {wordCount(text[k])} сөз</span>
-          </button>
-        ))}
-        <span className="ml-auto self-center"><SaveBadge s={status} /></span>
-      </div>
+      {tabBar}
       <div className="grid flex-1 md:grid-cols-2">
         <article className="border-b px-6 py-5 md:border-b-0 md:border-r" style={{ borderColor: LINE }}>
-          <p className="text-sm font-semibold" style={{ color: MUTED }}>You should spend about {task === 'task1' ? 20 : 40} minutes on this task. Write at least {t.minWords} words.</p>
+          <p className="text-sm font-semibold" style={{ color: MUTED }}>{hint}</p>
           <div className="mt-3 whitespace-pre-wrap text-[16px] leading-7">{t.prompt}</div>
           {t.image && <img src={t.image} alt="Task 1 chart" className="mt-4 max-h-[420px] w-full rounded-lg border object-contain" style={{ borderColor: LINE }} />}
         </article>
@@ -353,9 +372,17 @@ function WritingSection({ v, saveRef }: { v: AttemptView; saveRef: React.Mutable
 
 function SpeakingSection({ v, onDone }: { v: AttemptView; onDone: () => void }) {
   const parts = v.test.content.speaking?.parts ?? []
+  const toefl = v.test.exam === 'toefl'
   const steps = useMemo(
-    () => parts.flatMap((p, pi) => (pi === 1 ? [{ pi, qi: 0, key: `p2q0`, text: p.cueCard || p.questions[0] || '', cue: true }] : p.questions.map((q, qi) => ({ pi, qi, key: `p${pi + 1}q${qi}`, text: q, cue: false })))),
-    [parts]
+    () =>
+      toefl
+        ? parts.flatMap((p, pi) => p.questions.map((q, qi) => ({ pi, qi, key: `p${pi + 1}q${qi}`, text: p.hideText ? '' : q, cue: false, audio: p.audios?.[qi], limit: p.limit ?? 45, prep: 0 })))
+        : parts.flatMap((p, pi) =>
+            pi === 1
+              ? [{ pi, qi: 0, key: `p2q0`, text: p.cueCard || p.questions[0] || '', cue: true, audio: undefined as string | undefined, limit: SPEAK_LIMIT.p2talk, prep: SPEAK_LIMIT.p2prep }]
+              : p.questions.map((q, qi) => ({ pi, qi, key: `p${pi + 1}q${qi}`, text: q, cue: false, audio: undefined as string | undefined, limit: pi === 0 ? SPEAK_LIMIT.p1 : SPEAK_LIMIT.p3, prep: 0 }))
+          ),
+    [parts, toefl]
   )
   const [done, setDone] = useState<Record<string, string>>(v.attempt.speaking ?? {})
   const startIdx = steps.findIndex((s) => !done[s.key])
@@ -382,8 +409,9 @@ function SpeakingSection({ v, onDone }: { v: AttemptView; onDone: () => void }) 
         stepKey={step.key}
         text={step.text}
         cue={step.cue}
-        limit={step.pi === 0 ? SPEAK_LIMIT.p1 : step.pi === 1 ? SPEAK_LIMIT.p2talk : SPEAK_LIMIT.p3}
-        prep={step.cue ? SPEAK_LIMIT.p2prep : 0}
+        audio={step.audio}
+        limit={step.limit}
+        prep={step.prep}
         onSaved={(u) => {
           setDone((d) => ({ ...d, [step.key]: u }))
           setI(i + 1)
@@ -393,8 +421,9 @@ function SpeakingSection({ v, onDone }: { v: AttemptView; onDone: () => void }) 
   )
 }
 
-function Recorder({ attemptId, stepKey, text, cue, limit, prep, onSaved }: { attemptId: string; stepKey: string; text: string; cue: boolean; limit: number; prep: number; onSaved: (url: string) => void }) {
-  const [phase, setPhase] = useState<'idle' | 'prep' | 'rec' | 'upload' | 'error'>('idle')
+function Recorder({ attemptId, stepKey, text, cue, audio, limit, prep, onSaved }: { attemptId: string; stepKey: string; text: string; cue: boolean; audio?: string; limit: number; prep: number; onSaved: (url: string) => void }) {
+  const [phase, setPhase] = useState<'idle' | 'play' | 'prep' | 'rec' | 'upload' | 'error'>('idle')
+  const player = useRef<HTMLAudioElement>(null)
   const [count, setCount] = useState(0)
   const [err, setErr] = useState('')
   const rec = useRef<MediaRecorder | null>(null)
@@ -448,19 +477,33 @@ function Recorder({ attemptId, stepKey, text, cue, limit, prep, onSaved }: { att
 
   return (
     <div className="mt-4 rounded-2xl border p-6" style={{ borderColor: LINE }}>
+      {audio && <audio ref={player} src={audio} preload="auto" onEnded={() => startRec()} />}
       {cue ? (
         <div className="whitespace-pre-wrap rounded-xl border p-5 text-[16px] leading-7" style={{ borderColor: INK }}>{text}</div>
-      ) : (
+      ) : text ? (
         <p className="text-xl font-semibold leading-8">{text}</p>
+      ) : (
+        <p className="text-lg font-semibold" style={{ color: MUTED }}>🔊 Сөйлемді тыңдап, дәл солай қайталаңыз.</p>
       )}
+      {phase === 'play' && <p className="mt-4 font-semibold" style={{ color: BLUE }}>Тыңдаңыз… аудио біткенде жазу өзі басталады.</p>}
       <div className="mt-6 flex flex-wrap items-center gap-4">
         {(phase === 'idle' || phase === 'error') && (
           <button
-            onClick={() => (prep ? (setCount(prep), setPhase('prep')) : startRec())}
+            onClick={() => {
+              if (audio && player.current) {
+                setErr('')
+                setPhase('play')
+                player.current.currentTime = 0
+                player.current.play().catch(() => startRec())
+              } else if (prep) {
+                setCount(prep)
+                setPhase('prep')
+              } else startRec()
+            }}
             className="rounded-full px-6 py-3 font-semibold text-white"
             style={{ background: '#DC2626' }}
           >
-            {prep ? '▶ Дайындықты бастау (1 минут)' : '● Жауапты жазу'}
+            {audio ? '▶ Тыңдау және жауап беру' : prep ? '▶ Дайындықты бастау (1 минут)' : '● Жауапты жазу'}
           </button>
         )}
         {phase === 'prep' && <span className="text-lg font-semibold">Дайындық: {count} с · жазбалар жасай аласыз</span>}

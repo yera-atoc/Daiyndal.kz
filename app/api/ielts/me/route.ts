@@ -15,7 +15,7 @@ export async function GET() {
     const { data: acc } = await sb.from('ielts_access').select('test_id, attempts_allowed').eq('student_id', me.id)
     const ids = (acc ?? []).map((a) => a.test_id)
     const [{ data: tests }, { data: attempts }] = await Promise.all([
-      ids.length ? sb.from('ielts_tests').select('id, title, variant, mode, content, published').in('id', ids).eq('published', true) : Promise.resolve({ data: [] as any[] }),
+      ids.length ? sb.from('ielts_tests').select('*').in('id', ids).eq('published', true) : Promise.resolve({ data: [] as any[] }),
       sb.from('ielts_attempts').select('id, test_id, status, scores, published, started_at, submitted_at, state').eq('student_id', me.id).order('started_at', { ascending: false }),
     ])
     const list = (tests ?? []).map((t: IeltsTest) => {
@@ -24,6 +24,7 @@ export async function GET() {
       return {
         id: t.id,
         title: t.title,
+        exam: t.exam ?? 'ielts',
         variant: t.variant,
         mode: t.mode,
         sections: sectionsOf(t.content),

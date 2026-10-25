@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Runner, { type AttemptView } from '@/components/ielts/Runner'
 import Questions, { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
-import { SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, isCorrect, sectionItems, type Scores, type Section } from '@/lib/ielts'
+import { CEFR, EXAM_NAME, SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, isCorrect, sectionItems, type Exam, type Scores, type Section } from '@/lib/ielts'
 
 type Row = { id: string; name: string; group: string }
 type MyTest = {
   id: string
   title: string
+  exam: Exam
   variant: 'academic' | 'general'
   mode: 'exam' | 'practice'
   sections: Section[]
@@ -58,7 +59,7 @@ export default function IeltsStudentPage() {
       <header className="border-b bg-white" style={{ borderColor: LINE }}>
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
           <img src="/beles-logo.png" alt="Beles" className="h-8 w-auto" />
-          <div className="ml-1 border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>IELTS mock</div>
+          <div className="ml-1 border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>IELTS · TOEFL mock</div>
           <a href="/ielts/materials" className="ml-auto text-sm font-semibold" style={{ color: BLUE }}>Дайындық материалдары</a>
           <div className="ml-4 text-right text-sm">
             <div className="font-semibold">{me.student.full_name}</div>
@@ -88,7 +89,7 @@ export default function IeltsStudentPage() {
                   <div className="min-w-0 flex-1">
                     <h2 className="text-lg font-bold">{t.title}</h2>
                     <div className="mt-1 text-sm" style={{ color: MUTED }}>
-                      {t.variant === 'academic' ? 'Academic' : 'General Training'} · {t.sections.map((s) => SECTION_NAME[s]).join(', ')} · {t.mode === 'exam' ? 'емтихан режимі (уақытпен)' : 'жаттығу'}
+                      {t.exam === 'toefl' ? 'TOEFL iBT' : t.variant === 'academic' ? 'IELTS Academic' : 'IELTS General Training'} · {t.sections.map((s) => SECTION_NAME[s]).join(', ')} · {t.mode === 'exam' ? 'емтихан режимі (уақытпен)' : 'жаттығу'}
                     </div>
                   </div>
                   {open_ ? (
@@ -153,7 +154,7 @@ function Login({ onDone }: { onDone: () => void }) {
       <div className="w-full max-w-md rounded-2xl border bg-white p-6" style={{ borderColor: LINE }}>
         <img src="/beles-logo.png" alt="Beles" className="h-9 w-auto" />
         <div className="mt-4 flex items-baseline justify-between gap-3">
-          <h1 className="text-2xl font-bold">IELTS mock</h1>
+          <h1 className="text-2xl font-bold">IELTS · TOEFL mock</h1>
           <a href="/ielts/materials" className="text-sm font-semibold" style={{ color: BLUE }}>Дайындық материалдары →</a>
         </div>
         {!sel ? (
@@ -197,6 +198,7 @@ function Review({ v, onBack }: { v: AttemptView; onBack: () => void }) {
   const c = v.test.content
   const s: Scores = a.scores ?? {}
   const order = a.state.order
+  const toefl = v.test.exam === 'toefl'
   return (
     <main className="min-h-screen" style={{ background: '#F5F7FB', color: INK }}>
       <div className="mx-auto max-w-4xl px-4 py-6">
@@ -215,6 +217,7 @@ function Review({ v, onBack }: { v: AttemptView; onBack: () => void }) {
             <div className="text-xs font-semibold uppercase opacity-70">Overall</div>
             <div className="mt-1 text-3xl font-bold">{a.published ? band(s.overall) : '…'}</div>
             {!a.published && <div className="text-xs opacity-70">мұғалім тексеруде</div>}
+            {a.published && toefl && typeof s.overall === 'number' && <div className="text-xs opacity-70">1–6 шкала · CEFR {CEFR[s.overall] ?? ''}</div>}
           </div>
         </div>
 
@@ -230,13 +233,31 @@ function Review({ v, onBack }: { v: AttemptView; onBack: () => void }) {
           </section>
         )}
 
-        {a.published && s.writing && (
+        {a.published && toefl && (s.writing || s.speaking) && (
+          <section className="mt-5 rounded-xl border bg-white p-5" style={{ borderColor: LINE }}>
+            <h2 className="font-bold">Тапсырмалар бойынша (1–6)</h2>
+            <table className="mt-3 w-full text-sm">
+              <tbody>
+                {([
+                  ['Build a Sentence', s.writing?.build ? `${band(s.writing.build.band)} (${s.writing.build.raw}/${s.writing.build.of})` : null],
+                  ['Write an Email', s.writing?.email],
+                  ['Academic Discussion', s.writing?.discussion],
+                  ['Listen and Repeat', s.speaking?.repeat],
+                  ['Take an Interview', s.speaking?.interview],
+                ] as [string, number | string | null | undefined][]).filter(([, x]) => x !== undefined && x !== null).map(([k, x]) => (
+                  <tr key={k} className="border-t" style={{ borderColor: LINE }}><td className="py-2">{k}</td><td className="py-2 text-right font-bold">{typeof x === 'number' ? band(x) : x}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+        {a.published && !toefl && s.writing && (
           <section className="mt-5 rounded-xl border bg-white p-5" style={{ borderColor: LINE }}>
             <h2 className="font-bold">Writing критерийлері</h2>
             <CriteriaTable rows={WRITING_CRITERIA} cols={[['Task 1', s.writing.task1], ['Task 2', s.writing.task2]]} />
           </section>
         )}
-        {a.published && s.speaking && (
+        {a.published && !toefl && s.speaking && (
           <section className="mt-5 rounded-xl border bg-white p-5" style={{ borderColor: LINE }}>
             <h2 className="font-bold">Speaking критерийлері</h2>
             <CriteriaTable rows={SPEAKING_CRITERIA} cols={[['Band', s.speaking.criteria]]} />

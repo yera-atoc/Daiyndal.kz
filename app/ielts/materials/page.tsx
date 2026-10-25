@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'IELTS дайындық материалдары · Beles' }
+export const metadata: Metadata = { title: 'IELTS · TOEFL дайындық материалдары · Beles' }
 
 const INK = '#111827'
 const BLUE = '#2B6BF3'
@@ -44,6 +44,13 @@ const FORMAT = [
   ['Reading', '60 мин', '3 мәтін · 40 сұрақ', 'Мәтіндер журнал, кітап, газеттен алынады. Қосымша уақыт берілмейді.'],
   ['Writing', '60 мин', '2 тапсырма', 'Task 1 — график/кестені сипаттау (≥150 сөз, ~20 мин). Task 2 — эссе (≥250 сөз, ~40 мин). Task 2 екі есе салмақты.'],
   ['Speaking', '11–14 мин', '3 бөлім', 'Емтихан алушымен бетпе-бет сұхбат: таныстыру, 2 минуттық монолог, талқылау.'],
+]
+
+const TOEFL_FORMAT = [
+  ['Reading', '≈ 30 мин', 'Complete the Words · Read in Daily Life · Read an Academic Passage', 'Сөздердің жетпейтін әріптерін толтыру, күнделікті мәтіндер (email, хабарландыру), ~200 сөздік академиялық мәтін.'],
+  ['Listening', '≈ 29 мин', 'Choose a Response · Conversation · Announcement · Academic Talk', 'Қысқа сөзге дұрыс жауап таңдау, диалогтар, хабарландырулар, қысқа дәрістер.'],
+  ['Writing', '≈ 23 мин', 'Build a Sentence · Write an Email (7 мин) · Academic Discussion (10 мин)', 'Сөздерден сөйлем құрау, жағдайға email жазу, форумдағы талқылауға пікір жазу.'],
+  ['Speaking', '≈ 8 мин', 'Listen and Repeat · Take an Interview', 'Естіген сөйлемді дәл қайталау; сұхбат сұрақтарына 45 секундтан жауап беру.'],
 ]
 
 const BANDS: [string, string, string][] = [
@@ -90,7 +97,7 @@ export default function IeltsMaterialsPage() {
       <header className="border-b bg-white" style={{ borderColor: LINE }}>
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
           <img src="/beles-logo.png" alt="Beles" className="h-8 w-auto" />
-          <div className="border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>IELTS · дайындық материалдары</div>
+          <div className="border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>IELTS · TOEFL · дайындық материалдары</div>
           <Link href="/ielts" className="ml-auto rounded-lg px-3 py-2 text-sm font-semibold text-white" style={{ background: INK }}>Mock тесттер →</Link>
         </div>
       </header>
@@ -112,7 +119,34 @@ export default function IeltsMaterialsPage() {
           <p className="mt-3 text-sm" style={{ color: MUTED }}>Overall band — төрт бөлімнің орташасы, ең жақын 0,5-ке дөңгелектенеді (мысалы, 6,25 → 6,5; 6,75 → 7,0).</p>
         </Section>
 
-        <Section title="Ресми тегін практикалық тесттер" note="Сілтемелер ресми сайттарға апарады. Материалдар British Council, IDP және Cambridge-ке тиесілі.">
+        <Section title="TOEFL iBT форматы (2026 жылдан бастап)" note="2026 жылдың 21 қаңтарынан бастап TOEFL iBT жаңартылды: тест қысқарды (≈ 1,5–2 сағат), Reading мен Listening бейімделгіш (adaptive).">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left" style={{ color: MUTED }}><th className="py-2 pr-3 font-medium">Бөлім</th><th className="pr-3 font-medium">Уақыт</th><th className="pr-3 font-medium">Тапсырмалар</th><th className="font-medium">Не істейсіз</th></tr></thead>
+              <tbody>
+                {TOEFL_FORMAT.map(([sec, t, q, d]) => (
+                  <tr key={sec} className="border-t align-top" style={{ borderColor: LINE }}>
+                    <td className="py-2 pr-3 font-bold">{sec}</td><td className="whitespace-nowrap pr-3">{t}</td><td className="pr-3">{q}</td><td className="py-2">{d}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-sm" style={{ color: MUTED }}>Нәтиже 1–6 шкаласымен беріледі (0,5 қадаммен), шамамен CEFR деңгейіне сәйкес: 6 ≈ C2, 5 ≈ C1, 4 ≈ B2, 3 ≈ B1. Overall — төрт бөлімнің орташасы. 2028 жылға дейін 0–120 шкаласындағы балл да қоса беріледі.</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {[
+              ['ETS · TOEFL дайындық', 'Ресми тегін практикалық тесттер мен сұрақ үлгілері', 'https://www.ets.org/toefl/prepare'],
+              ['ETS · Тест құрылымы', 'Әр бөлімнің ресми сипаттамасы', 'https://www.ets.org/toefl/ibt/about/content/'],
+            ].map(([t, d, href]) => (
+              <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="flex items-start justify-between gap-3 rounded-xl border bg-white p-3 hover:border-[#2B6BF3]" style={{ borderColor: LINE }}>
+                <span><span className="block font-semibold">{t}</span><span className="text-sm" style={{ color: MUTED }}>{d}</span></span>
+                <span style={{ color: BLUE }}>↗</span>
+              </a>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="IELTS: ресми тегін практикалық тесттер" note="Сілтемелер ресми сайттарға апарады. Материалдар British Council, IDP және Cambridge-ке тиесілі.">
           <div className="space-y-5">
             {OFFICIAL.map((g) => (
               <div key={g.org}>
@@ -130,14 +164,14 @@ export default function IeltsMaterialsPage() {
           </div>
         </Section>
 
-        <Section title="Listening және Reading: дұрыс жауап → band" note="40 сұраққа шаққанда шамамен. Beles mock тесттері осы кесте бойынша бағаланады.">
+        <Section title="IELTS Listening және Reading: дұрыс жауап → band" note="40 сұраққа шаққанда шамамен. Beles mock тесттері осы кесте бойынша бағаланады.">
           <table className="w-full max-w-md text-sm">
             <thead><tr className="text-left" style={{ color: MUTED }}><th className="py-1 font-medium">Listening</th><th className="font-medium">Academic Reading</th><th className="font-medium">Band</th></tr></thead>
             <tbody>{BANDS.map(([l, r, b]) => <tr key={b} className="border-t" style={{ borderColor: LINE }}><td className="py-1.5">{l}</td><td>{r}</td><td className="font-bold">{b}</td></tr>)}</tbody>
           </table>
         </Section>
 
-        <Section title="Writing және Speaking қалай бағаланады">
+        <Section title="IELTS Writing және Speaking қалай бағаланады">
           <div className="grid gap-4 sm:grid-cols-2">
             <Card title="Writing · 4 критерий" items={['Task Achievement / Response — тапсырманы толық орындау', 'Coherence & Cohesion — логикалық құрылым, байланыстырғыш сөздер', 'Lexical Resource — сөздік қор, дәлдік', 'Grammatical Range & Accuracy — грамматиканың әртүрлілігі мен дұрыстығы']} />
             <Card title="Speaking · 4 критерий" items={['Fluency & Coherence — еркін әрі түсінікті сөйлеу', 'Lexical Resource — сөздік қор', 'Grammatical Range & Accuracy — грамматика', 'Pronunciation — айтылым']} />

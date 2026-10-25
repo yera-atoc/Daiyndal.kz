@@ -31,7 +31,7 @@ function view(a: Attempt, t: Awaited<ReturnType<typeof getTest>>) {
       scores: a.published ? a.scores : { listening: a.scores?.listening, reading: a.scores?.reading },
       feedback: a.published ? a.feedback : {},
     },
-    test: { id: t!.id, title: t!.title, variant: t!.variant, mode: t!.mode, content: review ? t!.content : stripAnswers(t!.content) },
+    test: { id: t!.id, title: t!.title, exam: t!.exam ?? 'ielts', variant: t!.variant, mode: t!.mode, content: review ? t!.content : stripAnswers(t!.content) },
     now: Date.now(),
     deadline: sec ? deadline(t!, a, sec) : null,
   }
@@ -85,7 +85,15 @@ export async function POST(req: NextRequest) {
         if (error) return bad(error.message, 500)
       } else if (sec === 'writing') {
         const w = { task1: String(b.writing?.task1 ?? '').slice(0, 20000), task2: String(b.writing?.task2 ?? '').slice(0, 20000) }
-        const { error } = await sb.from('ielts_attempts').update({ writing: w }).eq('id', a.id)
+        const patch: Record<string, unknown> = { writing: w }
+        // TOEFL Build a Sentence жауаптары
+        if (b.build && typeof b.build === 'object') {
+          const valid = new Set(sectionItems(t.content, 'build').map((it) => String(it.n)))
+          const ans: Record<string, string> = {}
+          for (const [k, v] of Object.entries(b.build)) if (valid.has(k)) ans[k] = String(v ?? '').slice(0, 300)
+          patch.answers = { ...a.answers, build: ans }
+        }
+        const { error } = await sb.from('ielts_attempts').update(patch).eq('id', a.id)
         if (error) return bad(error.message, 500)
       }
       return NextResponse.json({ ok: true })

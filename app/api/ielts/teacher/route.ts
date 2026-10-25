@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { canEdit, db, getAttempt, getTest, randomPin, staff } from '@/lib/ieltsServer'
-import { overallBand, speakingBand, writingBand, type Attempt, type IeltsTest, type Scores } from '@/lib/ielts'
+import { overallBand, speakingBand, toeflOverall, toeflSpeakingBand, toeflWritingBand, writingBand, type Attempt, type IeltsTest, type Scores } from '@/lib/ielts'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -31,9 +31,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ attempt: a, test: t, student: st })
   }
 
-  let tq = sb.from('ielts_tests').select('id, teacher_id, title, variant, mode, published, created_at, updated_at').order('created_at', { ascending: false })
-  if (!who.admin) tq = tq.eq('teacher_id', who.teacherId!)
-  const { data: tests, error } = await tq
+  // exam бағаны migration_toefl.sql іске қосылғанға дейін болмауы мүмкін
+  const listTests = async (cols: string) => {
+    let tq = sb.from('ielts_tests').select(cols).order('created_at', { ascending: false })
+    if (!who.admin) tq = tq.eq('teacher_id', who.teacherId!)
+    return tq
+  }
+  let { data: tests, error } = (await listTests('id, teacher_id, title, exam, variant, mode, published, created_at, updated_at')) as { data: any[] | null; error: any }
+  if (error && /exam/.test(error.message)) ({ data: tests, error } = (await listTests('id, teacher_id, title, variant, mode, published, created_at, updated_at')) as { data: any[] | null; error: any })
   if (error) return bad(error.message, 500)
   const ids = (tests ?? []).map((t) => t.id)
   const [teacher, students, groups, access, attempts] = await Promise.all([
@@ -62,13 +67,14 @@ const num = (v: unknown, lo: number, hi: number, d: number) => Math.min(hi, Math
 
 function cleanGroups(gs: any): any[] {
   return (Array.isArray(gs) ? gs : []).slice(0, 20).map((g: any) => ({
-    type: ['mcq', 'tfng', 'ynng', 'gap', 'matching'].includes(g?.type) ? g.type : 'gap',
+    type: ['mcq', 'tfng', 'ynng', 'gap', 'matching', 'cloze', 'order'].includes(g?.type) ? g.type : 'gap',
     instructions: clip(g?.instructions, 1000),
+    ...(g?.text ? { text: clip(g.text, 6000) } : {}),
     ...(Array.isArray(g?.options) ? { options: g.options.slice(0, 15).map((o: any) => clip(o, 300)) } : {}),
     items: (Array.isArray(g?.items) ? g.items : []).slice(0, 40).map((it: any) => ({
-      n: num(it?.n, 1, 40, 1),
+      n: num(it?.n, 1, 80, 1),
       prompt: clip(it?.prompt, 1000),
-      ...(Array.isArray(it?.options) ? { options: it.options.slice(0, 8).map((o: any) => clip(o, 300)) } : {}),
+      ...(Array.isArray(it?.options) ? { options: it.options.slice(0, 20).map((o: any) => clip(o, 300)) } : {}),
       answer: clip(it?.answer, 300),
     })),
   }))
@@ -79,22 +85,26 @@ function cleanContent(c: any) {
     listening: {
       audio: url(c?.listening?.audio),
       minutes: num(c?.listening?.minutes, 5, 90, 32),
-      parts: (c?.listening?.parts ?? []).slice(0, 4).map((p: any) => ({ title: clip(p?.title, 120), groups: cleanGroups(p?.groups) })),
+      parts: (c?.listening?.parts ?? []).slice(0, 12).map((p: any) => ({ title: clip(p?.title, 120), groups: cleanGroups(p?.groups) })),
     },
     reading: {
       minutes: num(c?.reading?.minutes, 5, 120, 60),
-      passages: (c?.reading?.passages ?? []).slice(0, 3).map((p: any) => ({ title: clip(p?.title, 200), text: clip(p?.text, 20000), groups: cleanGroups(p?.groups) })),
+      passages: (c?.reading?.passages ?? []).slice(0, 12).map((p: any) => ({ title: clip(p?.title, 200), text: clip(p?.text, 20000), groups: cleanGroups(p?.groups) })),
     },
     writing: {
       minutes: num(c?.writing?.minutes, 5, 120, 60),
       task1: { prompt: clip(c?.writing?.task1?.prompt, 3000), image: url(c?.writing?.task1?.image), minWords: num(c?.writing?.task1?.minWords, 50, 400, 150) },
       task2: { prompt: clip(c?.writing?.task2?.prompt, 3000), minWords: num(c?.writing?.task2?.minWords, 50, 500, 250) },
+      ...(Array.isArray(c?.writing?.build) && c.writing.build.length ? { build: cleanGroups(c.writing.build) } : {}),
     },
     speaking: {
-      parts: (c?.speaking?.parts ?? []).slice(0, 3).map((p: any) => ({
+      parts: (c?.speaking?.parts ?? []).slice(0, 4).map((p: any) => ({
         title: clip(p?.title, 120),
         questions: (Array.isArray(p?.questions) ? p.questions : []).slice(0, 15).map((q: any) => clip(q, 500)).filter(Boolean),
         ...(p?.cueCard !== undefined ? { cueCard: clip(p.cueCard, 1500) } : {}),
+        ...(Array.isArray(p?.audios) ? { audios: p.audios.slice(0, 15).map(url) } : {}),
+        ...(p?.hideText ? { hideText: true } : {}),
+        ...(p?.limit ? { limit: num(p.limit, 5, 180, 45) } : {}),
       })),
     },
   }
@@ -114,12 +124,14 @@ export async function POST(req: NextRequest) {
       if (title.length < 2) return bad('Тесттің атын жазыңыз')
       const row = {
         title,
+        exam: t.exam === 'toefl' ? 'toefl' : 'ielts',
         variant: t.variant === 'general' ? 'general' : 'academic',
         mode: t.mode === 'practice' ? 'practice' : 'exam',
         content: cleanContent(t.content),
         published: !!t.published,
         updated_at: new Date().toISOString(),
       }
+      if (row.exam === 'ielts' && t.exam !== 'toefl') delete (row as Partial<typeof row>).exam // ескі базамен үйлесімділік
       if (t.id) {
         const old = await getTest(String(t.id))
         if (!old || !canEdit(who, old)) return bad('Тест табылмады', 404)
@@ -175,6 +187,21 @@ export async function POST(req: NextRequest) {
       }
       const crit = (o: any, keys: string[]) => Object.fromEntries(keys.map((k) => [k, band(o?.[k])]))
       const scores: Scores = { ...a.scores }
+      if (t.exam === 'toefl') {
+        const b16 = (v: unknown) => {
+          const n = Number(v)
+          return v === '' || v === null || v === undefined || Number.isNaN(n) ? null : Math.min(6, Math.max(1, Math.round(n * 2) / 2))
+        }
+        if (a.state.order.includes('writing')) {
+          const w = { ...scores.writing, email: b16(b.writing?.email), discussion: b16(b.writing?.discussion) }
+          scores.writing = { ...w, band: toeflWritingBand(w) }
+        }
+        if (a.state.order.includes('speaking')) {
+          const sp = { repeat: b16(b.speaking?.repeat), interview: b16(b.speaking?.interview) }
+          scores.speaking = { ...sp, band: toeflSpeakingBand(sp) }
+        }
+        scores.overall = toeflOverall(scores, a.state.order)
+      } else {
       if (a.state.order.includes('writing')) {
         const w = { task1: crit(b.writing?.task1, ['ta', 'cc', 'lr', 'gra']), task2: crit(b.writing?.task2, ['ta', 'cc', 'lr', 'gra']) }
         scores.writing = { ...w, band: writingBand(w) }
@@ -184,6 +211,7 @@ export async function POST(req: NextRequest) {
         scores.speaking = { ...s, band: speakingBand(s) }
       }
       scores.overall = overallBand(scores, a.state.order)
+      }
       const complete = scores.overall !== null
       const patch: Partial<Attempt> = {
         scores,

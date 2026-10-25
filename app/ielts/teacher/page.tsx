@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Builder, { inp, tcall } from '@/components/ielts/Builder'
 import { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
-import { SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, speakingBand, writingBand, overallBand, wordCount, type Attempt, type IeltsTest, type Scores } from '@/lib/ielts'
+import { SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, speakingBand, writingBand, overallBand, toeflOverall, toeflSpeakingBand, toeflWritingBand, wordCount, type Attempt, type Exam, type IeltsTest, type Scores } from '@/lib/ielts'
 
 type Data = {
   me: { admin: boolean; teacher: { id: string; name: string } | null }
-  tests: (Pick<IeltsTest, 'id' | 'title' | 'variant' | 'mode' | 'published' | 'teacher_id'> & { created_at: string })[]
+  tests: (Pick<IeltsTest, 'id' | 'title' | 'exam' | 'variant' | 'mode' | 'published' | 'teacher_id'> & { created_at: string })[]
   students: { id: string; full_name: string; group_id: string | null; grade: string | null; status: string; ielts_pin: string | null }[]
   groups: { id: string; name: string }[]
   access: { test_id: string; student_id: string; attempts_allowed: number }[]
@@ -40,8 +40,8 @@ export default function IeltsTeacherPage() {
     load()
   }, [load])
 
-  const edit = async (id?: string) => {
-    if (!id) return setView({ k: 'edit', test: null })
+  const edit = async (id?: string, exam: Exam = 'ielts') => {
+    if (!id) return setView({ k: 'edit', test: exam === 'toefl' ? { exam: 'toefl' } : null })
     const r = await fetch(`/api/ielts/teacher?test=${id}`, { cache: 'no-store' })
     if (r.ok) setView({ k: 'edit', test: await r.json() })
   }
@@ -83,9 +83,10 @@ export default function IeltsTeacherPage() {
 
         <div className="mt-6 flex items-center">
           <h2 className="text-lg font-bold">Тесттер</h2>
-          <button onClick={() => edit()} className="ml-auto rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: INK }}>+ Жаңа тест</button>
+          <button onClick={() => edit()} className="ml-auto rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: INK }}>+ IELTS тест</button>
+          <button onClick={() => edit(undefined, 'toefl')} className="ml-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: BLUE }}>+ TOEFL тест</button>
         </div>
-        {!data.tests.length && <div className="mt-3 rounded-2xl border bg-white p-8 text-center text-sm" style={{ borderColor: LINE, color: MUTED }}>Әлі тест жоқ. «Жаңа тест» батырмасын басып, Listening аудиосы мен сұрақтарды енгізіңіз.</div>}
+        {!data.tests.length && <div className="mt-3 rounded-2xl border bg-white p-8 text-center text-sm" style={{ borderColor: LINE, color: MUTED }}>Әлі тест жоқ. «+ IELTS тест» немесе «+ TOEFL тест» батырмасын басып, Listening аудиосы мен сұрақтарды енгізіңіз.</div>}
         <div className="mt-3 space-y-3">
           {data.tests.map((t) => {
             const acc = data.access.filter((a) => a.test_id === t.id)
@@ -95,7 +96,7 @@ export default function IeltsTeacherPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-base font-bold">{t.title}</h3>
                   <span className="rounded px-2 py-0.5 text-xs font-semibold" style={t.published ? { background: '#DCFCE7', color: '#15803D' } : { background: '#F3F4F6', color: MUTED }}>{t.published ? 'Ашық' : 'Жабық'}</span>
-                  <span className="text-xs" style={{ color: MUTED }}>{t.variant === 'academic' ? 'Academic' : 'General'} · {t.mode === 'exam' ? 'емтихан' : 'жаттығу'}</span>
+                  <span className="text-xs" style={{ color: MUTED }}>{t.exam === 'toefl' ? 'TOEFL iBT' : t.variant === 'academic' ? 'IELTS Academic' : 'IELTS General'} · {t.mode === 'exam' ? 'емтихан' : 'жаттығу'}</span>
                   <div className="ml-auto flex gap-2">
                     <button onClick={() => edit(t.id)} className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: LINE }}>Өңдеу</button>
                     <button onClick={() => setView({ k: 'access', id: t.id })} className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: LINE }}>Оқушылар · {acc.length}</button>
@@ -149,7 +150,7 @@ function Shell({ children, data }: { children: React.ReactNode; data?: Data }) {
       <header className="border-b bg-white" style={{ borderColor: LINE }}>
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <img src="/beles-logo.png" alt="Beles" className="h-8 w-auto" />
-          <div className="border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>IELTS · мұғалім кабинеті</div>
+          <div className="border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>IELTS · TOEFL · мұғалім кабинеті</div>
           <div className="ml-auto flex items-center gap-3 text-sm">
             {data && <span style={{ color: MUTED }}>{data.me.teacher?.name ?? (data.me.admin ? 'Әкімші' : '')}</span>}
             <a href="/ielts" target="_blank" className="font-semibold" style={{ color: BLUE }}>Оқушы беті ↗</a>
@@ -283,6 +284,7 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
   const [w1, setW1] = useState<Record<string, string>>({})
   const [w2, setW2] = useState<Record<string, string>>({})
   const [sp, setSp] = useState<Record<string, string>>({})
+  const [tv, setTv] = useState<Record<string, string>>({}) // TOEFL: email, discussion, repeat, interview (1–6)
   const [fb, setFb] = useState({ writing: '', speaking: '', general: '' })
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
@@ -296,6 +298,8 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
       setW1(s(j.attempt.scores?.writing?.task1))
       setW2(s(j.attempt.scores?.writing?.task2))
       setSp(s(j.attempt.scores?.speaking?.criteria))
+      const sc = j.attempt.scores ?? {}
+      setTv(s({ email: sc.writing?.email, discussion: sc.writing?.discussion, repeat: sc.speaking?.repeat, interview: sc.speaking?.interview }))
       setFb({ writing: '', speaking: '', general: '', ...j.attempt.feedback })
     })
   }, [id])
@@ -305,16 +309,25 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
   const c = d.test.content
   const order = a.state.order
   const toNum = (o: Record<string, string>) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v === '' ? null : Number(v)]))
-  const wb = writingBand({ task1: toNum(w1), task2: toNum(w2) })
-  const sb = speakingBand({ criteria: toNum(sp) })
+  const toefl = d.test.exam === 'toefl'
+  const tn = toNum(tv)
+  const wb = toefl ? toeflWritingBand({ build: a.scores?.writing?.build, email: tn.email, discussion: tn.discussion }) : writingBand({ task1: toNum(w1), task2: toNum(w2) })
+  const sb = toefl ? toeflSpeakingBand({ repeat: tn.repeat, interview: tn.interview }) : speakingBand({ criteria: toNum(sp) })
   const preview: Scores = { ...a.scores, writing: { band: wb }, speaking: { band: sb } }
-  const ov = overallBand(preview, order)
+  const ov = toefl ? toeflOverall(preview, order) : overallBand(preview, order)
 
   const save = async (publish: boolean) => {
     setBusy(true)
     setMsg('')
     try {
-      await tcall({ action: 'grade', attemptId: a.id, writing: { task1: w1, task2: w2 }, speaking: { criteria: sp }, feedback: fb, publish })
+      await tcall({
+        action: 'grade',
+        attemptId: a.id,
+        writing: toefl ? { email: tv.email, discussion: tv.discussion } : { task1: w1, task2: w2 },
+        speaking: toefl ? { repeat: tv.repeat, interview: tv.interview } : { criteria: sp },
+        feedback: fb,
+        publish,
+      })
       setMsg(publish ? 'Жарияланды ✓ Оқушы нәтижесін көреді' : 'Сақталды ✓')
       setD({ ...d, attempt: { ...a, published: publish } })
     } catch (e: any) {
@@ -325,7 +338,7 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
   }
 
   const speakingKeys = (c.speaking?.parts ?? []).flatMap((p, pi) =>
-    pi === 1 ? [{ key: 'p2q0', q: p.cueCard || p.questions[0] || 'Cue card', part: p.title }] : p.questions.map((q, qi) => ({ key: `p${pi + 1}q${qi}`, q, part: p.title }))
+    !toefl && pi === 1 ? [{ key: 'p2q0', q: p.cueCard || p.questions[0] || 'Cue card', part: p.title }] : p.questions.map((q, qi) => ({ key: `p${pi + 1}q${qi}`, q, part: p.title }))
   )
 
   return (
@@ -363,6 +376,9 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
       {order.includes('writing') && (
         <section className="mt-5 rounded-2xl border bg-white p-5" style={{ borderColor: LINE }}>
           <h2 className="font-bold">Writing</h2>
+          {toefl && a.scores?.writing?.build && (
+            <p className="mt-2 text-sm">Build a Sentence (автоматты): <b>{a.scores.writing.build.raw}/{a.scores.writing.build.of}</b> · band <b>{band(a.scores.writing.build.band)}</b></p>
+          )}
           {(['task1', 'task2'] as const).map((k) => {
             const txt = a.writing?.[k] ?? ''
             const vals = k === 'task1' ? w1 : w2
@@ -370,11 +386,15 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
             return (
               <div key={k} className="mt-4 grid gap-4 md:grid-cols-[1fr_260px]">
                 <div>
-                  <div className="text-sm font-semibold">{k === 'task1' ? 'Task 1' : 'Task 2'} · {wordCount(txt)} сөз {wordCount(txt) < (c.writing?.[k]?.minWords ?? 0) && <span className="text-amber-700">(аз)</span>}</div>
+                  <div className="text-sm font-semibold">{toefl ? (k === 'task1' ? 'Write an Email' : 'Academic Discussion') : k === 'task1' ? 'Task 1' : 'Task 2'} · {wordCount(txt)} сөз {wordCount(txt) < (c.writing?.[k]?.minWords ?? 0) && <span className="text-amber-700">(аз)</span>}</div>
                   <details className="mt-1 text-xs" style={{ color: MUTED }}><summary className="cursor-pointer">Тапсырма</summary><p className="mt-1 whitespace-pre-wrap">{c.writing?.[k]?.prompt}</p></details>
                   <div className="mt-2 max-h-96 overflow-y-auto whitespace-pre-wrap rounded-lg border p-3 text-[15px] leading-7" style={{ borderColor: LINE, background: '#FAFBFD' }}>{txt || <i style={{ color: MUTED }}>Жауап жоқ</i>}</div>
                 </div>
-                <BandInputs rows={WRITING_CRITERIA} vals={vals} set={setVals} />
+                {toefl ? (
+                  <BandInputs rows={[[k === 'task1' ? 'email' : 'discussion', 'Band (1–6): мазмұн, ұйымдастыру, тіл']]} vals={tv} set={setTv} scale={BANDS6} />
+                ) : (
+                  <BandInputs rows={WRITING_CRITERIA} vals={vals} set={setVals} />
+                )}
               </div>
             )
           })}
@@ -395,7 +415,11 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
                 </div>
               ))}
             </div>
-            <BandInputs rows={SPEAKING_CRITERIA} vals={sp} set={setSp} />
+            {toefl ? (
+              <BandInputs rows={[['repeat', 'Listen and Repeat (1–6): дәлдік, айтылым'], ['interview', 'Take an Interview (1–6): еркіндік, тіл, мазмұн']]} vals={tv} set={setTv} scale={BANDS6} />
+            ) : (
+              <BandInputs rows={SPEAKING_CRITERIA} vals={sp} set={setSp} />
+            )}
           </div>
           <textarea value={fb.speaking} onChange={(e) => setFb({ ...fb, speaking: e.target.value })} rows={3} placeholder="Speaking бойынша пікір" className={inp + ' mt-4'} />
         </section>
@@ -416,14 +440,15 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
 }
 
 const BANDS = ['', '9', '8.5', '8', '7.5', '7', '6.5', '6', '5.5', '5', '4.5', '4', '3.5', '3', '2.5', '2', '1', '0']
-function BandInputs({ rows, vals, set }: { rows: [string, string][]; vals: Record<string, string>; set: (v: Record<string, string>) => void }) {
+const BANDS6 = ['', '6', '5.5', '5', '4.5', '4', '3.5', '3', '2.5', '2', '1.5', '1']
+function BandInputs({ rows, vals, set, scale = BANDS }: { rows: [string, string][]; vals: Record<string, string>; set: (v: Record<string, string>) => void; scale?: string[] }) {
   return (
     <div className="space-y-2 self-start rounded-xl border p-3" style={{ borderColor: LINE, background: '#FAFBFD' }}>
       {rows.map(([k, label]) => (
         <label key={k} className="flex items-center gap-2 text-xs">
           <span className="flex-1">{label}</span>
           <select value={vals[k] ?? ''} onChange={(e) => set({ ...vals, [k]: e.target.value })} className="w-20 rounded border bg-white px-2 py-1.5 text-sm font-bold" style={{ borderColor: LINE }}>
-            {BANDS.map((b) => <option key={b} value={b}>{b || '—'}</option>)}
+            {scale.map((b) => <option key={b} value={b}>{b || '—'}</option>)}
           </select>
         </label>
       ))}

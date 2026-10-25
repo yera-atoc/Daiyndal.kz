@@ -52,3 +52,6 @@ create table if not exists ielts_attempts (
 create index if not exists ielts_attempts_student on ielts_attempts (student_id);
 create index if not exists ielts_attempts_test on ielts_attempts (test_id);
 alter table ielts_attempts enable row level security;
+
+-- TOEFL (кейін қосылды): тест түрі
+alter table ielts_tests add column if not exists exam text not null default 'ielts';

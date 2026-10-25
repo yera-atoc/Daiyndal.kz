@@ -1,6 +1,7 @@
 // IELTS mock: ортақ типтер, band кестелері, тексеру. Клиентте де, серверде де қолданылады (құпия жоқ).
 
-export type QType = 'mcq' | 'tfng' | 'ynng' | 'gap' | 'matching'
+// cloze — мәтін ішіндегі әріп толтыру (TOEFL Complete the Words), order — сөйлем құрау (TOEFL Build a Sentence)
+export type QType = 'mcq' | 'tfng' | 'ynng' | 'gap' | 'matching' | 'cloze' | 'order'
 
 export type QItem = {
   n: number // сұрақ нөмірі (1–40)
@@ -13,18 +14,20 @@ export type QGroup = {
   type: QType
   instructions: string // «Choose the correct letter, A, B or C.» / «NO MORE THAN TWO WORDS»
   options?: string[] // matching: ортақ тізім ['A Coastal erosion', 'B ...']
+  text?: string // cloze: абзац, ішінде [n] — n-сұрақтың орны
   items: QItem[]
 }
 
 export type ListeningPart = { title: string; groups: QGroup[] }
 export type ReadingPassage = { title: string; text: string; groups: QGroup[] }
 export type WritingTask = { prompt: string; image?: string; minWords: number }
-export type SpeakingPart = { title: string; questions: string[]; cueCard?: string }
+// TOEFL: audios — әр сұрақтың аудиосы, hideText — мәтінді көрсетпеу (Listen and Repeat), limit — жазу ұзақтығы, с
+export type SpeakingPart = { title: string; questions: string[]; cueCard?: string; audios?: string[]; hideText?: boolean; limit?: number }
 
 export type IeltsContent = {
   listening?: { audio?: string; minutes: number; parts: ListeningPart[] }
   reading?: { minutes: number; passages: ReadingPassage[] }
-  writing?: { minutes: number; task1: WritingTask; task2: WritingTask }
+  writing?: { minutes: number; task1: WritingTask; task2: WritingTask; build?: QGroup[] }
   speaking?: { parts: SpeakingPart[] }
 }
 
@@ -32,6 +35,7 @@ export type IeltsTest = {
   id: string
   teacher_id: string | null
   title: string
+  exam?: Exam
   variant: 'academic' | 'general'
   mode: 'exam' | 'practice'
   content: IeltsContent
@@ -39,6 +43,9 @@ export type IeltsTest = {
   created_at?: string
   updated_at?: string
 }
+
+export type Exam = 'ielts' | 'toefl'
+export const EXAM_NAME: Record<Exam, string> = { ielts: 'IELTS', toefl: 'TOEFL' }
 
 export type Section = 'listening' | 'reading' | 'writing' | 'speaking'
 export const SECTIONS: Section[] = ['listening', 'reading', 'writing', 'speaking']
@@ -56,11 +63,14 @@ export type AttemptState = {
 }
 
 export type Criteria = Record<string, number | null>
+type Raw = { raw: number; of: number; band: number | null }
 export type Scores = {
-  listening?: { raw: number; of: number; band: number | null }
-  reading?: { raw: number; of: number; band: number | null }
-  writing?: { task1?: Criteria; task2?: Criteria; band?: number | null }
-  speaking?: { criteria?: Criteria; band?: number | null }
+  listening?: Raw
+  reading?: Raw
+  // IELTS: task1/task2 критерийлері; TOEFL: build (авто), email, discussion (1–6)
+  writing?: { task1?: Criteria; task2?: Criteria; build?: Raw; email?: number | null; discussion?: number | null; band?: number | null }
+  // IELTS: criteria; TOEFL: repeat, interview (1–6)
+  speaking?: { criteria?: Criteria; repeat?: number | null; interview?: number | null; band?: number | null }
   overall?: number | null
 }
 
@@ -70,7 +80,7 @@ export type Attempt = {
   student_id: string
   status: 'in_progress' | 'submitted' | 'graded'
   state: AttemptState
-  answers: Partial<Record<'listening' | 'reading', Record<string, string>>>
+  answers: Partial<Record<'listening' | 'reading' | 'build', Record<string, string>>>
   writing: { task1?: string; task2?: string }
   speaking: Record<string, string>
   scores: Scores
@@ -162,6 +172,10 @@ export function isCorrect(type: QType, given: string | undefined, answer: string
     g = TFNG[g] ?? g
     return alts.map((a) => TFNG[a] ?? a).includes(g)
   }
+  if (type === 'order') {
+    const flat = (x: string) => x.replace(/[^a-z0-9' ]/g, '').replace(/\s+/g, ' ').trim()
+    return alts.map(flat).includes(flat(g))
+  }
   if (type === 'mcq' || type === 'matching') {
     // Тек әріп/рим цифры салыстырылады: «B» = «b»
     const first = (x: string) => x.split(' ')[0]
@@ -174,15 +188,17 @@ export function allItems(groups: QGroup[]) {
   return groups.flatMap((g) => g.items.map((it) => ({ ...it, type: g.type })))
 }
 
-export function sectionItems(content: IeltsContent, sec: 'listening' | 'reading') {
+export function sectionItems(content: IeltsContent, sec: 'listening' | 'reading' | 'build') {
+  if (sec === 'build') return allItems(content.writing?.build ?? [])
   if (sec === 'listening') return allItems((content.listening?.parts ?? []).flatMap((p) => p.groups))
   return allItems((content.reading?.passages ?? []).flatMap((p) => p.groups))
 }
 
-export function scoreSection(content: IeltsContent, sec: 'listening' | 'reading', answers: Record<string, string> | undefined, variant: 'academic' | 'general') {
+export function scoreSection(content: IeltsContent, sec: 'listening' | 'reading' | 'build', answers: Record<string, string> | undefined, variant: 'academic' | 'general', exam: Exam = 'ielts') {
   const items = sectionItems(content, sec)
   const raw = items.filter((it) => isCorrect(it.type, answers?.[String(it.n)], it.answer)).length
-  return { raw, of: items.length, band: rawToBand(sec, raw, items.length, variant) }
+  const band = exam === 'toefl' || sec === 'build' ? toeflBand(raw, items.length) : rawToBand(sec, raw, items.length, variant)
+  return { raw, of: items.length, band }
 }
 
 /** Оқушыға жіберер алдында дұрыс жауаптарды алып тастау */
@@ -192,6 +208,8 @@ export function stripAnswers(c: IeltsContent): IeltsContent {
     ...c,
     listening: c.listening && { ...c.listening, parts: c.listening.parts.map((p) => ({ ...p, groups: clean(p.groups) })) },
     reading: c.reading && { ...c.reading, passages: c.reading.passages.map((p) => ({ ...p, groups: clean(p.groups) })) },
+    writing: c.writing && { ...c.writing, ...(c.writing.build ? { build: clean(c.writing.build) } : {}) },
+    speaking: c.speaking && { parts: c.speaking.parts.map((p) => (p.hideText ? { ...p, questions: p.questions.map(() => '') } : p)) },
   }
 }
 
@@ -199,7 +217,7 @@ export function sectionsOf(c: IeltsContent): Section[] {
   return SECTIONS.filter((s) => {
     if (s === 'listening') return (c.listening?.parts ?? []).some((p) => p.groups.some((g) => g.items.length))
     if (s === 'reading') return (c.reading?.passages ?? []).some((p) => p.groups.some((g) => g.items.length))
-    if (s === 'writing') return !!(c.writing?.task1?.prompt || c.writing?.task2?.prompt)
+    if (s === 'writing') return !!(c.writing?.task1?.prompt || c.writing?.task2?.prompt || c.writing?.build?.some((g) => g.items.length))
     return (c.speaking?.parts ?? []).some((p) => p.questions.length)
   })
 }
@@ -240,3 +258,39 @@ export function emptyContent(): IeltsContent {
 
 // Speaking: жазу ұзақтығы (секунд) және Part 2 дайындық уақыты
 export const SPEAK_LIMIT = { p1: 45, p2prep: 60, p2talk: 120, p3: 75 }
+
+// ── TOEFL iBT (2026): 1–6 шкала ──────────────────────────
+// Ресми кесте жарияланбаған (тест адаптивті), сондықтан дұрыс жауап пайызы бойынша шамамен.
+const TOEFL_PCT: [number, number][] = [[95, 6], [89, 5.5], [82, 5], [74, 4.5], [65, 4], [56, 3.5], [47, 3], [38, 2.5], [28, 2], [18, 1.5]]
+export function toeflBand(raw: number, of: number): number | null {
+  if (!of) return null
+  const pct = (raw / of) * 100
+  for (const [min, b] of TOEFL_PCT) if (pct >= min) return b
+  return 1
+}
+export const roundHalf = (x: number) => Math.round(x * 2) / 2
+const avg = (xs: (number | null | undefined)[]) => (xs.every((x) => typeof x === 'number') && xs.length ? roundHalf((xs as number[]).reduce((a, b) => a + b, 0) / xs.length) : null)
+export function toeflWritingBand(w: Scores['writing']): number | null {
+  const parts: (number | null | undefined)[] = []
+  if (w?.build) parts.push(w.build.band)
+  parts.push(w?.email, w?.discussion)
+  return avg(parts)
+}
+export const toeflSpeakingBand = (s: Scores['speaking']) => avg([s?.repeat, s?.interview])
+export const toeflOverall = (s: Scores, order: Section[]) => avg(order.map((sec) => s[sec]?.band))
+export const CEFR: Record<number, string> = { 6: 'C2', 5.5: 'C1+', 5: 'C1', 4.5: 'B2+', 4: 'B2', 3.5: 'B1+', 3: 'B1', 2.5: 'A2+', 2: 'A2', 1.5: 'A1+', 1: 'A1' }
+export const TOEFL_DEFAULT_MINUTES = { listening: 29, reading: 30, writing: 23 }
+
+export function emptyToeflContent(): IeltsContent {
+  return {
+    listening: { minutes: TOEFL_DEFAULT_MINUTES.listening, parts: ['Listen and Choose a Response', 'Listen to a Conversation', 'Listen to an Announcement', 'Listen to an Academic Talk'].map((title) => ({ title, groups: [] })) },
+    reading: { minutes: TOEFL_DEFAULT_MINUTES.reading, passages: ['Complete the Words', 'Read in Daily Life', 'Read an Academic Passage'].map((title) => ({ title, text: '', groups: [] })) },
+    writing: { minutes: TOEFL_DEFAULT_MINUTES.writing, task1: { prompt: '', minWords: 80 }, task2: { prompt: '', minWords: 100 }, build: [] },
+    speaking: {
+      parts: [
+        { title: 'Listen and Repeat', questions: [], audios: [], hideText: true, limit: 12 },
+        { title: 'Take an Interview', questions: [], audios: [], limit: 45 },
+      ],
+    },
+  }
+}

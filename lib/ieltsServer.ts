@@ -105,7 +105,10 @@ export function canWrite(test: IeltsTest, a: Attempt, sec: Section) {
 export async function finishSection(test: IeltsTest, a: Attempt): Promise<Attempt> {
   const sec = a.state.order[a.state.current]
   const scores = { ...a.scores }
-  if (sec === 'listening' || sec === 'reading') scores[sec] = scoreSection(test.content, sec, a.answers?.[sec], test.variant)
+  const exam = test.exam ?? 'ielts'
+  if (sec === 'listening' || sec === 'reading') scores[sec] = scoreSection(test.content, sec, a.answers?.[sec], test.variant, exam)
+  // TOEFL Build a Sentence — автоматты тексеріледі
+  if (sec === 'writing' && test.content.writing?.build?.length) scores.writing = { ...scores.writing, build: scoreSection(test.content, 'build', a.answers?.build, test.variant, 'toefl') }
   const nextIdx = a.state.current + 1
   const next = a.state.order[nextIdx]
   const state: AttemptState = {
@@ -121,8 +124,8 @@ export async function finishSection(test: IeltsTest, a: Attempt): Promise<Attemp
     ...(done ? { status: needsTeacher ? 'submitted' : 'graded', submitted_at: new Date().toISOString(), ...(needsTeacher ? {} : { graded_at: new Date().toISOString() }) } : {}),
   }
   if (done && !needsTeacher) {
-    const { overallBand } = await import('./ielts')
-    patch.scores = { ...scores, overall: overallBand(scores, a.state.order) }
+    const { overallBand, toeflOverall } = await import('./ielts')
+    patch.scores = { ...scores, overall: exam === 'toefl' ? toeflOverall(scores, a.state.order) : overallBand(scores, a.state.order) }
   }
   const { data, error } = await (await db()).from('ielts_attempts').update(patch).eq('id', a.id).select('*').single()
   if (error) throw new Error(error.message)
