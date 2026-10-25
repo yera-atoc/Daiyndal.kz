@@ -98,7 +98,7 @@ function Crm() {
           </a>
           <a href="/ielts/teacher" className="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium md:w-full" style={{ color: BRAND.text }}>
             <Headphones size={17} />
-            IELTS mock
+            IELTS · TOEFL · ҰБТ
           </a>
         </nav>
         <div className="mt-auto hidden px-5 pb-5 md:block">
