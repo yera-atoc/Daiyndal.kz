@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { db } from '@/lib/ieltsServer'
 
 export const dynamic = 'force-dynamic'
@@ -6,11 +6,14 @@ export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
 // Кіру беті: жарияланған тестке рұқсаты бар оқушылардың аттары (PIN жіберілмейді)
-export async function GET() {
+// ?exam=ubt|ielts|toefl – тек сол емтиханның тесттері
+export async function GET(req: NextRequest) {
   try {
     const sb = await db()
-    const { data: tests } = await sb.from('ielts_tests').select('id').eq('published', true)
-    const ids = (tests ?? []).map((t) => t.id)
+    const exam = req.nextUrl.searchParams.get('exam')
+    let { data: tests, error } = await sb.from('ielts_tests').select('id, exam').eq('published', true)
+    if (error) ({ data: tests } = (await sb.from('ielts_tests').select('id').eq('published', true)) as any) // exam бағаны әлі жоқ болса
+    const ids = (tests ?? []).filter((t: any) => !exam || (t.exam ?? 'ielts') === exam).map((t: any) => t.id)
     if (!ids.length) return NextResponse.json({ students: [] })
     const { data: acc } = await sb.from('ielts_access').select('student_id').in('test_id', ids)
     const sids = Array.from(new Set((acc ?? []).map((a) => a.student_id)))

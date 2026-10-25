@@ -1,6 +1,12 @@
-import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
+import Portal from '@/components/ielts/Portal'
 
-// Қысқа сілтеме: /ubt → оқушылардың mock тесттер беті
-export default function UbtShortLink() {
-  redirect('/ielts')
+export const metadata = { title: 'ҰБТ пробный — Beles education' }
+
+export default function Page() {
+  return (
+    <Suspense>
+      <Portal exam="ubt" />
+    </Suspense>
+  )
 }

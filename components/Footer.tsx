@@ -22,7 +22,9 @@ export default function Footer() {
           <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-black">Кабинеттер</h4>
           <ul className="space-y-2 text-xs">
             <li><Link href="/bilim-test" className="hover:text-black">Білім тексеру</Link></li>
-            <li><Link href="/ubt" className="hover:text-black">ҰБТ · IELTS · TOEFL пробный</Link></li>
+            <li><Link href="/ubt" className="hover:text-black">ҰБТ пробный</Link></li>
+            <li><Link href="/ielts" className="hover:text-black">IELTS mock</Link></li>
+            <li><Link href="/toefl" className="hover:text-black">TOEFL mock</Link></li>
             <li><Link href="/teacher/login" className="hover:text-black">Мұғалімдерге</Link></li>
             <li><Link href="/admin/login" className="hover:text-black">Әкімші</Link></li>
           </ul>

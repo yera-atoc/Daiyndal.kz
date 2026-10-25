@@ -44,12 +44,14 @@ function fmt(ms: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-export default function Runner({ initial, student, onExit }: { initial: AttemptView; student: string; onExit: () => void }) {
+export default function Runner({ initial, student, onExit, onReview }: { initial: AttemptView; student: string; onExit: () => void; onReview?: () => void }) {
   const [v, setV] = useState(initial)
   const [offset] = useState(() => initial.now - Date.now()) // сервер мен браузер сағатының айырмасы
   const [now, setNow] = useState(Date.now() + offset)
   const [confirm, setConfirm] = useState(false)
+  const [leave, setLeave] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [finErr, setFinErr] = useState('')
   const sec: Section | undefined = v.attempt.state.order[v.attempt.state.current]
   const exam = v.test.mode === 'exam'
 
@@ -65,7 +67,10 @@ export default function Runner({ initial, student, onExit }: { initial: AttemptV
       const j = await call({ action: 'finish', id: v.attempt.id, section: sec })
       setV(j)
       setConfirm(false)
+      setFinErr('')
       window.scrollTo({ top: 0 })
+    } catch (e: any) {
+      setFinErr(`${e.message}. Интернетті тексеріп, қайта басыңыз.`)
     } finally {
       setBusy(false)
     }
@@ -84,15 +89,28 @@ export default function Runner({ initial, student, onExit }: { initial: AttemptV
   const saveRef = useRef<(() => Promise<void>) | null>(null)
 
   if (!sec || v.attempt.status !== 'in_progress') {
-    if (v.attempt.scores?.ubt) return <UbtResult s={v.attempt.scores.ubt} onExit={onExit} />
+    const ubt = v.attempt.scores?.ubt
     return (
-      <div className="mx-auto max-w-xl px-4 py-16 text-center">
-        <div className="text-5xl">✓</div>
-        <h1 className="mt-4 text-2xl font-bold">Тест тапсырылды</h1>
-        <p className="mt-2" style={{ color: MUTED }}>
-          Listening мен Reading нәтижесі кабинетіңізде. Writing пен Speaking-ті мұғалім тексергеннен кейін толық нәтиже шығады.
-        </p>
-        <button onClick={onExit} className="mt-6 rounded-lg px-5 py-2.5 font-semibold text-white" style={{ background: INK }}>Кабинетке оралу</button>
+      <div className="min-h-screen px-4 py-10 sm:py-16" style={{ background: '#F5F7FB', color: INK }}>
+        <div className="mx-auto max-w-2xl">
+          <div className="text-center">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full text-3xl text-white" style={{ background: '#16A34A' }}>✓</div>
+            <h1 className="font-display mt-5 text-2xl font-semibold sm:text-3xl">Тест тапсырылды</h1>
+            <p className="mx-auto mt-2 max-w-md" style={{ color: MUTED }}>
+              {ubt
+                ? 'Нәтижеңіз бірден есептелді. Дұрыс жауаптар мұғалім жариялағанда ашылады.'
+                : v.test.exam === 'toefl'
+                  ? 'Reading, Listening және Build a Sentence нәтижесі дайын. Writing пен Speaking-ті мұғалім тексергеннен кейін толық нәтиже шығады.'
+                  : 'Listening мен Reading нәтижесі дайын. Writing пен Speaking-ті мұғалім тексергеннен кейін толық нәтиже шығады.'}
+            </p>
+          </div>
+          {ubt && <div className="mt-6"><UbtResult s={ubt} /></div>}
+          <div className="mx-auto mt-8 flex max-w-sm flex-col gap-2">
+            {onReview && !ubt && <button onClick={onReview} className="rounded-xl py-3.5 font-semibold text-white" style={{ background: BLUE }}>Нәтижені көру</button>}
+            <button onClick={onExit} className="rounded-xl py-3.5 font-semibold" style={ubt || !onReview ? { background: BLUE, color: '#fff' } : { background: '#fff', border: `1px solid ${LINE}` }}>Тесттер тізіміне оралу</button>
+            <a href="/" className="py-2 text-center text-sm font-medium" style={{ color: MUTED }}>Басты бет</a>
+          </div>
+        </div>
       </div>
     )
   }
@@ -102,17 +120,20 @@ export default function Runner({ initial, student, onExit }: { initial: AttemptV
 
   return (
     <div className="flex min-h-screen flex-col bg-white" style={{ color: INK }}>
-      <header className="sticky top-0 z-30 flex items-center gap-4 border-b bg-white px-4 py-2.5" style={{ borderColor: LINE }}>
-        <img src="/beles-logo.png" alt="Beles" className="h-7 w-auto" />
+      <header className="sticky top-0 z-30 flex items-center gap-2 border-b bg-white/95 px-3 py-2 backdrop-blur sm:gap-4 sm:px-4" style={{ borderColor: LINE }}>
+        <button onClick={() => setLeave(true)} aria-label="Тесттен шығу" title="Тесттен шығу" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-xl transition hover:bg-slate-100" style={{ color: MUTED }}>
+          ×
+        </button>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold">{student}</div>
+          <div className="truncate text-sm font-semibold">{v.test.title}</div>
           <div className="truncate text-xs" style={{ color: MUTED }}>
-            {v.test.title} · {order.map((s, i) => (i === idx ? `[${SECTION_NAME[s]}]` : SECTION_NAME[s])).join(' → ')}
+            <span className="hidden sm:inline">{student} · </span>
+            {order.length > 1 ? `${SECTION_NAME[sec]} · ${idx + 1}/${order.length} бөлім` : SECTION_NAME[sec]}
           </div>
         </div>
         {left !== null && (
           <div
-            className="rounded-lg px-3 py-1.5 font-mono text-lg font-bold tabular-nums"
+            className="shrink-0 rounded-lg px-2.5 py-1.5 font-mono text-base font-bold tabular-nums sm:text-lg"
             style={left < 5 * 60_000 ? { background: '#FEE2E2', color: '#B91C1C' } : { background: '#F3F4F6' }}
             role="timer"
             aria-label="Қалған уақыт"
@@ -120,8 +141,9 @@ export default function Runner({ initial, student, onExit }: { initial: AttemptV
             {fmt(left)}
           </div>
         )}
-        <button onClick={() => setConfirm(true)} disabled={busy} className="rounded-lg px-3 py-2 text-sm font-semibold text-white" style={{ background: BLUE }}>
-          {idx === order.length - 1 ? 'Тестті аяқтау' : `${SECTION_NAME[sec]}-ті аяқтау`}
+        <button onClick={() => setConfirm(true)} disabled={busy} className="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-white" style={{ background: BLUE }}>
+          <span className="sm:hidden">Аяқтау</span>
+          <span className="hidden sm:inline">{idx === order.length - 1 ? 'Тестті аяқтау' : `${SECTION_NAME[sec]}-ті аяқтау`}</span>
         </button>
       </header>
 
@@ -130,11 +152,40 @@ export default function Runner({ initial, student, onExit }: { initial: AttemptV
       {sec === 'speaking' && <SpeakingSection key={sec} v={v} onDone={() => setConfirm(true)} />}
       {sec === 'ubt' && <UbtSection key={sec} v={v} saveRef={saveRef} />}
 
+      {leave && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setLeave(false)}>
+          <div role="dialog" aria-modal className="w-full rounded-t-3xl bg-white p-6 pb-8 sm:max-w-md sm:rounded-2xl sm:pb-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold">Тесттен шығасыз ба?</h2>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: MUTED }}>
+              Жауаптарыңыз сақталады. Тесттер тізімінен «Жалғастыру» батырмасымен тоқтаған жерден жалғастырасыз.
+              {left !== null && ' Таймер тоқтамайды – уақыт өте береді.'}
+            </p>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button onClick={() => setLeave(false)} className="rounded-xl border px-4 py-3 text-sm font-semibold sm:py-2" style={{ borderColor: LINE }}>Тестке оралу</button>
+              <button
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true)
+                  await saveRef.current?.().catch(() => {})
+                  setBusy(false)
+                  onExit()
+                }}
+                className="rounded-xl px-4 py-3 text-sm font-semibold text-white sm:py-2"
+                style={{ background: INK }}
+              >
+                {busy ? 'Сақталуда…' : 'Сақтап, шығу'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !busy && setConfirm(false)}>
           <div role="dialog" className="w-full max-w-md rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold">{sec === 'ubt' ? 'Тестті аяқтайсыз ба?' : `${SECTION_NAME[sec]} бөлімін аяқтайсыз ба?`}</h2>
             <p className="mt-2 text-sm" style={{ color: MUTED }}>{sec === 'ubt' ? 'Аяқтағаннан кейін жауаптарды өзгерту мүмкін емес. Нәтиже бірден шығады.' : 'Аяқтағаннан кейін бұл бөлімге қайта оралу мүмкін емес.'}</p>
+            {finErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{finErr}</p>}
             <div className="mt-5 flex justify-end gap-2">
               <button disabled={busy} onClick={() => setConfirm(false)} className="rounded-lg border px-4 py-2 text-sm" style={{ borderColor: LINE }}>Қайту</button>
               <button disabled={busy} onClick={async () => { await saveRef.current?.(); await finish() }} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: BLUE }}>
@@ -242,16 +293,16 @@ function LRSection({ v, sec, exam, now, saveRef }: { v: AttemptView; sec: 'liste
       )}
 
       {/* Сұрақтар навигаторы */}
-      <nav className="sticky bottom-0 z-20 flex flex-wrap gap-1 border-t bg-white px-4 py-2" style={{ borderColor: LINE }} aria-label="Сұрақтар">
+      <nav className="sticky bottom-0 z-20 flex gap-1 overflow-x-auto border-t bg-white px-4 py-2 sm:flex-wrap" style={{ borderColor: LINE }} aria-label="Сұрақтар">
         {items.map((it) => {
           const done = !!answers[String(it.n)]
           return (
-            <button key={it.n} onClick={() => jump(it.n)} className="h-8 w-8 rounded text-xs font-bold" style={done ? { background: INK, color: '#fff' } : { border: `1px solid ${LINE}`, color: MUTED }} aria-label={`Question ${it.n}${done ? ', answered' : ''}`}>
+            <button key={it.n} onClick={() => jump(it.n)} className="h-8 w-8 shrink-0 rounded text-xs font-bold" style={done ? { background: INK, color: '#fff' } : { border: `1px solid ${LINE}`, color: MUTED }} aria-label={`Question ${it.n}${done ? ', answered' : ''}`}>
               {it.n}
             </button>
           )
         })}
-        <span className="ml-auto self-center text-xs" style={{ color: MUTED }}>{Object.values(answers).filter(Boolean).length} / {items.length} жауап берілді</span>
+        <span className="ml-auto shrink-0 self-center whitespace-nowrap pl-2 text-xs" style={{ color: MUTED }}>{Object.values(answers).filter(Boolean).length} / {items.length}</span>
       </nav>
     </>
   )
@@ -527,24 +578,23 @@ function Recorder({ attemptId, stepKey, text, cue, audio, limit, prep, onSaved }
 
 // ── ҰБТ ──────────────────────────────────────────────────
 
-export function UbtResult({ s, onExit }: { s: UbtScores; onExit?: () => void }) {
+export function UbtResult({ s }: { s: UbtScores }) {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <div className="rounded-2xl p-6 text-white" style={{ background: INK }}>
+    <div className="mt-4">
+      <div className="rounded-3xl p-6 text-white" style={{ background: INK }}>
         <div className="text-sm opacity-70">{comboName(s.combo)}</div>
-        <div className="mt-1 text-5xl font-bold">{s.total} <span className="text-2xl opacity-60">/ {s.max}</span></div>
+        <div className="mt-1 text-5xl font-bold tabular-nums">{s.total} <span className="text-2xl opacity-60">/ {s.max}</span></div>
         <div className="mt-2 text-sm" style={{ color: s.passed ? '#86EFAC' : '#FCA5A5' }}>{s.passed ? 'Барлық пән бойынша шекті балдан өтті' : 'Кейбір пәндер бойынша шекті балл жиналмады'}</div>
       </div>
-      <div className="mt-4 divide-y rounded-2xl border bg-white" style={{ borderColor: LINE }}>
+      <div className="mt-3 divide-y rounded-3xl border bg-white" style={{ borderColor: LINE }}>
         {s.subjects.map((x) => (
           <div key={x.key} className="flex items-center gap-3 px-5 py-3">
-            <span className="flex-1 font-medium">{x.name}</span>
-            <span className="text-xs" style={{ color: x.passed ? '#15803D' : '#B91C1C' }}>шекті {x.threshold}</span>
-            <span className="w-20 text-right font-bold tabular-nums">{x.points} / {x.max}</span>
+            <span className="min-w-0 flex-1 font-medium">{x.name}</span>
+            <span className="hidden text-xs sm:inline" style={{ color: x.passed ? '#15803D' : '#B91C1C' }}>шекті {x.threshold}</span>
+            <span className="w-16 text-right font-bold tabular-nums" style={{ color: x.passed ? INK : '#B91C1C' }}>{x.points} / {x.max}</span>
           </div>
         ))}
       </div>
-      {onExit && <button onClick={onExit} className="mt-6 rounded-lg px-5 py-2.5 font-semibold text-white" style={{ background: BLUE }}>Кабинетке оралу</button>}
     </div>
   )
 }
@@ -603,9 +653,9 @@ function UbtSection({ v, saveRef }: { v: AttemptView; saveRef: React.MutableRefO
             {q.context && <div className="mt-3 max-h-[45vh] overflow-y-auto whitespace-pre-wrap rounded-xl border p-4 text-[15px] leading-7" style={{ borderColor: LINE, background: '#FAFBFD' }}>{q.context}</div>}
             <p className="mt-4 whitespace-pre-wrap text-[17px] font-medium leading-8">{q.text}</p>
             <UbtAnswer q={q} value={answers[q.id] ?? []} onChange={(val) => set(q.id, val)} />
-            <div className="mt-6 flex gap-2">
-              <button onClick={prev} className="rounded-lg border px-4 py-2 text-sm font-semibold" style={{ borderColor: LINE }}>← Алдыңғы</button>
-              <button onClick={next} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: INK }}>Келесі →</button>
+            <div className="sticky bottom-0 z-10 -mx-4 mt-6 flex gap-2 border-t bg-white/95 px-4 py-3 backdrop-blur lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0" style={{ borderColor: LINE }}>
+              <button onClick={prev} disabled={si === 0 && qi === 0} className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-40 lg:flex-none lg:py-2" style={{ borderColor: LINE }}>← Алдыңғы</button>
+              <button onClick={next} disabled={si === subjects.length - 1 && qi === subj.questions.length - 1} className="flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-40 lg:flex-none lg:py-2" style={{ background: INK }}>Келесі →</button>
             </div>
           </div>
         )}

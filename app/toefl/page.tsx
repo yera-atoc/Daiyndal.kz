@@ -1,6 +1,12 @@
-import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
+import Portal from '@/components/ielts/Portal'
 
-// Қысқа сілтеме: /toefl → оқушылардың mock тесттер беті
-export default function ToeflShortLink() {
-  redirect('/ielts')
+export const metadata = { title: 'TOEFL iBT mock — Beles education' }
+
+export default function Page() {
+  return (
+    <Suspense>
+      <Portal exam="toefl" />
+    </Suspense>
+  )
 }
