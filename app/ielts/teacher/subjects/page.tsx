@@ -116,9 +116,17 @@ function Editor({ data, draft, setDraft, onDone }: { data: Data; draft: Draft; s
   const setTests = (tests: SheetTest[]) =>
     setDraft({ sheet: { ...sheet, tests }, rows: rows.map((r) => ({ ...r, scores: tests.map((_, i) => r.scores[i] ?? '') })) })
   // Аты тізімдегі бір оқушыға дәл сәйкес келсе — автоматты байланады
+  // Аты тізімдегі бір оқушыға дәл сәйкес келсе және сыныбы парақтың сыныбымен бірдей болса ғана байланады.
+  // Жалғыз есім («Нұрсат») — тек сыныбы белгілі әрі сәйкес болса (басқа сыныптағы аттасқа қосылмасын).
   const link = (name: string, prev: string | null) => {
-    const hit = byKey.get(key(name))
-    if (hit?.length === 1) return hit[0].id
+    const single = !key(name).includes(' ')
+    const ok = (st: Student) => {
+      const g = st.grade === null || st.grade === undefined || st.grade === '' ? null : Number(st.grade)
+      if (!sheet.grade) return !single
+      return single ? g === sheet.grade : g === null || g === sheet.grade
+    }
+    const hit = (byKey.get(key(name)) ?? []).filter(ok)
+    if (hit.length === 1) return hit[0].id
     if (prev && byId.get(prev) && key(byId.get(prev)!.full_name) === key(name)) return prev
     return null
   }
@@ -215,6 +223,7 @@ function Editor({ data, draft, setDraft, onDone }: { data: Data; draft: Draft; s
             {rows.map((r, ri) => {
               const st = r.student_id ? byId.get(r.student_id) : null
               const many = (byKey.get(key(r.student_name))?.length ?? 0) > 1
+              const wrongGrade = st && sheet.grade && st.grade && Number(st.grade) !== sheet.grade
               const av = avgPct(r.scores.map((v, i) => parseScore(v, T[i]?.max ?? 1)), T)
               return (
                 <tr key={ri} className="border-b last:border-0" style={{ borderColor: '#EDF0F5' }}>
@@ -227,7 +236,7 @@ function Editor({ data, draft, setDraft, onDone }: { data: Data; draft: Draft; s
                       style={{ borderColor: LINE }}
                     />
                     <div className="mt-0.5 text-[11px]" style={{ color: st ? '#0F9D6B' : '#D98A00' }}>
-                      {st ? `✓ кабинет · PIN ${st.ielts_pin ?? 'сақтағанда беріледі'}` : many ? 'аттас бірнеше оқушы — тізімнен толық атын таңдаңыз' : 'тізімде жоқ — толық аты-жөнін тізімнен таңдаңыз'}
+                      {wrongGrade ? `${st!.grade} сынып оқушысы — сақтағанда байланбайды` : st ? `✓ кабинет · PIN ${st.ielts_pin ?? 'сақтағанда беріледі'}` : many ? 'аттас бірнеше оқушы — тізімнен толық атын таңдаңыз' : 'тізімде жоқ — толық аты-жөнін тізімнен таңдаңыз'}
                     </div>
                   </td>
                   {T.map((t, i) => (

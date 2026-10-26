@@ -62,6 +62,16 @@ export async function POST(req: NextRequest) {
       }))
       .filter((r: any) => r.student_name && !seen.has(r.student_name) && seen.add(r.student_name))
 
+    // Басқа сыныптағы оқушыға қате байланбасын (мысалы, 11 сынып парағына 5 сынып оқушысы)
+    if (grade) {
+      const ids = rows.map((r: any) => r.student_id).filter(Boolean)
+      if (ids.length) {
+        const { data: gs } = await sb.from('students').select('id, grade').in('id', ids)
+        const bad = new Set((gs ?? []).filter((s: any) => s.grade !== null && s.grade !== undefined && Number(s.grade) !== grade).map((s: any) => s.id))
+        for (const r of rows) if (r.student_id && bad.has(r.student_id)) r.student_id = null
+      }
+    }
+
     const row = { subject, name, grade, tests, position: Math.round(Number(sh.position) || 0) }
     let id = typeof sh.id === 'string' && sh.id ? sh.id : null
     if (id) {
