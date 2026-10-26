@@ -174,6 +174,7 @@ function Shell({ children, data }: { children: React.ReactNode; data?: Data }) {
           <div className="border-l pl-3 text-sm font-bold" style={{ borderColor: LINE }}>Mock тесттер · мұғалім кабинеті</div>
           <div className="ml-auto flex items-center gap-3 text-sm">
             {data && <span style={{ color: MUTED }}>{data.me.teacher?.name ?? (data.me.admin ? 'Әкімші' : '')}</span>}
+            <a href="/ielts/teacher/subjects" className="font-semibold" style={{ color: BLUE }}>Пән тесттері</a>
             <a href="/ielts" target="_blank" className="font-semibold" style={{ color: BLUE }}>Оқушы беті ↗</a>
             <a href={data?.me.teacher ? '/teacher' : '/admin'} className="rounded-lg border px-3 py-1.5" style={{ borderColor: LINE }}>← Кабинет</a>
           </div>

@@ -6,6 +6,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Runner, { UbtAnswer, UbtResult, type AttemptView } from '@/components/ielts/Runner'
 import { UBT_COMBOS, comboName } from '@/lib/ubt'
 import { UbtPlanView, UbtTrend } from '@/components/ielts/UbtGrowth'
+import { SubjectCard } from '@/components/ielts/SubjectView'
+import type { MySubject } from '@/lib/subjectTests'
 import Questions, { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
 import { CEFR, SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, isCorrect, sectionItems, type Exam, type Scores, type Section } from '@/lib/ielts'
 
@@ -48,15 +50,21 @@ export default function Portal({ exam }: { exam: Exam }) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [pick, setPick] = useState<string | null>(null) // ҰБТ комбинациясын таңдау
+  const [subjects, setSubjects] = useState<MySubject[]>([]) // пән тесттері (физика т.б.)
 
   const load = useCallback(async () => {
     try {
       const r = await fetch('/api/ielts/me', { cache: 'no-store' })
       setMe(r.ok ? await r.json() : null)
+      if (r.ok && exam === 'ubt')
+        fetch('/api/ielts/subjects', { cache: 'no-store' })
+          .then((x) => (x.ok ? x.json() : { subjects: [] }))
+          .then((j) => setSubjects(j.subjects ?? []))
+          .catch(() => {})
     } catch {
       setMe(null)
     }
-  }, [])
+  }, [exam])
   useEffect(() => {
     load()
   }, [load])
@@ -131,11 +139,11 @@ export default function Portal({ exam }: { exam: Exam }) {
         <p className="text-sm font-semibold" style={{ color: E.accent === INK ? MUTED : E.accent }}>Сәлем, {me.student.full_name.split(' ')[0]}!</p>
         <h1 className="font-display mt-1 text-2xl font-semibold sm:text-3xl">{E.title}</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>{E.tagline}</p>
-        <div className="mt-5 grid max-w-md grid-cols-3 gap-2">
+        {(tests.length > 0 || !subjects.length) && <div className="mt-5 grid max-w-md grid-cols-3 gap-2">
           <Stat label="Тест" value={String(tests.length)} />
           <Stat label="Тапсырылды" value={String(done.length)} />
           {best >= 0 && <Stat label="Ең жақсы" value={exam === 'ubt' ? `${best} / 140` : band(best)} />}
-        </div>
+        </div>}
       </section>
 
       {err && <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>}
@@ -165,13 +173,22 @@ export default function Portal({ exam }: { exam: Exam }) {
         )
       })()}
 
+      {subjects.length > 0 && (
+        <section className="mt-5">
+          <h2 className="font-display mb-3 text-lg font-semibold">Пән тесттері</h2>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {subjects.map((m) => <SubjectCard key={m.sheet.id} m={m} />)}
+          </div>
+        </section>
+      )}
+
       <div className="mt-5 space-y-4">
         {tests.map((t) => (
           <TestCard key={t.id} t={t} exam={exam} busy={busy} onOpen={open} onStart={() => (exam === 'ubt' ? setPick(t.id) : start(t.id))} />
         ))}
       </div>
 
-      {!tests.length && (
+      {!tests.length && !subjects.length && (
         <div className="mt-5 rounded-3xl border bg-white p-8 text-center" style={{ borderColor: LINE }}>
           <p className="text-lg font-semibold">{E.name} бойынша сізге әлі тест ашылмаған</p>
           <p className="mt-1 text-sm" style={{ color: MUTED }}>Мұғалім тест ашқанда ол осы жерде пайда болады.</p>
