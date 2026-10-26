@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     if (action === 'delete-group') {
       const id = String(b.id)
       if (id === 'nzm') return bad('НЗМ тобын өшіруге болмайды')
-      if ((await listStudents(id)).length || (await listExams(id)).length)
+      if ((await listStudents(id)).length || (await listExams(id, 'all')).length)
         return bad('Алдымен топтағы оқушылар мен сынақтарды өшіріңіз')
       await deleteGroup(id)
       return NextResponse.json({ ok: true })

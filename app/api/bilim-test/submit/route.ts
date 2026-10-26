@@ -1,7 +1,7 @@
 import { logServerError } from '@/lib/serverLog'
 import { NextRequest, NextResponse } from 'next/server'
 import { LETTERS } from '@/lib/bilimTest'
-import { addSubmission, getExam } from '@/lib/bilimTestStore'
+import { addSubmission, getExam, replaceSubmission } from '@/lib/bilimTestStore'
 import { currentStudent } from '@/lib/bilimTestAuth'
 
 export async function POST(req: NextRequest) {
@@ -14,13 +14,18 @@ export async function POST(req: NextRequest) {
     if (!exam || !cfg || exam.group_id !== me.group_id) {
       return NextResponse.json({ error: 'Сынақ табылмады' }, { status: 404 })
     }
-    if (!exam.open_subjects.includes(cfg.id)) {
+    if (!exam.practice && !exam.open_subjects.includes(cfg.id)) {
       return NextResponse.json({ error: 'Бұл пән бойынша жауап қабылдау жабық' }, { status: 403 })
     }
     const answers = body?.answers
     const allowed = LETTERS.slice(0, cfg.options)
     if (!Array.isArray(answers) || answers.length !== cfg.questions || answers.some((a) => a !== '' && !allowed.includes(a))) {
       return NextResponse.json({ error: 'Жауап парағы дұрыс емес' }, { status: 400 })
+    }
+    // Дайындық сынағын қайта-қайта тапсыруға болады: соңғы жауабы сақталады
+    if (exam.practice) {
+      await replaceSubmission({ exam_id: exam.id, student_name: me.full_name, subject: cfg.id, answers })
+      return NextResponse.json({ ok: true })
     }
     const res = await addSubmission({ exam_id: exam.id, student_name: me.full_name, subject: cfg.id, answers })
     if (res === 'duplicate') return NextResponse.json({ error: 'Бұл пәнді бұрын тапсырдың' }, { status: 409 })

@@ -18,6 +18,7 @@ import ProgressChart, { type ChartPoint } from '@/components/bilim/ProgressChart
 import { buildForecast } from '@/lib/bilimTestForecast'
 import { UbtTrend } from '@/components/ielts/UbtGrowth'
 import { monthName } from '@/lib/bilimTest'
+import PracticeRunner from '@/components/bilim/PracticeRunner'
 
 type OpenExam = { id: string; title: string; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
 type Summary = {
@@ -33,7 +34,13 @@ type Summary = {
   place: number | null
   of: number
 }
-type Me = { student: { id: string; name: string }; group: { id: string; name: string }; open: OpenExam[]; results: Summary[] }
+type Practice = {
+  id: string
+  title: string
+  month: string
+  subjects: { id: string; name: string; questions: number; max: number; score: number | null; correct: number | null }[]
+}
+type Me = { student: { id: string; name: string }; group: { id: string; name: string }; open: OpenExam[]; results: Summary[]; practice?: Practice[] }
 type Tab = 'tests' | 'results' | 'rating'
 
 async function api<T>(url: string, body?: unknown): Promise<T> {
@@ -228,10 +235,12 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
   const [sheet, setSheet] = useState<{ examId: string; subject: SheetSubject } | null>(null)
   const [detail, setDetail] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  const [drill, setDrill] = useState<{ examId: string; subjectId: string } | null>(null)
 
   const go = (t: Tab) => {
     setTab(t)
     setSheet(null)
+    setDrill(null)
     setDetail(null)
     window.scrollTo({ top: 0 })
   }
@@ -254,7 +263,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
             </button>
           </div>
         </div>
-        {!sheet && (
+        {!sheet && !drill && (
           <nav className="mx-auto flex max-w-3xl gap-1 px-2">
             {([
               ['tests', 'Сынақ'],
@@ -290,8 +299,22 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
               }}
             />
           </div>
+        ) : drill ? (
+          <div className="mx-auto max-w-xl">
+            <PracticeRunner
+              examId={drill.examId}
+              subjectId={drill.subjectId}
+              onBack={() => { setDrill(null); window.scrollTo({ top: 0 }) }}
+              onChanged={refresh}
+            />
+          </div>
         ) : tab === 'tests' ? (
-          <Tests me={me} done={done} onOpen={(examId, subject) => { setDone(null); setSheet({ examId, subject }) }} />
+          <Tests
+            me={me}
+            done={done}
+            onOpen={(examId, subject) => { setDone(null); setSheet({ examId, subject }) }}
+            onPractice={(examId, subjectId) => { setDone(null); setDrill({ examId, subjectId }); window.scrollTo({ top: 0 }) }}
+          />
         ) : tab === 'results' ? (
           detail ? (
             <ResultDetail examId={detail} onBack={() => setDetail(null)} />
@@ -315,7 +338,18 @@ function Empty({ title, text }: { title: string; text: string }) {
   )
 }
 
-function Tests({ me, done, onOpen }: { me: Me; done: string | null; onOpen: (examId: string, s: SheetSubject) => void }) {
+function Tests({
+  me,
+  done,
+  onOpen,
+  onPractice,
+}: {
+  me: Me
+  done: string | null
+  onOpen: (examId: string, s: SheetSubject) => void
+  onPractice: (examId: string, subjectId: string) => void
+}) {
+  const practice = me.practice ?? []
   return (
     <div className="mx-auto max-w-xl">
       {done && (
@@ -323,7 +357,12 @@ function Tests({ me, done, onOpen }: { me: Me; done: string | null; onOpen: (exa
           <b>{done}</b> жауаптары қабылданды. Жарайсың!
         </div>
       )}
-      {me.open.length === 0 && <Empty title="Қазір ашық сынақ жоқ" text="Мұғалім сынақты ашқанда осында пайда болады." />}
+      {me.open.length === 0 && (
+        <Empty
+          title="Қазір ашық сынақ жоқ"
+          text={practice.length ? 'Мұғалім сынақты ашқанда осында пайда болады. Әзірге төмендегі дайындық сынағын тапсырып көр.' : 'Мұғалім сынақты ашқанда осында пайда болады.'}
+        />
+      )}
       {me.open.map((e) => (
         <section key={e.id} className="mb-6">
           <h1 className="text-xl font-bold">{e.title}: Білім тексеру</h1>
@@ -354,6 +393,50 @@ function Tests({ me, done, onOpen }: { me: Me; done: string | null; onOpen: (exa
           </div>
         </section>
       ))}
+
+      {practice.map((e) => {
+        const doneN = e.subjects.filter((s) => s.score !== null).length
+        return (
+          <section key={e.id} className="mb-6 mt-8">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-xl font-bold">Дайындық: {e.title.replace(/ \d{4}$/, '')} сынағы</h2>
+              <span className="shrink-0 text-sm text-slate-500">{doneN}/{e.subjects.length}</span>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">Өткен айдың сынағы. Өзің тапсырып, бірден тексер: қай жерде қателескеніңді көресің. Ресми нәтижеге кірмейді, қайта тапсыруға болады.</p>
+            <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              {e.subjects.map((s, i) => {
+                const p = s.score !== null ? s.score / s.max : 0
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => onPractice(e.id, s.id)}
+                    className={`flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50 ${i ? 'border-t border-slate-100' : ''}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold">{s.name}</div>
+                      {s.score !== null ? (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                            <div className={`h-full rounded-full ${p >= 0.7 ? 'bg-emerald-500' : p >= 0.4 ? 'bg-amber-400' : 'bg-red-500'}`} style={{ width: `${p * 100}%` }} />
+                          </div>
+                          <span className="text-xs tabular-nums text-slate-500">{s.correct}/{s.questions}</span>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-slate-500">{s.questions} сұрақ</div>
+                      )}
+                    </div>
+                    {s.score !== null ? (
+                      <span className="shrink-0 text-right text-sm"><b className="text-base tabular-nums">{s.score}</b><span className="text-slate-400"> / {s.max}</span></span>
+                    ) : (
+                      <span className="shrink-0 rounded-full bg-blue-600 px-3 py-1 text-sm font-semibold text-white">Бастау →</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }

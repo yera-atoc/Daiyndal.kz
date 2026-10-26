@@ -77,10 +77,12 @@ function normExam(e: any): Exam {
     questions: e.questions ?? {},
     open_subjects: e.open_subjects ?? [],
     published: !!e.published,
+    practice: !!e.practice,
   }
 }
 
-export async function listExams(groupId?: string): Promise<Exam[]> {
+// Ресми сынақтар (әдепкі). practice: 'only' — тек дайындық сынақтары, 'all' — бәрі.
+export async function listExams(groupId?: string, practice: 'none' | 'only' | 'all' = 'none'): Promise<Exam[]> {
   let rows: any[]
   if (DEMO) rows = mem().exams
   else {
@@ -91,6 +93,7 @@ export async function listExams(groupId?: string): Promise<Exam[]> {
   return rows
     .map(normExam)
     .filter((e) => !groupId || e.group_id === groupId)
+    .filter((e) => practice === 'all' || (practice === 'only' ? e.practice : !e.practice))
     .sort((a, b) => a.month.localeCompare(b.month))
 }
 
@@ -114,6 +117,7 @@ export async function saveExam(e: Exam): Promise<void> {
     answer_key: e.answer_key,
     questions: e.questions,
     published: e.published,
+    ...(e.practice ? { practice: true } : {}),
   }
   if (DEMO) {
     mem().exams = mem().exams.filter((x) => x.id !== e.id).concat(row)
@@ -159,6 +163,19 @@ export async function addSubmission(s: Omit<Submission, 'id' | 'submitted_at'>):
     throw new Error(error.message)
   }
   return 'ok'
+}
+
+// Дайындық сынағы: бұрынғы жауабын өшіріп, жаңасын жазады (қайта тапсыру)
+export async function replaceSubmission(s: Omit<Submission, 'id' | 'submitted_at'>): Promise<void> {
+  if (DEMO) {
+    const m = mem()
+    m.subs = m.subs.filter((x) => !(x.exam_id === s.exam_id && x.student_name === s.student_name && x.subject === s.subject))
+    m.subs.push({ ...s, id: crypto.randomUUID(), submitted_at: new Date().toISOString() })
+    return
+  }
+  const sb = await db()
+  check(await sb.from('bt_submissions').delete().eq('exam_id', s.exam_id).eq('student_name', s.student_name).eq('subject', s.subject))
+  check(await sb.from('bt_submissions').insert(s))
 }
 
 export async function deleteSubmission(id: string): Promise<void> {
@@ -227,7 +244,7 @@ export async function renameStudent(id: string, full_name: string): Promise<'ok'
   if (st.full_name === full_name) return 'ok'
   const peers = await studentRows(st.group_id)
   if (peers.some((s) => s.full_name === full_name)) return 'duplicate'
-  const examIds = (await listExams(st.group_id)).map((e) => e.id)
+  const examIds = (await listExams(st.group_id, 'all')).map((e) => e.id)
   if (DEMO) {
     for (const x of mem().subs) if (x.student_name === st.full_name && examIds.includes(x.exam_id)) x.student_name = full_name
     mem().students.find((s) => s.id === id)!.full_name = full_name
@@ -248,7 +265,7 @@ export async function renameStudent(id: string, full_name: string): Promise<'ok'
 export async function deleteStudent(id: string): Promise<void> {
   const st = (await studentRows()).find((s) => s.id === id)
   if (!st) return
-  const examIds = (await listExams(st.group_id)).map((e) => e.id)
+  const examIds = (await listExams(st.group_id, 'all')).map((e) => e.id)
   if (DEMO) {
     mem().students = mem().students.filter((s) => s.id !== id)
     mem().subs = mem().subs.filter((x) => !(x.student_name === st.full_name && examIds.includes(x.exam_id)))

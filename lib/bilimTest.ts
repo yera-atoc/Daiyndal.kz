@@ -12,8 +12,10 @@ export type SubjectConfig = {
   options: number // жауап нұсқалары (4 = A–D, 5 = A–E)
 }
 
-// Бір сұрақтың мазмұны (міндетті емес): мәтіні, суреті, тақырыбы
-export type Question = { text?: string; image?: string; topic?: string }
+// Бір сұрақтың мазмұны (міндетті емес): мәтіні, суреті, тақырыбы.
+// passage — сұрақтың алдындағы оқу мәтіні (бір мәтінге бірнеше сұрақ болса, тек біріншісінде),
+// options — жауап нұсқаларының мәтіні (онлайн дайындық сынағында көрсетіледі).
+export type Question = { text?: string; image?: string; topic?: string; passage?: string; options?: string[] }
 
 export type Group = {
   id: string
@@ -32,6 +34,9 @@ export type Exam = {
   answer_key: Record<SubjectId, string[]>
   questions: Record<SubjectId, Question[]>
   published: boolean // оқушылар нәтижесін көре ала ма
+  // Дайындық сынағы: өткен айдың сынағын оқушы өзі тапсырып, бірден тексереді.
+  // Ресми нәтижеге, рейтингке, болжамға кірмейді, қайта тапсыруға болады.
+  practice?: boolean
 }
 
 export type Submission = {
