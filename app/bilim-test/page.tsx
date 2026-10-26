@@ -104,7 +104,11 @@ export default function BilimTestPage() {
 }
 
 function Logo() {
-  return <img src="/beles-logo.png" alt="Beles education" className="h-8 w-auto" />
+  return (
+    <a href="/" aria-label="Басты бет">
+      <img src="/beles-logo.png" alt="Beles education" className="h-8 w-auto" />
+    </a>
+  )
 }
 
 // ── Кіру: топ → аты → PIN ────────────────────────────────
@@ -149,9 +153,13 @@ function Login({ onDone }: { onDone: () => void }) {
   return (
     <>
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-xl items-center justify-between gap-3 px-4 py-3">
           <Logo />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">Білім тексеру</span>
+          <div className="flex items-center gap-2">
+            <span className="hidden text-[11px] font-semibold uppercase tracking-wider text-blue-600 sm:inline">Білім тексеру</span>
+            <a href="/login" className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-medium text-slate-600 active:bg-slate-100">← Кабинеттер</a>
+            <a href="/" className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-medium text-slate-600 active:bg-slate-100">Басты бет</a>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-xl px-4 pb-16 pt-6">
