@@ -7,6 +7,7 @@ import { subjects } from '@/lib/subjects'
 import { supabase } from '@/lib/supabaseClient'
 import { type ScheduleSlot } from '@/lib/schedule'
 import WeeklyTimetable from '@/components/WeeklyTimetable'
+import TeacherJournal from '@/components/journal/TeacherJournal'
 
 const MATERIALS_BUCKET = 'materials'
 const MAX_FILE_MB = 30
@@ -37,7 +38,7 @@ type StudentRow = {
 }
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-type Tab = 'schedule' | 'students' | 'materials' | 'tests' | 'profile'
+type Tab = 'journal' | 'schedule' | 'students' | 'materials' | 'tests' | 'profile'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -54,7 +55,7 @@ function initials(name: string) {
 
 export default function TeacherDashboard() {
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>('schedule')
+  const [tab, setTab] = useState<Tab>('journal')
   const [me, setMe] = useState<Teacher | null>(null)
   const [materials, setMaterials] = useState<Material[]>([])
   const [tests, setTests] = useState<Test[]>([])
@@ -97,6 +98,7 @@ export default function TeacherDashboard() {
   }
 
   const tabs: [Tab, string][] = [
+    ['journal', 'Сабақ журналы'],
     ['schedule', 'Менің кестем'],
     ['students', 'Оқушылар'],
     ['materials', 'Материалдар'],
@@ -155,6 +157,7 @@ export default function TeacherDashboard() {
           ))}
         </div>
 
+        {tab === 'journal' && <TeacherJournal />}
         {tab === 'schedule' && <ScheduleTab slots={slots} students={students} />}
         {tab === 'students' && <StudentsTab students={students} onRatingChanged={loadAll} />}
         {tab === 'materials' && <MaterialsTab materials={materials} reload={loadAll} />}

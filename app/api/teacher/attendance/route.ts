@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { currentTeacherId } from '@/lib/requireTeacher'
+import { teacherStudentIds } from '@/lib/journalServer'
 
 // GET /api/teacher/attendance?date=YYYY-MM-DD
 // Returns attendance rows for the given date, but only for this teacher's
@@ -16,14 +17,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'date параметрі міндетті' }, { status: 400 })
   }
 
-  const { data: myStudents, error: studentsError } = await supabaseAdmin
-    .from('students')
-    .select('id')
-    .eq('teacher_id', teacherId)
-
-  if (studentsError) return NextResponse.json({ error: studentsError.message }, { status: 500 })
-
-  const ids = (myStudents ?? []).map((s) => s.id)
+  const ids = await teacherStudentIds(teacherId)
   if (ids.length === 0) return NextResponse.json([])
 
   const { data, error } = await supabaseAdmin
@@ -60,7 +54,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
 
   if (studentError) return NextResponse.json({ error: studentError.message }, { status: 500 })
-  if (!student || student.teacher_id !== teacherId) {
+  if (!student || !(await teacherStudentIds(teacherId)).includes(student.id)) {
     return NextResponse.json({ error: 'Рұқсат жоқ' }, { status: 403 })
   }
 

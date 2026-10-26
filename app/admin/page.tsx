@@ -14,24 +14,27 @@ import {
   Wallet,
   Headphones,
   ShieldCheck,
+  BookOpenCheck,
 } from 'lucide-react'
 import { BRAND, dmy, type CrmData } from '@/components/crm/core'
 import Overview from '@/components/crm/Overview'
 import Students from '@/components/crm/Students'
 import { Attendance, Groups, Payments, Schedule, Teachers } from '@/components/crm/Views'
 import Journal from '@/components/crm/Journal'
+import LessonJournal from '@/components/crm/LessonJournal'
 
-type View = 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal'
+type View = 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons'
 
 const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Шолу', icon: LayoutDashboard },
   { id: 'students', label: 'Оқушылар', icon: Users },
   { id: 'payments', label: 'Төлемдер', icon: Wallet },
+  { id: 'lessons', label: 'Сабақ журналы', icon: BookOpenCheck },
   { id: 'attendance', label: 'Қатысу', icon: CalendarCheck },
   { id: 'schedule', label: 'Кесте', icon: CalendarDays },
   { id: 'groups', label: 'Топтар', icon: UsersRound },
   { id: 'teachers', label: 'Мұғалімдер', icon: GraduationCap },
-  { id: 'journal', label: 'Журнал', icon: ShieldCheck },
+  { id: 'journal', label: 'Әрекеттер', icon: ShieldCheck },
 ]
 
 function Crm() {
@@ -163,6 +166,7 @@ function Crm() {
         {view === 'groups' && <Groups data={data} reload={load} flash={flash} onOpenGroup={(id) => { setAttGroup(id); go('attendance') }} />}
         {view === 'teachers' && <Teachers data={data} reload={load} flash={flash} />}
         {view === 'journal' && <Journal />}
+        {view === 'lessons' && <LessonJournal flash={flash} />}
       </main>
 
       {msg && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg px-4 py-2 text-sm text-white" style={{ background: BRAND.ink }} role="status">{msg}</div>}
