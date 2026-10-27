@@ -25,7 +25,7 @@ export const TEACHERS: { name: string; subject: string }[] = [
   { name: 'Yernar Belgibayev', subject: 'Ағылшын тілі' },
   { name: 'Айдын Әбілқайыр', subject: 'Математика' },
   { name: 'Жолтай Қайрат', subject: 'Математика' },
-  { name: 'Асан', subject: 'Физика' },
+  { name: 'Асан Жанул', subject: 'Физика' },
   { name: 'Ақниет Рамазанова', subject: 'Қазақ тілі' },
 ]
 // Аты әлі қосылмаған, бірақ сабағы бар пәндер
