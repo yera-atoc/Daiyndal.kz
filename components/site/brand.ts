@@ -13,8 +13,8 @@ export const CONTACT = {
   wa: '77772739248',
   address: 'Жезқазған қ., Анарқұлова көшесі, 12',
   gis: 'https://go.2gis.com/SgduX',
-  instagram: 'https://www.instagram.com/beles.education/',
-  instagramHandle: '@beles.education',
+  instagram: 'https://www.instagram.com/beleseducation/',
+  instagramHandle: '@beleseducation',
 }
 
 export const waLink = (text = 'Сәлеметсіз бе! Beles education орталығы туралы білгім келеді.') =>
