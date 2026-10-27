@@ -430,7 +430,8 @@ export function StudentsTab({
   )
 }
 
-export function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen: (n: string) => void }) {
+export function Results({ data, exam, onOpen, onRefresh, at }: { data: Resp; exam: Exam; onOpen: (n: string) => void; onRefresh?: () => Promise<void>; at?: Date | null }) {
+  const [busyR, setBusyR] = useState(false)
   const subs = useMemo(() => { const n = new Set(data.students.map((s) => s.full_name)); return data.submissions.filter((s) => n.has(s.student_name)) }, [data.students, data.submissions])
   const rk = useMemo(() => ranking(exam, subs), [exam, subs])
   const submittedBy = useMemo(() => {
@@ -461,6 +462,22 @@ export function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen
           </span>
           {prev && <span className="rounded-full bg-slate-100 px-3 py-1">Салыстыру: {prev.title}</span>}
         </div>
+        {onRefresh && (
+          <div className="flex items-center gap-2">
+            {at && <span className="text-xs text-slate-400">{at.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · 20 сек сайын өзі жаңарады</span>}
+            <button
+              disabled={busyR}
+              onClick={async () => {
+                setBusyR(true)
+                await onRefresh()
+                setBusyR(false)
+              }}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+            >
+              {busyR ? 'Жаңартылуда…' : '↻ Жаңарту'}
+            </button>
+          </div>
+        )}
 
       </div>
 
@@ -522,7 +539,7 @@ export function Results({ data, exam, onOpen }: { data: Resp; exam: Exam; onOpen
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-slate-400">Қызыл — пән максимумының 35 %-ынан төмен. Аты-жөнін басып, жауап парақтарын көруге не өшіруге болады.</p>
+      <p className="mt-2 text-xs text-slate-400">Қызыл — пән максимумының 35 %-ынан төмен. Аты-жөнін басып, жауап парақтарын көруге, түзетуге, қағаздан қолмен енгізуге не өшіруге болады.</p>
     </div>
   )
 }

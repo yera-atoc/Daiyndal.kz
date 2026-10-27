@@ -13,6 +13,7 @@ import {
   listExams,
   listGroups,
   listStudents,
+  replaceSubmission,
   listSubmissions,
   newExam,
   previousScores,
@@ -160,6 +161,19 @@ export async function POST(req: NextRequest) {
       const exam = cleanExam(b.exam, existing)
       if (!exam.subjects.length) return bad('Кемінде бір пән керек')
       await saveExam(exam)
+      return NextResponse.json({ ok: true })
+    }
+    // Әкімші оқушының жауап парағын түзетеді немесе қағаздан қолмен енгізеді
+    if (action === 'set-submission') {
+      const exam = await getExam(String(b.exam ?? ''))
+      const cfg = exam?.subjects.find((s) => s.id === String(b.subject ?? ''))
+      if (!exam || !cfg) return bad('Сынақ табылмады', 404)
+      const st = (await listStudents(exam.group_id)).find((s) => s.full_name === String(b.student ?? ''))
+      if (!st) return bad('Оқушы табылмады', 404)
+      const allowed = LETTERS.slice(0, cfg.options)
+      const answers = Array.isArray(b.answers) ? b.answers.map((a: unknown) => (typeof a === 'string' && allowed.includes(a) ? a : '')) : null
+      if (!answers || answers.length !== cfg.questions) return bad('Жауап парағы дұрыс емес')
+      await replaceSubmission({ exam_id: exam.id, student_name: st.full_name, subject: cfg.id, answers })
       return NextResponse.json({ ok: true })
     }
     if (action === 'delete-submission') {

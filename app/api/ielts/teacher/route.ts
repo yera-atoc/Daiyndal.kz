@@ -1,7 +1,7 @@
 import { logServerError } from '@/lib/serverLog'
 import { resolveSpeaking } from '@/lib/speakingStorage'
 import { NextRequest, NextResponse } from 'next/server'
-import { canEdit, db, getAttempt, getTest, randomPin, staff } from '@/lib/ieltsServer'
+import { canEdit, db, finishSection, getAttempt, getTest, randomPin, regradeAttempt, staff } from '@/lib/ieltsServer'
 import { overallBand, speakingBand, toeflOverall, toeflSpeakingBand, toeflWritingBand, writingBand, type Attempt, type IeltsTest, type Scores } from '@/lib/ielts'
 
 export const dynamic = 'force-dynamic'
@@ -238,6 +238,30 @@ export async function POST(req: NextRequest) {
       const { error } = await sb.from('ielts_attempts').update(patch).eq('id', a.id)
       if (error) return bad(error.message, 500)
       return NextResponse.json({ ok: true, overall: scores.overall })
+    }
+
+    // Нәтижелерді қайта есептеу: кілт түзетілсе, аяқталған тапсырулардың баллы жаңарады
+    if (action === 'regrade') {
+      const t = await getTest(String(b.testId))
+      if (!t || !canEdit(who, t)) return bad('Тест табылмады', 404)
+      const { data: list, error } = await sb.from('ielts_attempts').select('*').eq('test_id', t.id).neq('status', 'in_progress')
+      if (error) return bad(error.message, 500)
+      let changed = 0
+      for (const a of (list ?? []) as Attempt[]) {
+        const before = JSON.stringify(a.scores)
+        const after = await regradeAttempt(t, a)
+        if (JSON.stringify(after.scores) !== before) changed++
+      }
+      return NextResponse.json({ ok: true, total: list?.length ?? 0, changed })
+    }
+
+    // Оқушы бетті жауып кеткен не тапсыра алмаған тапсыруды аяқтау: берген жауаптарымен бағаланады
+    if (action === 'finish-attempt') {
+      let a = await getAttempt(String(b.attemptId))
+      const t = a && (await getTest(a.test_id))
+      if (!a || !t || !canEdit(who, t)) return bad('Табылмады', 404)
+      for (let i = 0; i < 6 && a.status === 'in_progress'; i++) a = await finishSection(t, a)
+      return NextResponse.json({ ok: true, status: a.status })
     }
 
     // Тапсыруды өшіру — оқушы қайта бастай алады

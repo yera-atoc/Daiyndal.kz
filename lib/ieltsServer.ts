@@ -150,3 +150,25 @@ export async function catchUp(test: IeltsTest, a: Attempt): Promise<Attempt> {
   }
   return cur
 }
+
+/**
+ * Аяқталған тапсыруды қайта есептеу (кілт не сұрақ түзетілгеннен кейін): автоматты бөлімдер
+ * (ҰБТ, Listening, Reading, Build) қазіргі кілтпен қайта бағаланады; мұғалімнің W/S бағасы сақталады.
+ */
+export async function regradeAttempt(test: IeltsTest, a: Attempt): Promise<Attempt> {
+  const exam = test.exam ?? 'ielts'
+  const scores = { ...a.scores }
+  const done = (sec: Section) => a.state.order.indexOf(sec) > -1 && a.state.order.indexOf(sec) < a.state.current
+  for (const sec of ['listening', 'reading'] as const) if (done(sec)) scores[sec] = scoreSection(test.content, sec, a.answers?.[sec], test.variant, exam)
+  if (done('ubt') && test.content.ubt && a.state.combo) {
+    const { scoreUbt } = await import('./ubt')
+    scores.ubt = scoreUbt(test.content.ubt, a.state.combo, a.answers?.ubt)
+  }
+  if (done('writing') && test.content.writing?.build?.length) scores.writing = { ...scores.writing, build: scoreSection(test.content, 'build', a.answers?.build, test.variant, 'toefl') }
+  const { overallBand, toeflOverall } = await import('./ielts')
+  if (exam === 'ubt') scores.overall = scores.ubt?.total ?? null
+  else if (a.status === 'graded') scores.overall = exam === 'toefl' ? toeflOverall(scores, a.state.order) : overallBand(scores, a.state.order)
+  const { data, error } = await (await db()).from('ielts_attempts').update({ scores }).eq('id', a.id).select('*').single()
+  if (error) throw new Error(error.message)
+  return data as Attempt
+}

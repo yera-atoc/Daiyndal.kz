@@ -27,9 +27,12 @@ export default function IeltsTeacherPage() {
   const [data, setData] = useState<Data | null>(null)
   const [view, setView] = useState<{ k: 'list' } | { k: 'edit'; test: any } | { k: 'ubtmeta'; test: any } | { k: 'access'; id: string } | { k: 'grade'; id: string }>({ k: 'list' })
   const [err, setErr] = useState('')
+  const [at, setAt] = useState<Date | null>(null)
+  const [note, setNote] = useState('')
 
   const load = useCallback(async () => {
     const r = await fetch('/api/ielts/teacher', { cache: 'no-store' })
+    setAt(new Date())
     if (r.status === 401) {
       location.href = '/teacher/login?next=/ielts/teacher'
       return
@@ -41,6 +44,16 @@ export default function IeltsTeacherPage() {
   useEffect(() => {
     load()
   }, [load])
+  // Тізімде тұрғанда нәтижелер өзі жаңарып тұрады (оқушылар тапсырып жатқанда)
+  useEffect(() => {
+    if (view.k !== 'list') return
+    const t = setInterval(() => document.visibilityState === 'visible' && load(), 30000)
+    return () => clearInterval(t)
+  }, [view.k, load])
+  const say = (m: string) => {
+    setNote(m)
+    setTimeout(() => setNote(''), 4000)
+  }
 
   const edit = async (id?: string, exam: Exam = 'ielts') => {
     if (!id) return setView({ k: 'edit', test: exam === 'toefl' ? { exam: 'toefl' } : null })
@@ -63,6 +76,7 @@ export default function IeltsTeacherPage() {
 
   return (
     <Shell data={data}>
+      {note && <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl px-4 py-2.5 text-sm text-white shadow-lg" style={{ background: INK }} role="status">{note}</div>}
       <div className="mx-auto max-w-5xl px-4 py-6">
         <div className="grid gap-3 sm:grid-cols-4">
           <Stat label="Тесттер" value={data.tests.length} />
@@ -86,8 +100,10 @@ export default function IeltsTeacherPage() {
           </section>
         )}
 
-        <div className="mt-6 flex items-center">
+        <div className="mt-6 flex flex-wrap items-center gap-2">
           <h2 className="text-lg font-bold">Тесттер</h2>
+          <button onClick={() => { load(); say('Нәтижелер жаңартылды') }} className="rounded-lg border bg-white px-3 py-1.5 text-sm font-semibold" style={{ borderColor: LINE }} title="Соңғы тапсыруларды жүктеу">↻ Жаңарту</button>
+          {at && <span className="text-xs" style={{ color: MUTED }}>{at.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} · 30 сек сайын өзі жаңарады</span>}
           <button onClick={() => edit()} className="ml-auto rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: INK }}>+ IELTS тест</button>
           <button onClick={() => edit(undefined, 'toefl')} className="ml-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ background: BLUE }}>+ TOEFL тест</button>
         </div>
@@ -105,6 +121,22 @@ export default function IeltsTeacherPage() {
                   <div className="ml-auto flex gap-2">
                     <button onClick={() => edit(t.id)} className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: LINE }}>Өңдеу</button>
                     <button onClick={() => setView({ k: 'access', id: t.id })} className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: LINE }}>Оқушылар · {acc.length}</button>
+                    {att.some((a) => a.status !== 'in_progress') && (
+                      <button
+                        title="Кілт не сұрақ түзетілсе — барлық аяқталған тапсырудың баллын қазіргі кілтпен қайта есептеу"
+                        onClick={async () => {
+                          if (!confirm(`«${t.title}»: аяқталған тапсырулардың баллы қазіргі жауап кілтімен қайта есептелсін бе? Мұғалімнің Writing/Speaking бағасы өзгермейді.`)) return
+                          const j: any = await tcall({ action: 'regrade', testId: t.id }).catch((e) => (alert(e.message), null))
+                          if (!j) return
+                          await load()
+                          say(j?.changed ? `Қайта есептелді: ${j.changed} нәтиже өзгерді (барлығы ${j.total})` : `Қайта есептелді: барлығы ${j?.total ?? 0}, өзгеріс жоқ`)
+                        }}
+                        className="rounded-lg border px-3 py-1.5 text-sm"
+                        style={{ borderColor: LINE }}
+                      >
+                        Қайта есептеу
+                      </button>
+                    )}
                     <button
                       onClick={async () => {
                         if (!confirm(`«${t.title}» тестін және оның барлық нәтижелерін өшіру керек пе?`)) return
@@ -127,7 +159,10 @@ export default function IeltsTeacherPage() {
                           <td className="text-xs">{comboName(a.scores?.ubt?.combo)}</td>
                           <td className="font-bold">{a.scores?.ubt ? `${a.scores.ubt.total} / ${a.scores.ubt.max}` : '—'}</td>
                           <td><span className="text-xs font-semibold" style={{ color: STATUS[a.status]?.[1] }}>{a.status === 'in_progress' ? STATUS.in_progress[0] : 'Аяқталды'}{a.published ? ' · жауаптар ашық' : ''}</span></td>
-                          <td className="text-right"><button onClick={() => setView({ k: 'grade', id: a.id })} className="text-sm font-semibold" style={{ color: BLUE }}>Ашу</button></td>
+                          <td className="whitespace-nowrap text-right">
+                            {a.status === 'in_progress' && <FinishBtn id={a.id} who={name(a.student_id)} done={async () => { await load(); say('Тапсыру аяқталып, бағаланды') }} />}
+                            <button onClick={() => setView({ k: 'grade', id: a.id })} className="text-sm font-semibold" style={{ color: BLUE }}>Ашу</button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -150,7 +185,10 @@ export default function IeltsTeacherPage() {
                           <td>{band(a.scores?.speaking?.band)}</td>
                           <td className="font-bold">{band(a.scores?.overall)}</td>
                           <td><span className="text-xs font-semibold" style={{ color: STATUS[a.status]?.[1] }}>{STATUS[a.status]?.[0]}{a.published ? ' · жарияланды' : ''}</span></td>
-                          <td className="text-right"><button onClick={() => setView({ k: 'grade', id: a.id })} className="text-sm font-semibold" style={{ color: BLUE }}>Ашу</button></td>
+                          <td className="whitespace-nowrap text-right">
+                            {a.status === 'in_progress' && <FinishBtn id={a.id} who={name(a.student_id)} done={async () => { await load(); say('Тапсыру аяқталды') }} />}
+                            <button onClick={() => setView({ k: 'grade', id: a.id })} className="text-sm font-semibold" style={{ color: BLUE }}>Ашу</button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -162,6 +200,27 @@ export default function IeltsTeacherPage() {
         </div>
       </div>
     </Shell>
+  )
+}
+
+function FinishBtn({ id, who, done }: { id: string; who: string; done: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false)
+  return (
+    <button
+      disabled={busy}
+      title="Оқушы бетті жауып кетсе: осы уақытқа дейінгі жауаптарымен аяқтап, бағалау"
+      onClick={async () => {
+        if (!confirm(`${who}: тапсыруды қазір аяқтау керек пе? Берген жауаптарымен бағаланады, оқушы жалғастыра алмайды.`)) return
+        setBusy(true)
+        const ok = await tcall({ action: 'finish-attempt', attemptId: id }).catch((e) => (alert(e.message), null))
+        if (ok) await done()
+        setBusy(false)
+      }}
+      className="mr-3 text-sm font-semibold disabled:opacity-50"
+      style={{ color: '#B45309' }}
+    >
+      {busy ? '…' : 'Аяқтау'}
+    </button>
   )
 }
 

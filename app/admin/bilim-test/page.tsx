@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   BarChart3,
@@ -62,6 +62,28 @@ function Admin() {
   useEffect(() => {
     load()
   }, [load])
+
+  // Нәтижелерді жаңарту: жаңа тапсырулар мен белгілер. Өңделіп жатқан (сақталмаған) кілт пен сұрақтарға тимейді.
+  const dataRef = useRef<Resp | null>(null)
+  dataRef.current = data
+  const [at, setAt] = useState<Date | null>(null)
+  const refresh = useCallback(async () => {
+    const q = new URLSearchParams()
+    if (groupId) q.set('group', groupId)
+    if (examId) q.set('exam', examId)
+    const r = await fetch(`/api/bilim-test/admin?${q}`, { cache: 'no-store' })
+    if (!r.ok) return
+    const j: Resp = await r.json()
+    const old = dataRef.current?.exam
+    setData(j)
+    setDraft((d) => (!d || !old || JSON.stringify(d) === JSON.stringify(old) ? (j.exam ? structuredClone(j.exam) : null) : d))
+    setAt(new Date())
+  }, [groupId, examId])
+  useEffect(() => {
+    setAt(new Date())
+    const t = setInterval(() => document.visibilityState === 'visible' && refresh(), 20000)
+    return () => clearInterval(t)
+  }, [refresh])
 
   const nav = (patch: Partial<Record<'group' | 'exam' | 'view', string>>) => {
     const q = new URLSearchParams(sp.toString())
@@ -220,7 +242,7 @@ function Admin() {
           {group && exam && draft && rk && (
             <>
               {current === 'overview' && <Dashboard data={data} exam={exam} onOpenStudent={setProfile} />}
-              {current === 'results' && <Results data={data} exam={exam} onOpen={setProfile} />}
+              {current === 'results' && <Results data={data} exam={exam} onOpen={setProfile} onRefresh={async () => { await refresh(); flash('Нәтижелер жаңартылды') }} at={at} />}
               {current === 'key' && <KeyEditor draft={draft} setDraft={setDraft} />}
               {current === 'questions' && <QuestionsEditor draft={draft} setDraft={setDraft} flash={flash} />}
               {current === 'settings' && (
@@ -276,8 +298,13 @@ function Admin() {
           onClose={() => setProfile(null)}
           onDelete={async (id) => {
             await post({ action: 'delete-submission', id })
-            await load()
+            await refresh()
             flash('Парақ өшірілді')
+          }}
+          onSave={async (subject, answers) => {
+            await post({ action: 'set-submission', exam: exam.id, student: profile, subject, answers })
+            await refresh()
+            flash('Жауап парағы сақталды, нәтиже жаңарды')
           }}
         />
       )}
