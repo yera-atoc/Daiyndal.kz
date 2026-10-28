@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/bilimTestAuth'
 import { listExams, listGroups, listStudents, listSubmissions } from '@/lib/bilimTestStore'
-import { gradeSubject, ranking } from '@/lib/bilimTest'
+import { DEFAULT_SUBJECTS, examTitle, gradeSubject, ranking, rowTotal, shortName } from '@/lib/bilimTest'
 import { resultSummary } from '@/lib/bilimTestResults'
 
 export const dynamic = 'force-dynamic'
@@ -61,6 +61,46 @@ export async function GET() {
           return { id: s.id, name: s.name, questions: s.questions, max: s.max, score: g?.score ?? null, correct: g?.correct ?? null }
         }),
       })
+    }
+
+    // Сайтқа дейін тапсырылған айлар (Excel-ден енгізілген баллдар, мысалы Қыркүйек): кабинетте де көрінсін
+    const grp = groups.find((g) => g.id === me.group_id)
+    const tmpl = grp?.subjects?.length ? grp.subjects : DEFAULT_SUBJECTS
+    const mineRow = peers.find((p) => p.id === me.id)?.legacy_scores ?? {}
+    for (const month of Object.keys(mineRow).sort().reverse()) {
+      if (exams.some((e) => e.month === month)) continue
+      const row = mineRow[month]
+      const subj = tmpl.filter((t) => typeof row?.[t.id] === 'number')
+      const total = rowTotal(row)
+      if (!subj.length || total === null) continue
+      const others = peers
+        .map((p) => ({ p, t: rowTotal(p.legacy_scores?.[month]) }))
+        .filter((x): x is { p: (typeof peers)[number]; t: number } => x.t !== null)
+        .sort((a, b) => b.t - a.t)
+      results.push({
+        examId: `legacy:${month}`,
+        legacy: true,
+        title: examTitle(month),
+        month,
+        subjects: subj.length,
+        taken: subj.length,
+        correct: null,
+        wrong: null,
+        blank: null,
+        score: total,
+        max: subj.reduce((a, t) => a + t.max, 0),
+        place: 1 + others.filter((x) => x.t > total).length,
+        of: others.length,
+        rows: subj.map((t) => ({ id: t.id, name: t.name, short: t.short, score: row[t.id] as number, max: t.max })),
+        // Топ рейтингі: басқалардың аты қысқа («Оразалы Ж.»)
+        table: others.map((x) => ({
+          place: 1 + others.filter((y) => y.t > x.t).length,
+          name: x.p.id === me.id ? x.p.full_name : shortName(x.p.full_name),
+          me: x.p.id === me.id,
+          scores: x.p.legacy_scores[month],
+          total: x.t,
+        })),
+      } as any)
     }
 
     return NextResponse.json(

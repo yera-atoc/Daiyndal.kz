@@ -33,6 +33,10 @@ type Summary = {
   max: number
   place: number | null
   of: number
+  // Сайтқа дейінгі ай (Excel баллдары): жауап парағы жоқ, тек пән баллдары мен топ рейтингі
+  legacy?: boolean
+  rows?: { id: string; name: string; short: string; score: number; max: number }[]
+  table?: { place: number; name: string; me: boolean; scores: Record<string, number>; total: number }[]
 }
 type Practice = {
   id: string
@@ -470,15 +474,31 @@ function Results({ list, onOpen }: { list: Summary[]; onOpen: (id: string) => vo
               <span><b className="text-2xl">{r.score ?? '—'}</b> <span className="text-slate-400">/ {r.max}</span></span>
             </div>
             <div className="flex justify-between"><span className="text-slate-500">Топтағы орны</span><b>{r.place ?? '—'} / {r.of}</b></div>
+            {r.legacy ? (
+              <div className="space-y-1.5 pt-1">
+                {r.rows?.map((x) => (
+                  <div key={x.id} className="grid grid-cols-[1fr_auto] items-center gap-x-3 text-[13px]">
+                    <span className="text-slate-600">{x.name}</span>
+                    <span className="tabular-nums"><b>{x.score}</b><span className="text-slate-400"> / {x.max}</span></span>
+                    <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${Math.min(100, (x.score / x.max) * 100)}%` }} /></div>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className="flex flex-wrap gap-1.5 pt-1">
               <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-emerald-700">Дұрыс {r.correct}</span>
               <span className="rounded-md bg-red-50 px-2 py-0.5 text-red-600">Қате {r.wrong}</span>
               <span className="rounded-md bg-amber-50 px-2 py-0.5 text-amber-700">Бос {r.blank}</span>
             </div>
+            )}
             {r.taken < r.subjects && <p className="text-xs text-slate-400">{r.subjects - r.taken} пән тапсырылмаған</p>}
           </div>
           <div className="px-4 pb-4">
-            <button onClick={() => onOpen(r.examId)} className="w-full rounded-xl bg-blue-600 py-2.5 font-semibold text-white active:bg-blue-700">Толық нәтиже</button>
+            {r.legacy ? (
+              <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs text-slate-500">Қағаз түрінде тапсырылған. Сұрақтарын «Сынақ» бетіндегі «Дайындық» бөлімінен қайта тапсырып көруге болады.</p>
+            ) : (
+              <button onClick={() => onOpen(r.examId)} className="w-full rounded-xl bg-blue-600 py-2.5 font-semibold text-white active:bg-blue-700">Толық нәтиже</button>
+            )}
           </div>
         </div>
       ))}
@@ -710,7 +730,12 @@ function ResultDetail({ examId, onBack }: { examId: string; onBack: () => void }
 
 function Rating({ list }: { list: Summary[] }) {
   const [examId, setExamId] = useState<string | null>(list[0]?.examId ?? null)
-  const { data, err } = useResult(examId)
+  const leg = list.find((r) => r.examId === examId && r.legacy)
+  const { data: live, err } = useResult(leg ? null : examId)
+  // Сайтқа дейінгі ай: кесте кабинет деректерінде дайын
+  const data = leg
+    ? { exam: { subjects: (leg.rows ?? []).map((x) => ({ id: x.id, short: x.short })) }, table: leg.table ?? [] }
+    : live
   if (!list.length) return <Empty title="Рейтинг әлі жоқ" text="Мұғалім нәтижені жариялағанда осында шығады." />
   return (
     <>
