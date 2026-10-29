@@ -22,9 +22,25 @@ export async function GET(req: NextRequest) {
     const sids = Array.from(new Set([...(acc ?? []).map((a) => a.student_id), ...extra]))
     if (!sids.length) return NextResponse.json({ students: [] })
     const { data: st } = await sb.from('students').select('id, full_name, group_id, student_groups(name)').in('id', sids).order('full_name')
+    // ҰБТ: физика пән тестіндегі оқушылар (Физика – математика таңдағандар) бөлек тізбекпен көрінеді
+    const phys = new Map<string, { label: string; pos: number }>()
+    if (exam === 'ubt') {
+      const { data: rows } = await sb.from('subject_rows').select('student_id, subject_sheets!inner(name, subject, position)').eq('subject_sheets.subject', 'Физика').not('student_id', 'is', null)
+      for (const r of (rows ?? []) as any[]) {
+        const sh = Array.isArray(r.subject_sheets) ? r.subject_sheets[0] : r.subject_sheets
+        if (r.student_id && sh && !phys.has(r.student_id)) phys.set(r.student_id, { label: `Физика · ${String(sh.name).replace(/^.*·\s*/, '')}`, pos: sh.position ?? 0 })
+      }
+    }
     return NextResponse.json(
       // Ашық тізімде толық тегі көрсетілмейді: «Айтбек А.»
-      { students: maskNames((st ?? []).map((s: any) => ({ id: s.id, name: s.full_name, group: s.student_groups?.name ?? '' }))) },
+      {
+        students: maskNames(
+          (st ?? []).map((s: any) => {
+            const p = phys.get(s.id)
+            return { id: s.id, name: s.full_name, group: s.student_groups?.name ?? '', ...(p ? { track: 'physics', trackLabel: p.label, trackPos: p.pos } : {}) }
+          })
+        ),
+      },
       { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (e: any) {

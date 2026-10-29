@@ -21,7 +21,7 @@ export const EXAMS: Record<Exam, { name: string; title: string; tagline: string;
 const ORDER: Exam[] = ['ubt', 'ielts', 'toefl']
 const PAPER = '#F5F7FB'
 
-type Row = { id: string; name: string; group: string }
+type Row = { id: string; name: string; group: string; track?: 'physics'; trackLabel?: string; trackPos?: number }
 type Attempt = { id: string; status: string; started_at: string; submitted_at: string | null; published: boolean; scores: Scores; combo?: [string, string] | null }
 type MyTest = {
   id: string
@@ -424,12 +424,31 @@ function Login({ exam, onDone }: { exam: Exam; onDone: () => void }) {
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Іздеу…" className="mt-2 w-full rounded-xl border bg-[#F5F7FB] px-4 py-3 text-base outline-none focus:border-[#2B6BF3] focus:bg-white" style={{ borderColor: LINE }} />
               <div className="-mx-2 mt-2 max-h-[45vh] overflow-y-auto">
                 {list === null && <p className="py-8 text-center text-sm" style={{ color: MUTED }}>Жүктелуде…</p>}
-                {shown.map((s) => (
-                  <button key={s.id} onClick={() => { setSel(s); setErr('') }} className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-50 active:bg-slate-100">
-                    <span className="font-medium">{s.name}</span>
-                    <span className="shrink-0 text-xs" style={{ color: MUTED }}>{s.group} ›</span>
-                  </button>
-                ))}
+                {(() => {
+                  const row = (s: Row, label?: string) => (
+                    <button key={s.id} onClick={() => { setSel(s); setErr('') }} className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-50 active:bg-slate-100">
+                      <span className="font-medium">{s.name}</span>
+                      <span className="shrink-0 text-xs" style={{ color: MUTED }}>{label ?? s.group} ›</span>
+                    </button>
+                  )
+                  const phys = shown.filter((s) => s.track === 'physics').sort((a, b) => (a.trackPos ?? 0) - (b.trackPos ?? 0) || a.name.localeCompare(b.name))
+                  const rest = shown.filter((s) => s.track !== 'physics')
+                  if (!phys.length) return rest.map((s) => row(s))
+                  return (
+                    <>
+                      <div className="sticky top-0 z-10 mx-1 mt-1 flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-bold uppercase tracking-wider" style={{ background: '#EEF3FE', color: BLUE }}>
+                        <span>Физика – математика таңдағандар</span><span>{phys.length}</span>
+                      </div>
+                      {phys.map((s) => row(s, s.trackLabel))}
+                      {rest.length > 0 && (
+                        <div className="sticky top-0 z-10 mx-1 mt-3 flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-bold uppercase tracking-wider" style={{ background: PAPER, color: MUTED }}>
+                          <span>Басқа оқушылар</span><span>{rest.length}</span>
+                        </div>
+                      )}
+                      {rest.map((s) => row(s))}
+                    </>
+                  )
+                })()}
                 {list !== null && !list.length && !err && (
                   <p className="px-2 py-6 text-center text-sm leading-relaxed" style={{ color: MUTED }}>
                     {E.name} бойынша әзірге ашық тест жоқ. Мұғалім тест ашып, сізге рұқсат бергенде атыңыз осында шығады.
