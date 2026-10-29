@@ -14,7 +14,7 @@ describe('exam countdown', () => {
     expect(c.done).toBe(false)
   })
   it('5th grade NIS group shares the season', () => {
-    expect(seasonFor('nzm5')?.months).toHaveLength(8)
+    expect(seasonFor('nzm5')?.months).toHaveLength(9)
     expect(seasonFor('nzm5')?.examDate.slice(0, 4)).toBe('2028')
     const c = countdown(new Date('2026-10-29T20:00:00+05:00'), new Date(seasonFor('nzm5')!.examDate))
     expect(c.months).toBe(16)
