@@ -32,6 +32,7 @@ type MyTest = {
   sections: Section[]
   canStart: boolean
   attempts: Attempt[]
+  combos?: [string, string][] | null // ҰБТ: мұғалім рұқсат еткен комбинациялар (бос — бәрі)
 }
 type Me = { student: { id: string; full_name: string }; tests: MyTest[] }
 
@@ -204,7 +205,7 @@ export default function Portal({ exam }: { exam: Exam }) {
         </div>
       )}
 
-      {pick && <ComboSheet busy={busy} err={err} onPick={(c) => start(pick, c)} onClose={() => setPick(null)} />}
+      {pick && <ComboSheet busy={busy} err={err} allowed={me?.tests.find((t) => t.id === pick)?.combos ?? null} onPick={(c) => start(pick, c)} onClose={() => setPick(null)} />}
     </Shell>
   )
 }
@@ -336,7 +337,8 @@ function TestCard({ t, exam, busy, onOpen, onStart }: { t: MyTest; exam: Exam; b
   )
 }
 
-function ComboSheet({ busy, err, onPick, onClose }: { busy: boolean; err: string; onPick: (c: [string, string]) => void; onClose: () => void }) {
+function ComboSheet({ busy, err, allowed, onPick, onClose }: { busy: boolean; err: string; allowed: [string, string][] | null; onPick: (c: [string, string]) => void; onClose: () => void }) {
+  const list = allowed?.length ? UBT_COMBOS.filter((c) => allowed.some((a) => a[0] === c[0] && a[1] === c[1])) : UBT_COMBOS
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', h)
@@ -355,7 +357,7 @@ function ComboSheet({ busy, err, onPick, onClose }: { busy: boolean; err: string
         </div>
         {err && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
         <div className="mt-4 grid gap-2">
-          {UBT_COMBOS.map((c) => (
+          {list.map((c) => (
             <button key={c.join()} disabled={busy} onClick={() => onPick(c)} className="rounded-2xl border px-4 py-3.5 text-left font-semibold transition hover:border-[#2B6BF3] hover:bg-[#EEF3FE] disabled:opacity-60" style={{ borderColor: LINE }}>
               {comboName(c)}
             </button>

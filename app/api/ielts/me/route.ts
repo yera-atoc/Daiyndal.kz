@@ -12,7 +12,7 @@ export async function GET() {
     const me = await currentStudent()
     if (!me) return NextResponse.json({ error: 'Кіру керек' }, { status: 401 })
     const sb = await db()
-    const { data: acc } = await sb.from('ielts_access').select('test_id, attempts_allowed').eq('student_id', me.id)
+    const { data: acc } = await sb.from('ielts_access').select('*').eq('student_id', me.id)
     const ids = (acc ?? []).map((a) => a.test_id)
     const [{ data: tests }, { data: attempts }] = await Promise.all([
       ids.length ? sb.from('ielts_tests').select('*').in('id', ids).eq('published', true) : Promise.resolve({ data: [] as any[] }),
@@ -28,6 +28,7 @@ export async function GET() {
         variant: t.variant,
         mode: t.mode,
         sections: sectionsOf(t.content),
+        combos: (acc?.find((a: any) => a.test_id === t.id) as any)?.combos ?? null,
         canStart: !mine.some((a) => a.status === 'in_progress') && mine.length < allowed,
         attempts: mine.map((a) => ({
           id: a.id,

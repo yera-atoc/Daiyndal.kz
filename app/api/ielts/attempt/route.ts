@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     if (action === 'start') {
       const t = await getTest(String(b.testId))
       if (!t || !t.published) return bad('Тест табылмады', 404)
-      const { data: acc } = await sb.from('ielts_access').select('attempts_allowed').eq('test_id', t.id).eq('student_id', me.id).maybeSingle()
+      const { data: acc } = await sb.from('ielts_access').select('*').eq('test_id', t.id).eq('student_id', me.id).maybeSingle()
       if (!acc) return bad('Бұл тестке рұқсат жоқ', 403)
       const { data: prev } = await sb.from('ielts_attempts').select('id, status').eq('test_id', t.id).eq('student_id', me.id)
       const open = prev?.find((p) => p.status === 'in_progress')
@@ -71,6 +71,9 @@ export async function POST(req: NextRequest) {
       if (!state.order.length) return bad('Тест әлі толтырылмаған', 400)
       if (t.content.ubt) {
         if (!isCombo(b.combo)) return bad('Бейіндік пәндер комбинациясын таңдаңыз')
+        // Мұғалім комбинацияны шектеген болса (мысалы, тек физикасы барлар)
+        const allowed = (acc as any).combos as [string, string][] | null | undefined
+        if (allowed?.length && !allowed.some((c) => c[0] === b.combo[0] && c[1] === b.combo[1])) return bad('Бұл комбинацияға рұқсат жоқ', 403)
         state.combo = b.combo
       }
       const { data, error } = await sb.from('ielts_attempts').insert({ test_id: t.id, student_id: me.id, state }).select('id').single()
