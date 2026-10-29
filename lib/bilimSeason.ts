@@ -9,14 +9,17 @@ export type SeasonConfig = {
   examLabel: string
 }
 
-// НЗМ дайындық тобы: қыркүйектен наурызға дейін ай сайын сынақ, нағыз емтихан 27–28 наурыз 2027
+// НЗМ дайындық топтары (6 және 5 сынып): қыркүйектен наурызға дейін ай сайын сынақ, нағыз емтихан 27–28 наурыз 2027
+const NZM_SEASON: SeasonConfig = {
+  months: ['2026-09', '2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03'],
+  examName: 'НЗМ емтиханы',
+  examDate: '2027-03-27T00:00:00+05:00',
+  examLabel: '27–28 наурыз 2027',
+}
+
 export const SEASONS: Record<string, SeasonConfig> = {
-  nzm: {
-    months: ['2026-09', '2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03'],
-    examName: 'НЗМ емтиханы',
-    examDate: '2027-03-27T00:00:00+05:00',
-    examLabel: '27–28 наурыз 2027',
-  },
+  nzm: NZM_SEASON, // 6 сынып
+  nzm5: NZM_SEASON, // 5 сынып
 }
 
 export function seasonFor(groupId: string | null | undefined): SeasonConfig | null {

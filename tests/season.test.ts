@@ -13,6 +13,10 @@ describe('exam countdown', () => {
     expect(c.totalDays).toBe(148)
     expect(c.done).toBe(false)
   })
+  it('5th grade NIS group shares the season', () => {
+    expect(seasonFor('nzm5')?.months).toHaveLength(7)
+    expect(seasonFor('bil5')).toBeNull()
+  })
   it('stops at zero', () => {
     expect(countdown(new Date('2027-03-28T10:00:00+05:00'), target).done).toBe(true)
   })

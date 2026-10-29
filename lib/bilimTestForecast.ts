@@ -1,3 +1,4 @@
+import { seasonFor } from './bilimSeason'
 // Оң болжам: оқушы жүйелі дайындалса, келесі айларда нәтиже қалай өсуі мүмкін.
 // Әдіс: әр пән бойынша әр айда «максимумға дейінгі қалған айырманың» бір бөлігі жабылады,
 // оқушының өз өсу қарқыны жоғары болса — сол қарқын алынады. Нәтиже ешқашан төмендемейді.
@@ -16,7 +17,7 @@ export type Forecast = {
 export function endMonthFor(groupId: string, month: string): string | null {
   const y = Number(month.slice(0, 4))
   const m = Number(month.slice(5, 7))
-  const endM = groupId === 'nzm' ? 3 : 5
+  const endM = seasonFor(groupId) ? 3 : 5
   const endY = m >= 9 ? y + 1 : y
   const end = `${endY}-${String(endM).padStart(2, '0')}`
   return end > month ? end : null
