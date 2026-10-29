@@ -1,5 +1,6 @@
 import type { Exam, Group, ScoreRow, Student, Submission } from '@/lib/bilimTest'
 import type { HistPoint } from '@/lib/bilimTestForecast'
+import type { SeasonView } from '@/lib/bilimSeason'
 
 export type Resp = {
   groups: Group[]
@@ -10,6 +11,7 @@ export type Resp = {
   submissions: Submission[]
   previous: { id: string; month: string; title: string; scores: Record<string, ScoreRow> } | null
   histories: Record<string, HistPoint[]>
+  season?: SeasonView | null
   error?: string
 }
 

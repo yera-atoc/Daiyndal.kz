@@ -3,6 +3,8 @@ import { currentStudent } from '@/lib/bilimTestAuth'
 import { listExams, listGroups, listStudents, listSubmissions } from '@/lib/bilimTestStore'
 import { DEFAULT_SUBJECTS, examTitle, gradeSubject, ranking, rowTotal, shortName } from '@/lib/bilimTest'
 import { resultSummary } from '@/lib/bilimTestResults'
+import { seasonView } from '@/lib/bilimSeasonServer'
+import { seasonFor } from '@/lib/bilimSeason'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -110,6 +112,8 @@ export async function GET() {
         open,
         results,
         practice,
+        // Маусым: айлар бойынша нәтиже және рейтинг (НЗМ: Қыркүйек → Наурыз)
+        season: seasonFor(me.group_id) ? await seasonView(me.group_id, { id: me.id }) : null,
       },
       { headers: { 'Cache-Control': 'no-store' } }
     )

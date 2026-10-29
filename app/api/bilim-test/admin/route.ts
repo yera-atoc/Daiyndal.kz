@@ -22,6 +22,8 @@ import {
   saveExam,
   saveGroup,
 } from '@/lib/bilimTestStore'
+import { seasonView } from '@/lib/bilimSeasonServer'
+import { seasonFor } from '@/lib/bilimSeason'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -49,6 +51,7 @@ export async function GET(req: NextRequest) {
       submissions: exam ? await listSubmissions(exam.id) : [],
       previous: exam ? await previousScores(exam) : null,
       histories: exam ? await groupHistories(exam) : {},
+      season: seasonFor(group.id) || exams.length ? await seasonView(group.id, 'admin') : null,
     })
   } catch (e: any) {
     await logServerError('bilim-test/admin', e)

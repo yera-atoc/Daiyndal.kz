@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Plus,
   Settings2,
+  Trophy,
   Users,
 } from 'lucide-react'
 import { ranking, type Exam, type Group } from '@/lib/bilimTest'
@@ -17,11 +18,14 @@ import Dashboard from '@/components/bilim/admin/Dashboard'
 import StudentProfile from '@/components/bilim/admin/StudentProfile'
 import { GroupModal, KeyEditor, QuestionsEditor, Results, Settings, StudentsTab } from '@/components/bilim/admin/Editors'
 import { BRAND, post, type Resp } from '@/components/bilim/admin/shared'
+import { ExamCountdown, SeasonMatrix } from '@/components/bilim/Season'
+import { seasonFor } from '@/lib/bilimSeason'
 
-type View = 'overview' | 'results' | 'key' | 'questions' | 'settings' | 'students' | 'groups'
+type View = 'overview' | 'rating' | 'results' | 'key' | 'questions' | 'settings' | 'students' | 'groups'
 
 const NAV: { id: View; label: string; icon: typeof LayoutDashboard; needsExam?: boolean }[] = [
   { id: 'overview', label: 'Шолу', icon: LayoutDashboard, needsExam: true },
+  { id: 'rating', label: 'Рейтинг', icon: Trophy },
   { id: 'results', label: 'Нәтижелер', icon: BarChart3, needsExam: true },
   { id: 'key', label: 'Жауап кілті', icon: KeyRound, needsExam: true },
   { id: 'questions', label: 'Сұрақтар', icon: FileQuestion, needsExam: true },
@@ -210,7 +214,7 @@ function Admin() {
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h1 className="font-display text-2xl font-semibold tracking-tight md:text-[28px]">
-                {current === 'groups' ? 'Топтар' : current === 'students' ? 'Оқушылар' : exam ? `${exam.title}` : group?.name}
+                {current === 'groups' ? 'Топтар' : current === 'students' ? 'Оқушылар' : current === 'rating' ? 'Рейтинг' : exam ? `${exam.title}` : group?.name}
               </h1>
               <p className="mt-1 text-sm" style={{ color: BRAND.muted }}>
                 {current === 'groups'
@@ -235,12 +239,29 @@ function Admin() {
 
           {!group && <Empty text="Әзірге топ жоқ." action="Топ қосу" onAction={() => setGroupModal('new')} />}
 
-          {group && !exam && current !== 'students' && current !== 'groups' && (
+          {group && current === 'rating' && (
+            <div className="space-y-4">
+              {seasonFor(group.id) && <ExamCountdown cfg={seasonFor(group.id)!} />}
+              {data.season ? (
+                <>
+                  <p className="text-sm" style={{ color: BRAND.muted }}>
+                    Айлар бойынша жалпы балл және топтағы орын (#). Жарияланбаған айлар оқушыларға әлі көрінбейді — «Сынақты басқару» бөлімінен жариялайсыз.
+                  </p>
+                  <SeasonMatrix season={data.season} admin />
+                </>
+              ) : (
+                <Empty text="Бұл топта әзірге нәтиже жоқ." />
+              )}
+            </div>
+          )}
+
+          {group && !exam && current !== 'students' && current !== 'groups' && current !== 'rating' && (
             <Empty text="Бұл топта әзірге сынақ жоқ. Жоғарыдан айды таңдап, «Ай ашу» басыңыз." />
           )}
 
           {group && exam && draft && rk && (
             <>
+              {current === 'overview' && seasonFor(group.id) && <div className="mb-5"><ExamCountdown cfg={seasonFor(group.id)!} compact /></div>}
               {current === 'overview' && <Dashboard data={data} exam={exam} onOpenStudent={setProfile} />}
               {current === 'results' && <Results data={data} exam={exam} onOpen={setProfile} onRefresh={async () => { await refresh(); flash('Нәтижелер жаңартылды') }} at={at} />}
               {current === 'key' && <KeyEditor draft={draft} setDraft={setDraft} />}

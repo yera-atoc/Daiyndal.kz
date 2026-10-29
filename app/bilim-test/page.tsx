@@ -19,6 +19,8 @@ import { buildForecast } from '@/lib/bilimTestForecast'
 import { UbtTrend } from '@/components/ielts/UbtGrowth'
 import { monthName } from '@/lib/bilimTest'
 import PracticeRunner from '@/components/bilim/PracticeRunner'
+import { ExamCountdown, SeasonMatrix, SeasonStrip } from '@/components/bilim/Season'
+import { seasonFor, type SeasonView } from '@/lib/bilimSeason'
 
 type OpenExam = { id: string; title: string; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
 type Summary = {
@@ -35,6 +37,7 @@ type Summary = {
   of: number
   // Сайтқа дейінгі ай (Excel баллдары): жауап парағы жоқ, тек пән баллдары мен топ рейтингі
   legacy?: boolean
+  month?: string
   rows?: { id: string; name: string; short: string; score: number; max: number }[]
   table?: { place: number; name: string; me: boolean; scores: Record<string, number>; total: number }[]
 }
@@ -44,7 +47,7 @@ type Practice = {
   month: string
   subjects: { id: string; name: string; questions: number; max: number; score: number | null; correct: number | null }[]
 }
-type Me = { student: { id: string; name: string }; group: { id: string; name: string }; open: OpenExam[]; results: Summary[]; practice?: Practice[] }
+type Me = { student: { id: string; name: string }; group: { id: string; name: string }; open: OpenExam[]; results: Summary[]; practice?: Practice[]; season?: SeasonView | null }
 type Tab = 'tests' | 'results' | 'rating'
 
 async function api<T>(url: string, body?: unknown): Promise<T> {
@@ -296,6 +299,11 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-32 pt-5">
+        {!sheet && !drill && !detail && seasonFor(me.group.id) && (
+          <div className="mb-5">
+            <ExamCountdown cfg={seasonFor(me.group.id)!} compact />
+          </div>
+        )}
         {sheet ? (
           <div className="mx-auto max-w-xl">
             <AnswerSheet
@@ -331,10 +339,10 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
           detail ? (
             <ResultDetail examId={detail} onBack={() => setDetail(null)} />
           ) : (
-            <Results list={me.results} onOpen={setDetail} />
+            <Results list={me.results} onOpen={setDetail} season={me.season ?? null} />
           )
         ) : (
-          <Rating list={me.results} />
+          <Rating list={me.results} season={me.season ?? null} />
         )}
       </main>
     </>
@@ -452,11 +460,12 @@ function Tests({
     </div>
   )
 }
-function Results({ list, onOpen }: { list: Summary[]; onOpen: (id: string) => void }) {
-  if (!list.length) return <Empty title="Нәтиже әлі жоқ" text="Мұғалім нәтижені жариялағанда осында шығады." />
+function Results({ list, onOpen, season }: { list: Summary[]; onOpen: (id: string) => void; season: SeasonView | null }) {
+  if (!list.length && !season) return <Empty title="Нәтиже әлі жоқ" text="Мұғалім нәтижені жариялағанда осында шығады." />
   const scored = list.filter((r) => r.score !== null)
   return (
     <>
+    {season && <SeasonStrip season={season} onOpen={onOpen} />}
     {scored.length > 0 && (
       <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
         <h3 className="mb-3 font-bold">Менің өсуім</h3>
@@ -467,7 +476,7 @@ function Results({ list, onOpen }: { list: Summary[]; onOpen: (id: string) => vo
     <div className="grid gap-4 sm:grid-cols-2">
       {list.map((r) => (
         <div key={r.examId} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-semibold">Білім тексеру · {r.title}</div>
+          <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-semibold">{r.legacy && r.month ? `${monthName(r.month)} айының нәтижесі` : `Білім тексеру · ${r.title}`}</div>
           <div className="space-y-1.5 p-4 text-sm">
             <div className="flex items-baseline justify-between">
               <span className="text-slate-500">Балл</span>
@@ -728,7 +737,22 @@ function ResultDetail({ examId, onBack }: { examId: string; onBack: () => void }
   )
 }
 
-function Rating({ list }: { list: Summary[] }) {
+function Rating({ list, season }: { list: Summary[]; season: SeasonView | null }) {
+  return (
+    <>
+      {season && (
+        <section className="mb-8">
+          <h1 className="text-xl font-bold">Айлар бойынша рейтинг</h1>
+          <p className="mb-3 mt-0.5 text-sm text-slate-500">Әр айдағы жалпы балл және топтағы орын (#). Келесі айлардың нәтижесі сынақтан кейін толады.</p>
+          <SeasonMatrix season={season} />
+        </section>
+      )}
+      {(list.length > 0 || !season) && <MonthRating list={list} />}
+    </>
+  )
+}
+
+function MonthRating({ list }: { list: Summary[] }) {
   const [examId, setExamId] = useState<string | null>(list[0]?.examId ?? null)
   const leg = list.find((r) => r.examId === examId && r.legacy)
   const { data: live, err } = useResult(leg ? null : examId)
@@ -740,7 +764,7 @@ function Rating({ list }: { list: Summary[] }) {
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold">Топ рейтингі</h1>
+        <h2 className="text-xl font-bold">Ай рейтингі: пәндер бойынша</h2>
         <select value={examId ?? ''} onChange={(e) => setExamId(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2">
           {list.map((r) => <option key={r.examId} value={r.examId}>{r.title}</option>)}
         </select>
