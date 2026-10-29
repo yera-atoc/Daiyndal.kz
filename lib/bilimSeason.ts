@@ -150,7 +150,7 @@ export function buildSeason(input: SeasonInput, viewer: 'admin' | { id: string }
         max = used.reduce((a, s) => a + s.max, 0)
         for (const st of withLegacy) {
           const sc = st.legacy_scores[month]
-          row[st.id] = { total: rowTotal(sc)!, scores: sc, max: used.filter((t) => typeof sc[t.id] === 'number').reduce((a, t) => a + t.max, 0) }
+          row[st.id] = { total: rowTotal(sc)!, scores: sc, max: max! } // ай бойынша толық максимум (тапсырмаған пән де кіреді)
         }
       }
     }

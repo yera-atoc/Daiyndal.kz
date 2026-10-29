@@ -65,7 +65,7 @@ export function SeasonStrip({ season, onOpen }: { season: SeasonView; onOpen?: (
         {season.months.map((m) => {
           const cell = me?.cells[m.month] ?? null
           const st = monthState(m, cell, season.mine?.[m.month] ?? null)
-          const click = cell && m.examId && onOpen && m.kind === 'exam' ? () => onOpen(m.examId!) : undefined
+          const click = cell && m.examId && onOpen ? () => onOpen(m.examId!) : undefined
           return (
             <li key={m.month}>
               <button

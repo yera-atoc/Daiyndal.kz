@@ -72,7 +72,8 @@ export async function GET() {
     for (const month of Object.keys(mineRow).sort().reverse()) {
       if (exams.some((e) => e.month === month)) continue
       const row = mineRow[month]
-      const subj = tmpl.filter((t) => typeof row?.[t.id] === 'number')
+      // Сол айда топта тапсырылған пәндер (біреуі болса да): максимум толық болсын, тапсырмаған пән «Тапсырмаған» деп көрінсін
+      const subj = tmpl.filter((t) => peers.some((p) => typeof p.legacy_scores?.[month]?.[t.id] === 'number'))
       const total = rowTotal(row)
       if (!subj.length || total === null) continue
       const others = peers
@@ -85,7 +86,7 @@ export async function GET() {
         title: examTitle(month),
         month,
         subjects: subj.length,
-        taken: subj.length,
+        taken: subj.filter((t) => typeof row?.[t.id] === 'number').length,
         correct: null,
         wrong: null,
         blank: null,
@@ -93,7 +94,7 @@ export async function GET() {
         max: subj.reduce((a, t) => a + t.max, 0),
         place: 1 + others.filter((x) => x.t > total).length,
         of: others.length,
-        rows: subj.map((t) => ({ id: t.id, name: t.name, short: t.short, score: row[t.id] as number, max: t.max })),
+        rows: subj.map((t) => ({ id: t.id, name: t.name, short: t.short, score: typeof row[t.id] === 'number' ? (row[t.id] as number) : null, max: t.max })),
         // Топ рейтингі: басқалардың аты қысқа («Оразалы Ж.»)
         table: others.map((x) => ({
           place: 1 + others.filter((y) => y.t > x.t).length,

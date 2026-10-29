@@ -38,7 +38,7 @@ type Summary = {
   // Сайтқа дейінгі ай (Excel баллдары): жауап парағы жоқ, тек пән баллдары мен топ рейтингі
   legacy?: boolean
   month?: string
-  rows?: { id: string; name: string; short: string; score: number; max: number }[]
+  rows?: { id: string; name: string; short: string; score: number | null; max: number }[]
   table?: { place: number; name: string; me: boolean; scores: Record<string, number>; total: number }[]
 }
 type Practice = {
@@ -339,7 +339,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
           detail ? (
             <ResultDetail examId={detail} onBack={() => setDetail(null)} />
           ) : (
-            <Results list={me.results} onOpen={setDetail} season={me.season ?? null} />
+            <Results list={me.results} onOpen={setDetail} season={me.season ?? null} drills={(me.practice ?? []).length > 0} />
           )
         ) : (
           <Rating list={me.results} season={me.season ?? null} />
@@ -460,12 +460,24 @@ function Tests({
     </div>
   )
 }
-function Results({ list, onOpen, season }: { list: Summary[]; onOpen: (id: string) => void; season: SeasonView | null }) {
+function Results({ list, onOpen, season, drills }: { list: Summary[]; onOpen: (id: string) => void; season: SeasonView | null; drills: boolean }) {
   if (!list.length && !season) return <Empty title="Нәтиже әлі жоқ" text="Мұғалім нәтижені жариялағанда осында шығады." />
   const scored = list.filter((r) => r.score !== null)
   return (
     <>
-    {season && <SeasonStrip season={season} onOpen={onOpen} />}
+    {season && (
+      <SeasonStrip
+        season={season}
+        onOpen={(id) => {
+          // Қағаздағы ай: төмендегі картасына апарып, белгілеп көрсету
+          if (!id.startsWith('legacy:')) return onOpen(id)
+          const el = document.getElementById(`res-${id}`)
+          el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          el?.classList.add('ring-2', 'ring-blue-500')
+          setTimeout(() => el?.classList.remove('ring-2', 'ring-blue-500'), 1800)
+        }}
+      />
+    )}
     {scored.length > 0 && (
       <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
         <h3 className="mb-3 font-bold">Менің өсуім</h3>
@@ -475,7 +487,7 @@ function Results({ list, onOpen, season }: { list: Summary[]; onOpen: (id: strin
     )}
     <div className="grid gap-4 sm:grid-cols-2">
       {list.map((r) => (
-        <div key={r.examId} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div key={r.examId} id={`res-${r.examId}`} className="scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white transition-shadow">
           <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-semibold">{r.legacy && r.month ? `${monthName(r.month)} айының нәтижесі` : `Білім тексеру · ${r.title}`}</div>
           <div className="space-y-1.5 p-4 text-sm">
             <div className="flex items-baseline justify-between">
@@ -488,8 +500,12 @@ function Results({ list, onOpen, season }: { list: Summary[]; onOpen: (id: strin
                 {r.rows?.map((x) => (
                   <div key={x.id} className="grid grid-cols-[1fr_auto] items-center gap-x-3 text-[13px]">
                     <span className="text-slate-600">{x.name}</span>
-                    <span className="tabular-nums"><b>{x.score}</b><span className="text-slate-400"> / {x.max}</span></span>
-                    <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${Math.min(100, (x.score / x.max) * 100)}%` }} /></div>
+                    {x.score === null ? (
+                      <span className="text-xs text-slate-400">Тапсырмаған · 0 / {x.max}</span>
+                    ) : (
+                      <span className="tabular-nums"><b>{x.score}</b><span className="text-slate-400"> / {x.max}</span></span>
+                    )}
+                    <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${Math.min(100, ((x.score ?? 0) / x.max) * 100)}%` }} /></div>
                   </div>
                 ))}
               </div>
@@ -504,7 +520,7 @@ function Results({ list, onOpen, season }: { list: Summary[]; onOpen: (id: strin
           </div>
           <div className="px-4 pb-4">
             {r.legacy ? (
-              <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs text-slate-500">Қағаз түрінде тапсырылған. Сұрақтарын «Сынақ» бетіндегі «Дайындық» бөлімінен қайта тапсырып көруге болады.</p>
+              <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs text-slate-500">Қағаз түрінде тапсырылған.{drills && ' Сұрақтарын «Сынақ» бетіндегі «Дайындық» бөлімінен қайта тапсырып көруге болады.'}</p>
             ) : (
               <button onClick={() => onOpen(r.examId)} className="w-full rounded-xl bg-blue-600 py-2.5 font-semibold text-white active:bg-blue-700">Толық нәтиже</button>
             )}

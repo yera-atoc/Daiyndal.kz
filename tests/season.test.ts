@@ -47,6 +47,11 @@ describe('season table', () => {
     expect(v.months.map((m) => m.name)).toEqual(['Қыркүйек', 'Қазан', 'Қараша', 'Желтоқсан', 'Қаңтар', 'Ақпан', 'Наурыз'])
     expect(v.months.filter((m) => m.kind === 'none')).toHaveLength(5)
   })
+  it('paper month: every student gets the full month maximum', () => {
+    const one = [...students, { id: 'd', full_name: 'Бір Пәнді', legacy_scores: { '2026-09': { math: 200 } } }]
+    const v = buildSeason({ ...input, students: one }, 'admin')
+    expect(v.rows.find((r) => r.id === 'd')!.cells['2026-09']).toMatchObject({ total: 200, max: 1200 })
+  })
   it('unpublished month is hidden from students but visible to admin', () => {
     const adm = buildSeason(input, 'admin')
     expect(adm.rows.find((r) => r.id === 'b')!.cells['2026-10']?.total).toBe(400)
