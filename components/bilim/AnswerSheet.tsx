@@ -47,6 +47,18 @@ export default function AnswerSheet({
 
   useEffect(() => store(key, answers), [key, answers])
 
+  // Сұрақтар сайтта болса — мәтінімен көрсетеміз (жеке нұсқада оқушының өз ретімен)
+  type Q = { text: string; image: string; passage: string; options: string[] }
+  const [qs, setQs] = useState<Q[] | null>(null)
+  const [mode, setMode] = useState<'questions' | 'sheet'>('questions')
+  useEffect(() => {
+    fetch(`/api/bilim-test/me/questions?exam=${encodeURIComponent(examId)}&subject=${encodeURIComponent(subject.id)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : { questions: null }))
+      .then((j) => setQs(Array.isArray(j.questions) && j.questions.length ? j.questions : null))
+      .catch(() => setQs(null))
+  }, [examId, subject.id])
+  const withText = !!qs && mode === 'questions'
+
   const letters = LETTERS.slice(0, subject.options)
   const filled = answers.filter(Boolean).length
   const blanks = useMemo(() => answers.map((a, i) => (a ? 0 : i + 1)).filter(Boolean), [answers])
@@ -95,6 +107,48 @@ export default function AnswerSheet({
         <div className="h-full bg-blue-600 transition-all" style={{ width: `${(filled / subject.questions) * 100}%` }} />
       </div>
 
+      {qs && (
+        <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
+          {([['questions', 'Сұрақтармен'], ['sheet', 'Тек жауап парағы']] as const).map(([m, l]) => (
+            <button key={m} onClick={() => setMode(m)} className={`rounded-lg py-2 ${mode === m ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>{l}</button>
+          ))}
+        </div>
+      )}
+
+      {withText && (
+        <ol className="mt-4 space-y-3">
+          {answers.map((a, i) => {
+            const q = qs![i]
+            return (
+              <li key={i} className="rounded-2xl border border-slate-200 bg-white p-4">
+                {q?.passage && <div className="mb-3 whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">{q.passage}</div>}
+                <div className="flex gap-2.5">
+                  <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold ${a ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    {q?.text && <p className="whitespace-pre-line font-semibold leading-snug">{q.text}</p>}
+                    {q?.image && <img src={q.image} alt="" className="mt-2 max-h-72 rounded-lg border border-slate-200" />}
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {letters.map((l, k) => (
+                    <button
+                      key={l}
+                      onClick={() => pick(i, l)}
+                      aria-label={`${i + 1}-сұрақ, ${l}`}
+                      className={`flex items-center gap-3 rounded-xl border-2 px-3 py-2.5 text-left transition ${a === l ? 'border-blue-600 bg-blue-50' : 'border-slate-200 active:border-blue-300'}`}
+                    >
+                      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold ${a === l ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{l}</span>
+                      <span className="text-[15px]">{q?.options?.[k] ?? ''}</span>
+                    </button>
+                  ))}
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      )}
+
+      {!withText && (
       <ol className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
         {answers.map((a, i) => (
           <li
@@ -121,6 +175,7 @@ export default function AnswerSheet({
           </li>
         ))}
       </ol>
+      )}
       <p className="mt-3 text-center text-xs text-slate-400">
         Белгіні алу үшін қайта бас. Жауаптар телефонда сақталып тұрады.
       </p>
