@@ -13,11 +13,12 @@ export type Forecast = {
   max: number
 }
 
-// Оқу жылының соңғы бақылау айы: НЗМ — наурыз (емтихан), басқа топтар — мамыр
+// Оқу жылының соңғы бақылау айы: маусым кестесінің соңғы айы (НЗМ 6 сынып — наурыз), басқа топтар — мамыр
 export function endMonthFor(groupId: string, month: string): string | null {
   const y = Number(month.slice(0, 4))
   const m = Number(month.slice(5, 7))
-  const endM = seasonFor(groupId) ? 3 : 5
+  const last = seasonFor(groupId)?.months.at(-1)
+  const endM = last ? Number(last.slice(5, 7)) : 5
   const endY = m >= 9 ? y + 1 : y
   const end = `${endY}-${String(endM).padStart(2, '0')}`
   return end > month ? end : null
