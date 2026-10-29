@@ -241,7 +241,7 @@ function Admin() {
 
           {group && current === 'rating' && (
             <div className="space-y-4">
-              {seasonFor(group.id) && <ExamCountdown cfg={seasonFor(group.id)!} />}
+              {seasonFor(group.id, group.name) && <ExamCountdown cfg={seasonFor(group.id, group.name)!} />}
               {data.season ? (
                 <>
                   <p className="text-sm" style={{ color: BRAND.muted }}>
@@ -261,7 +261,7 @@ function Admin() {
 
           {group && exam && draft && rk && (
             <>
-              {current === 'overview' && seasonFor(group.id) && <div className="mb-5"><ExamCountdown cfg={seasonFor(group.id)!} compact /></div>}
+              {current === 'overview' && seasonFor(group.id, group.name) && <div className="mb-5"><ExamCountdown cfg={seasonFor(group.id, group.name)!} compact /></div>}
               {current === 'overview' && <Dashboard data={data} exam={exam} onOpenStudent={setProfile} />}
               {current === 'results' && <Results data={data} exam={exam} onOpen={setProfile} onRefresh={async () => { await refresh(); flash('Нәтижелер жаңартылды') }} at={at} />}
               {current === 'key' && <KeyEditor draft={draft} setDraft={setDraft} />}

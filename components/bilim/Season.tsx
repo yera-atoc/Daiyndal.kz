@@ -59,8 +59,15 @@ export function SeasonStrip({ season, onOpen }: { season: SeasonView; onOpen?: (
   const me = season.rows.find((r) => r.me)
   return (
     <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-      <h3 className="font-bold">Білім тексеру сынақтары</h3>
-      <p className="mt-0.5 text-xs text-slate-500">Ай сайынғы нәтижелерің осында сақталады.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-bold">Білім тексеру сынақтары</h3>
+          <p className="mt-0.5 text-xs text-slate-500">Ай сайынғы нәтижелерің осында сақталады.</p>
+        </div>
+        {me && Object.values(me.cells).some(Boolean) && (
+          <a href="/bilim-test/report/season" className="shrink-0 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-sm font-semibold text-blue-600">PDF жүктеу</a>
+        )}
+      </div>
       <ol className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {season.months.map((m) => {
           const cell = me?.cells[m.month] ?? null

@@ -1,7 +1,8 @@
 // A4 басып шығару стильдері (PDF сақтау үшін)
 export default function PrintStyles() {
   return (
-    <style>{`
+    // dangerouslySetInnerHTML: «>» таңбасы серверде &gt; болып кетіп, гидратация қатесін бермеуі үшін
+    <style dangerouslySetInnerHTML={{ __html: `
       .bt-sheet { width: 210mm; height: 297mm; padding: 13mm 16mm 9mm; box-sizing: border-box; overflow: hidden; }
       .bt-flow { width: 210mm; min-height: 297mm; padding: 13mm 16mm 9mm; box-sizing: border-box; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
       @page { size: A4; margin: 0; }
@@ -19,6 +20,6 @@ export default function PrintStyles() {
       @media screen and (max-width: 820px) {
         .bt-pages { zoom: 0.45; }
       }
-    `}</style>
+    ` }} />
   )
 }

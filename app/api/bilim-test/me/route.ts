@@ -114,7 +114,7 @@ export async function GET() {
         results,
         practice,
         // Маусым: айлар бойынша нәтиже және рейтинг (НЗМ: Қыркүйек → Наурыз)
-        season: seasonFor(me.group_id) ? await seasonView(me.group_id, { id: me.id }) : null,
+        season: seasonFor(me.group_id, groups.find((g) => g.id === me.group_id)?.name) ? await seasonView(me.group_id, { id: me.id }) : null,
       },
       { headers: { 'Cache-Control': 'no-store' } }
     )

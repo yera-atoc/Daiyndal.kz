@@ -20,6 +20,13 @@ describe('exam countdown', () => {
     expect(c.months).toBe(16)
     expect(seasonFor('bil5')).toBeNull()
   })
+  it('BIL group: by id or by name, countdown to 2 May 2027', () => {
+    expect(seasonFor('bil')?.examLabel).toBe('2 мамыр 2027')
+    expect(seasonFor('x1', 'БИЛ дайындық тобы')?.examName).toBe('БИЛ емтиханы')
+    expect(seasonFor('x2', '5-сынып БІЛ')?.months[0]).toBe('2026-09')
+    expect(seasonFor('x3', 'Білім тексеру')).toBeNull() // «Білім» сөзі БІЛ емес
+    expect(countdown(new Date('2026-10-29T21:00:00+05:00'), new Date(seasonFor('bil')!.examDate)).months).toBe(6)
+  })
   it('stops at zero', () => {
     expect(countdown(new Date('2027-03-28T10:00:00+05:00'), target).done).toBe(true)
   })

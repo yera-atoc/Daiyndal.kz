@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       submissions: exam ? await listSubmissions(exam.id) : [],
       previous: exam ? await previousScores(exam) : null,
       histories: exam ? await groupHistories(exam) : {},
-      season: seasonFor(group.id) || exams.length ? await seasonView(group.id, 'admin') : null,
+      season: seasonFor(group.id, group.name) || exams.length ? await seasonView(group.id, 'admin') : null,
     })
   } catch (e: any) {
     await logServerError('bilim-test/admin', e)

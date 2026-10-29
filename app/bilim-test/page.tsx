@@ -299,9 +299,9 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-32 pt-5">
-        {!sheet && !drill && !detail && seasonFor(me.group.id) && (
+        {!sheet && !drill && !detail && seasonFor(me.group.id, me.group.name) && (
           <div className="mb-5">
-            <ExamCountdown cfg={seasonFor(me.group.id)!} compact />
+            <ExamCountdown cfg={seasonFor(me.group.id, me.group.name)!} compact />
           </div>
         )}
         {sheet ? (

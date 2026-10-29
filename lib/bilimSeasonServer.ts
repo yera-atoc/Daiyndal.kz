@@ -23,7 +23,7 @@ export async function seasonInput(groupId: string): Promise<SeasonInput> {
     })
   )
   return {
-    months: seasonFor(groupId)?.months ?? [],
+    months: seasonFor(groupId, group?.name)?.months ?? [],
     students: students.map((s) => ({ id: s.id, full_name: s.full_name, legacy_scores: s.legacy_scores ?? {} })),
     exams: ex,
     template: group?.subjects?.length ? group.subjects : DEFAULT_SUBJECTS,
