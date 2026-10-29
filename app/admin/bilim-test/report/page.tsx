@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import ReportPages from '@/components/bilim/ReportPages'
 import type { HistPoint } from '@/lib/bilimTestForecast'
 import PrintStyles from '@/components/bilim/PrintStyles'
+import { personalizeFor } from '@/lib/bilimShuffle'
 import { ranking, type Exam, type Group, type ScoreRow, type Student, type Submission } from '@/lib/bilimTest'
 
 type Resp = {
@@ -54,18 +55,22 @@ function Reports() {
         </button>
       </div>
       <div className="bt-pages space-y-8 py-8">
-        {names.map((n) => (
+        {names.map((n) => {
+          // Жеке нұсқа болса — оқушының өз парағындағы нөмірлермен
+          const mine = personalizeFor(exam, subs.filter((s) => s.student_name === n), n)
+          return (
           <ReportPages
             key={n}
             history={data.histories?.[n] ?? []}
-            exam={exam}
+            exam={mine.exam}
             student={n}
             groupName={data.group?.name ?? ''}
-            subs={subs.filter((s) => s.student_name === n)}
+            subs={mine.subs}
             prev={data.previous ? { id: data.previous.id, month: data.previous.month, title: data.previous.title, row: data.previous.scores[n] } : null}
             rank={rk.place[n] ? { place: rk.place[n], of: rk.of } : null}
           />
-        ))}
+          )
+        })}
         {names.length === 0 && <p className="text-center text-slate-400">Әзірге жауап парағы жоқ.</p>}
       </div>
     </>

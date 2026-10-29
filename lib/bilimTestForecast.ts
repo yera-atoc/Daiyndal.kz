@@ -41,17 +41,20 @@ export function monthsBetween(from: string, to: string): string[] {
   return out
 }
 
-const round5 = (n: number) => Math.round(n / 5) * 5
+// Қадам: үлкен баллдарда (200+) 5-ке дөңгелектеу, кіші пәндерде (мысалы 40 балл) 1-ге
+const roundTo = (n: number, unit: number) => Math.round(n / unit) * unit
 
 function subjectPath(s: SubjectConfig, now: number, prev: number | null, steps: number): number[] {
-  const ceiling = Math.floor((s.max * 0.95) / 5) * 5
+  const unit = s.max >= 200 ? 5 : 1
+  // Болжам ешқашан қазіргі нәтижеден төмен түспейді
+  const ceiling = Math.max(now, Math.floor((s.max * 0.95) / unit) * unit)
   const trend = prev !== null ? Math.max(0, now - prev) : 0
   const out: number[] = []
   let cur = now
   for (let i = 0; i < steps; i++) {
     const gap = Math.max(0, ceiling - cur)
     const step = Math.max(gap * 0.2, Math.min(trend, gap * 0.35), Math.min(gap, s.max * 0.02))
-    cur = Math.min(ceiling, Math.max(cur, round5(cur + step)))
+    cur = Math.max(cur, Math.min(ceiling, roundTo(cur + step, unit)))
     out.push(cur)
   }
   return out

@@ -11,6 +11,7 @@ import {
 } from './bilimTest'
 import { groupHistories, listGroups, listStudents, listSubmissions, previousScores } from './bilimTestStore'
 import type { HistPoint } from './bilimTestForecast'
+import { personalizeFor } from './bilimShuffle'
 
 export type RankRow = { place: number | null; name: string; me: boolean; scores: ScoreRow; total: number | null }
 
@@ -46,11 +47,13 @@ export async function studentResult(exam: Exam, student: string, opts: { fullNam
     }))
     .filter((r) => r.total !== null)
     .sort((a, b) => (a.place ?? 999) - (b.place ?? 999))
+  // Жеке нұсқа: оқушы өз парағындағы нөмірлер мен әріптерді көреді (балл, орын өзгермейді)
+  const mine = personalizeFor(exam, subs.filter((s) => s.student_name === student), student)
   return {
-    exam,
+    exam: mine.exam,
     groupName: groups.find((g) => g.id === exam.group_id)?.name ?? '',
     student,
-    subs: subs.filter((s) => s.student_name === student),
+    subs: mine.subs,
     prev: prev ? { id: prev.id, month: prev.month, title: prev.title, row: prev.scores[student] } : null,
     rank: rk.place[student] ? { place: rk.place[student], of: rk.of } : null,
     table,

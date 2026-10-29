@@ -22,7 +22,7 @@ import PracticeRunner from '@/components/bilim/PracticeRunner'
 import { ExamCountdown, SeasonMatrix, SeasonStrip } from '@/components/bilim/Season'
 import { seasonFor, type SeasonView } from '@/lib/bilimSeason'
 
-type OpenExam = { id: string; title: string; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
+type OpenExam = { id: string; title: string; shuffle?: boolean; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
 type Summary = {
   examId: string
   title: string
@@ -386,6 +386,11 @@ function Tests({
       {me.open.map((e) => (
         <section key={e.id} className="mb-6">
           <h1 className="text-xl font-bold">{e.title}: Білім тексеру</h1>
+          {e.shuffle && (
+            <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <b>Жеке нұсқа.</b> Әр оқушының сұрақтары мен жауаптарының реті әртүрлі. Жауапты <b>өз парағыңдағы</b> нөмір мен әріп бойынша белгіле.
+            </p>
+          )}
           <div className="mt-3 space-y-2.5">
             {e.subjects.map((s) => {
               const can = s.open && !s.done

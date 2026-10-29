@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { LETTERS } from '@/lib/bilimTest'
 import { addSubmission, getExam, replaceSubmission } from '@/lib/bilimTestStore'
 import { currentStudent } from '@/lib/bilimTestAuth'
+import { examVariant, toCanonical } from '@/lib/bilimShuffle'
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,7 +28,9 @@ export async function POST(req: NextRequest) {
       await replaceSubmission({ exam_id: exam.id, student_name: me.full_name, subject: cfg.id, answers })
       return NextResponse.json({ ok: true })
     }
-    const res = await addSubmission({ exam_id: exam.id, student_name: me.full_name, subject: cfg.id, answers })
+    // Жеке нұсқа: оқушы өз парағының ретімен белгілейді → негізгі ретпен сақталады
+    const v = examVariant(exam, cfg.id, me.full_name)
+    const res = await addSubmission({ exam_id: exam.id, student_name: me.full_name, subject: cfg.id, answers: v ? toCanonical(answers, v) : answers })
     if (res === 'duplicate') return NextResponse.json({ error: 'Бұл пәнді бұрын тапсырдың' }, { status: 409 })
     return NextResponse.json({ ok: true })
   } catch (e: any) {

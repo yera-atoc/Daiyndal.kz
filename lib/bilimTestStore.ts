@@ -78,6 +78,7 @@ function normExam(e: any): Exam {
     open_subjects: e.open_subjects ?? [],
     published: !!e.published,
     practice: !!e.practice,
+    shuffle: !!e.shuffle,
   }
 }
 
@@ -118,6 +119,8 @@ export async function saveExam(e: Exam): Promise<void> {
     questions: e.questions,
     published: e.published,
     ...(e.practice ? { practice: true } : {}),
+    // shuffle бағаны SQL арқылы қосылады; жоқ болса да сақтау бұзылмасын — тек true кезде жіберіледі
+    ...(e.shuffle ? { shuffle: true } : {}),
   }
   if (DEMO) {
     mem().exams = mem().exams.filter((x) => x.id !== e.id).concat(row)

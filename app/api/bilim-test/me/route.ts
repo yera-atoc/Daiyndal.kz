@@ -34,6 +34,7 @@ export async function GET() {
         open.push({
           id: e.id,
           title: e.title,
+          shuffle: !!e.shuffle,
           subjects: e.subjects.map((s) => ({
             id: s.id,
             name: s.name,

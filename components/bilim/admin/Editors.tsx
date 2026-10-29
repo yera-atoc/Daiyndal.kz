@@ -176,6 +176,33 @@ export function Settings({
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="max-w-xl">
+            <div className="font-semibold">Әр оқушыға жеке нұсқа</div>
+            <p className="text-sm text-slate-500">
+              Қосулы болса, әр оқушыда сұрақтардың реті мен A–D жауаптарының реті әртүрлі — бір-бірінен көшіре алмайды.
+              Жеке парақтарды төмендегі батырмамен басып шығарасыз; оқушы сайтта өз парағының ретімен белгілейді, жүйе өзі негізгі кілтпен тексереді.
+            </p>
+          </div>
+          <button
+            disabled={busy}
+            onClick={() => {
+              if (hasSubs && !confirm('Кейбір оқушылар жауабын енгізіп қойған. Олардың парақтары бұрынғы ретпен тексерілген. Сонда да өзгертесіз бе?')) return
+              onInstant({ ...exam, shuffle: !exam.shuffle }, exam.shuffle ? 'Жеке нұсқа өшірілді' : 'Жеке нұсқа қосылды')
+            }}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50 ${exam.shuffle ? 'bg-emerald-600 text-white' : 'border border-slate-300 bg-white text-slate-700'}`}
+          >
+            {exam.shuffle ? 'Қосулы ✓' : 'Қосу'}
+          </button>
+        </div>
+        {exam.shuffle && (
+          <a href={`/admin/bilim-test/variants?group=${encodeURIComponent(exam.group_id)}&exam=${encodeURIComponent(exam.id)}`} className="mt-3 inline-block rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white">
+            Жеке нұсқаларды басып шығару (PDF)
+          </a>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="font-semibold">Жауап қабылдау</div>
         <p className="text-sm text-slate-500">Бірден сақталады. Мысалы, 30 қазанда бір пәндерді, 31 қазанда қалғанын ашыңыз.</p>
         <div className="mt-3 flex flex-wrap gap-2">

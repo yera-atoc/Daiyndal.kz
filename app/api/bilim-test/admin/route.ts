@@ -92,13 +92,17 @@ function cleanExam(e: any, existing: Exam): Exam {
     if (Array.isArray(q)) {
       questions[s.id] = Array.from({ length: s.questions }, (_, i) => {
         const x = q[i] ?? {}
-        const out: Record<string, string> = {}
+        const out: Record<string, any> = {}
         const text = String(x.text ?? '').slice(0, 4000)
         const topic = String(x.topic ?? '').trim().slice(0, 120)
         const image = cleanUrl(x.image)
+        const passage = String(x.passage ?? '').slice(0, 8000)
         if (text.trim()) out.text = text
+        if (passage.trim()) out.passage = passage
         if (topic) out.topic = topic
         if (image) out.image = image
+        // Жауап нұсқаларының мәтіні (сақтағанда өшіп кетпесін)
+        if (Array.isArray(x.options) && x.options.length) out.options = x.options.slice(0, s.options).map((o: any) => String(o ?? '').slice(0, 1000))
         return out
       })
     }
@@ -111,6 +115,7 @@ function cleanExam(e: any, existing: Exam): Exam {
     answer_key,
     questions,
     published: !!e?.published,
+    shuffle: !!e?.shuffle,
   }
 }
 
