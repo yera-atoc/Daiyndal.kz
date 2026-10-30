@@ -19,6 +19,7 @@ import {
   type Submission,
 } from '@/lib/bilimTest'
 import { post, type Resp } from './shared'
+import { exportResultsXlsx } from './exportExcel'
 
 export function newSubjectId() {
   return `s${Math.random().toString(36).slice(2, 8)}`
@@ -488,6 +489,14 @@ export function Results({ data, exam, onOpen, onRefresh, at }: { data: Resp; exa
             Кілт: <b>{keyed.length}</b> / {exam.subjects.length} пән
           </span>
           {prev && <span className="rounded-full bg-slate-100 px-3 py-1">Салыстыру: {prev.title}</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportResultsXlsx(data, exam).catch((e) => alert(e.message))}
+            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white"
+          >
+            ⬇ Excel жүктеу
+          </button>
         </div>
         {onRefresh && (
           <div className="flex items-center gap-2">
