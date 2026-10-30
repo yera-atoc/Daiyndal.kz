@@ -2,6 +2,7 @@ import { logServerError } from '@/lib/serverLog'
 import { resolveSpeaking } from '@/lib/speakingStorage'
 import { NextRequest, NextResponse } from 'next/server'
 import { canEdit, db, finishSection, getAttempt, getTest, randomPin, regradeAttempt, staff } from '@/lib/ieltsServer'
+import { isCombo } from '@/lib/ubt'
 import { overallBand, speakingBand, toeflOverall, toeflSpeakingBand, toeflWritingBand, writingBand, type Attempt, type IeltsTest, type Scores } from '@/lib/ielts'
 
 export const dynamic = 'force-dynamic'
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
     who.teacherId ? sb.from('teachers').select('id, name, subject').eq('id', who.teacherId).maybeSingle() : Promise.resolve({ data: null }),
     sb.from('students').select('id, full_name, group_id, grade, status, ielts_pin').neq('status', 'left').order('full_name'),
     sb.from('student_groups').select('id, name').order('name'),
-    ids.length ? sb.from('ielts_access').select('test_id, student_id, attempts_allowed').in('test_id', ids) : Promise.resolve({ data: [] }),
+    ids.length ? sb.from('ielts_access').select('*').in('test_id', ids) : Promise.resolve({ data: [] }),
     ids.length
       ? sb.from('ielts_attempts').select('id, test_id, student_id, status, scores, published, started_at, submitted_at, graded_at').in('test_id', ids).order('started_at', { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -172,10 +173,23 @@ export async function POST(req: NextRequest) {
       if (!t || !canEdit(who, t)) return bad('Тест табылмады', 404)
       const ids: string[] = (Array.isArray(b.studentIds) ? b.studentIds : []).map(String).slice(0, 500)
       const tries = num(b.attemptsAllowed, 1, 20, 1)
+      // ҰБТ: әр оқушыға рұқсат етілген комбинациялар (жоқ/бос — барлығы). Жіберілмесе — бұрынғысы сақталады.
+      const { data: prev } = await sb.from('ielts_access').select('*').eq('test_id', t.id)
+      const given = b.combos && typeof b.combos === 'object' ? (b.combos as Record<string, unknown>) : null
+      const comboOf = (id: string) => {
+        const v = given && id in given ? given[id] : (prev ?? []).find((p: any) => p.student_id === id)?.combos
+        const list = (Array.isArray(v) ? v : []).filter(isCombo)
+        return list.length ? list : null
+      }
       const { error: e1 } = await sb.from('ielts_access').delete().eq('test_id', t.id)
       if (e1) return bad(e1.message, 500)
       if (ids.length) {
-        const { error: e2 } = await sb.from('ielts_access').insert(ids.map((id) => ({ test_id: t.id, student_id: id, attempts_allowed: tries })))
+        const { error: e2 } = await sb.from('ielts_access').insert(
+          ids.map((id) => {
+            const c = t.exam === 'ubt' ? comboOf(id) : null
+            return { test_id: t.id, student_id: id, attempts_allowed: tries, ...(c ? { combos: c } : {}) }
+          })
+        )
         if (e2) return bad(e2.message, 500)
         // PIN-і жоқтарға код беру
         const { data: noPin } = await sb.from('students').select('id').in('id', ids).is('ielts_pin', null)

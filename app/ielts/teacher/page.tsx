@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Builder, { inp, tcall } from '@/components/ielts/Builder'
 import { UbtResult } from '@/components/ielts/Runner'
-import { comboName } from '@/lib/ubt'
+import { UBT_COMBOS, comboName } from '@/lib/ubt'
 import { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
 import { SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, speakingBand, writingBand, overallBand, toeflOverall, toeflSpeakingBand, toeflWritingBand, wordCount, type Attempt, type Exam, type IeltsTest, type Scores } from '@/lib/ielts'
 
@@ -12,7 +12,7 @@ type Data = {
   tests: (Pick<IeltsTest, 'id' | 'title' | 'exam' | 'variant' | 'mode' | 'published' | 'teacher_id'> & { created_at: string })[]
   students: { id: string; full_name: string; group_id: string | null; grade: string | null; status: string; ielts_pin: string | null }[]
   groups: { id: string; name: string }[]
-  access: { test_id: string; student_id: string; attempts_allowed: number }[]
+  access: { test_id: string; student_id: string; attempts_allowed: number; combos?: [string, string][] | null }[]
   attempts: { id: string; test_id: string; student_id: string; status: string; scores: Scores; published: boolean; started_at: string; submitted_at: string | null }[]
 }
 
@@ -255,11 +255,34 @@ function Stat({ label, value, accent }: { label: string; value: number; accent?:
 
 // ── Рұқсат беру ──────────────────────────────────────────
 
+// ҰБТ комбинациясын шектеу: '' — барлығы, 'phys' — физикасы барлар, 'a|b' — бір комбинация
+const COMBO_OPTS: [string, string][] = [
+  ['', 'Барлық комбинация'],
+  ['phys', 'Физикасы барлар (Мат–Физ, Хим–Физ)'],
+  ...UBT_COMBOS.map((c) => [c.join('|'), 'Тек ' + comboName(c)] as [string, string]),
+]
+const PHYS: [string, string][] = [['math', 'physics'], ['chemistry', 'physics']]
+function comboList(k: string): [string, string][] | null {
+  if (!k) return null
+  if (k === 'phys') return PHYS
+  const [a, b] = k.split('|')
+  return [[a, b]]
+}
+function comboKey(c: [string, string][] | null | undefined): string {
+  if (!c?.length) return ''
+  if (c.length === 2 && PHYS.every((p) => c.some((x) => x[0] === p[0] && x[1] === p[1]))) return 'phys'
+  return c.length === 1 ? c[0].join('|') : ''
+}
+
 function Access({ data, testId, onBack, reload }: { data: Data; testId: string; onBack: () => void; reload: () => Promise<void> }) {
   const test = data.tests.find((t) => t.id === testId)!
   const current = data.access.filter((a) => a.test_id === testId)
   const [sel, setSel] = useState<Set<string>>(() => new Set(current.map((a) => a.student_id)))
   const [tries, setTries] = useState(current[0]?.attempts_allowed ?? 1)
+  // ҰБТ: оқушыға рұқсат етілген комбинациялар ('' — барлығы)
+  const ubt = test.exam === 'ubt'
+  const [combo, setCombo] = useState<Record<string, string>>(() => Object.fromEntries(current.map((a) => [a.student_id, comboKey(a.combos)])))
+  const [newCombo, setNewCombo] = useState('')
   const [group, setGroup] = useState('')
   const [q, setQ] = useState('')
   const [msg, setMsg] = useState('')
@@ -276,7 +299,9 @@ function Access({ data, testId, onBack, reload }: { data: Data; testId: string; 
     setBusy(true)
     setMsg('')
     try {
-      await tcall({ action: 'set-access', testId, studentIds: Array.from(sel), attemptsAllowed: tries })
+      const ids = Array.from(sel)
+      const combos = ubt ? Object.fromEntries(ids.map((id) => [id, comboList(combo[id] ?? newCombo)])) : undefined
+      await tcall({ action: 'set-access', testId, studentIds: ids, attemptsAllowed: tries, combos })
       await reload()
       setMsg('Сақталды ✓ PIN-кодтар төмендегі тізімде')
     } catch (e: any) {
@@ -324,6 +349,14 @@ function Access({ data, testId, onBack, reload }: { data: Data; testId: string; 
               Әр оқушыға тапсыру саны
               <input type="number" min={1} max={20} value={tries} onChange={(e) => setTries(Number(e.target.value))} className={inp + ' mt-1 w-24'} />
             </label>
+            {ubt && (
+              <label className="text-xs font-semibold" style={{ color: MUTED }}>
+                Жаңа қосылғандарға
+                <select value={newCombo} onChange={(e) => setNewCombo(e.target.value)} className={inp + ' mt-1'}>
+                  {COMBO_OPTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </select>
+              </label>
+            )}
             <button disabled={busy} onClick={save} className="ml-auto rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: INK }}>{busy ? '…' : `Сақтау · ${sel.size}`}</button>
           </div>
           {msg && <p className="mt-2 text-sm" style={{ color: msg.includes('✓') ? '#15803D' : '#B91C1C' }}>{msg}</p>}
@@ -334,8 +367,19 @@ function Access({ data, testId, onBack, reload }: { data: Data; testId: string; 
           <div className="mt-2 max-h-[45vh] divide-y overflow-y-auto">
             {chosen.map((s) => (
               <div key={s.id} className="flex items-center gap-2 py-1.5 text-sm">
-                <span>{s.full_name}</span>
-                <span className="ml-auto font-mono font-bold tracking-widest">{s.ielts_pin ?? '····'}</span>
+                <span className="min-w-0 flex-1 truncate">{s.full_name}</span>
+                {ubt && (
+                  <select
+                    value={combo[s.id] ?? newCombo}
+                    onChange={(e) => setCombo((c) => ({ ...c, [s.id]: e.target.value }))}
+                    className="max-w-[11rem] rounded-md border px-1.5 py-1 text-xs"
+                    style={{ borderColor: LINE }}
+                    title="Бейіндік пәндер комбинациясы"
+                  >
+                    {COMBO_OPTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                  </select>
+                )}
+                <span className="font-mono font-bold tracking-widest">{s.ielts_pin ?? '····'}</span>
                 <button
                   title="Жаңа PIN"
                   onClick={async () => {
