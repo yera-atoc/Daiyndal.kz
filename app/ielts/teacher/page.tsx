@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Builder, { inp, tcall } from '@/components/ielts/Builder'
 import { UbtResult } from '@/components/ielts/Runner'
 import { UBT_COMBOS, comboName } from '@/lib/ubt'
+import { ubtExcel, ubtPrint, type UbtRow } from '@/components/ielts/ubtExport'
 import { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
 import { SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, speakingBand, writingBand, overallBand, toeflOverall, toeflSpeakingBand, toeflWritingBand, wordCount, type Attempt, type Exam, type IeltsTest, type Scores } from '@/lib/ielts'
 
@@ -118,9 +119,18 @@ export default function IeltsTeacherPage() {
                   <h3 className="text-base font-bold">{t.title}</h3>
                   <span className="rounded px-2 py-0.5 text-xs font-semibold" style={t.published ? { background: '#DCFCE7', color: '#15803D' } : { background: '#F3F4F6', color: MUTED }}>{t.published ? 'Ашық' : 'Жабық'}</span>
                   <span className="text-xs" style={{ color: MUTED }}>{t.exam === 'ubt' ? 'ҰБТ · 12 комбинация' : t.exam === 'toefl' ? 'TOEFL iBT' : t.variant === 'academic' ? 'IELTS Academic' : 'IELTS General'} · {t.mode === 'exam' ? 'емтихан' : 'жаттығу'}</span>
-                  <div className="ml-auto flex gap-2">
+                  <div className="ml-auto flex flex-wrap gap-2">
                     <button onClick={() => edit(t.id)} className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: LINE }}>Өңдеу</button>
                     <button onClick={() => setView({ k: 'access', id: t.id })} className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: LINE }}>Оқушылар · {acc.length}</button>
+                    {t.exam === 'ubt' && att.length > 0 && (() => {
+                      const rows: UbtRow[] = att.map((a) => ({ name: name(a.student_id), scores: a.scores?.ubt ?? null, status: a.status, submitted_at: a.submitted_at, started_at: a.started_at }))
+                      return (
+                        <>
+                          <button onClick={() => ubtExcel(t.title, rows).catch((e) => alert(e.message))} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white" style={{ background: '#16A34A' }}>⬇ Excel</button>
+                          <button onClick={() => ubtPrint(t.title, rows)} className="rounded-lg border px-3 py-1.5 text-sm font-semibold" style={{ borderColor: LINE, color: BLUE }}>PDF</button>
+                        </>
+                      )
+                    })()}
                     {att.some((a) => a.status !== 'in_progress') && (
                       <button
                         title="Кілт не сұрақ түзетілсе — барлық аяқталған тапсырудың баллын қазіргі кілтпен қайта есептеу"
