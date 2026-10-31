@@ -224,12 +224,21 @@ function Admin() {
             </div>
             {exam && (current === 'overview' || current === 'results') && (
               <div className="flex gap-2">
-                <span
-                  className="rounded-full px-3 py-1.5 text-xs font-semibold"
-                  style={exam.published ? { background: '#DCFCE7', color: '#15803D' } : { background: '#EEF1F6', color: BRAND.muted }}
+                <button
+                  disabled={busy}
+                  onClick={() => {
+                    const msg = exam.published
+                      ? 'Нәтижені оқушылардан жасырасыз ба? Олар балын, жауаптарын және рейтингті көрмейді.'
+                      : 'Нәтижені оқушыларға жариялайсыз ба? Олар балын, дұрыс/қате жауаптарын және рейтингті көреді.'
+                    if (!confirm(msg)) return
+                    save({ ...exam, published: !exam.published }, exam.published ? 'Жариялау тоқтатылды' : 'Нәтиже жарияланды')
+                  }}
+                  title={exam.published ? 'Басып, жасыру' : 'Басып, жариялау'}
+                  className="rounded-full px-3 py-1.5 text-xs font-semibold transition hover:opacity-80 disabled:opacity-50"
+                  style={exam.published ? { background: '#DCFCE7', color: '#15803D' } : { background: '#16A34A', color: '#fff' }}
                 >
-                  {exam.published ? 'Оқушыларға жарияланған' : 'Жарияланбаған'}
-                </span>
+                  {exam.published ? 'Жарияланған ✓ · жасыру' : 'Жарияланбаған · Жариялау →'}
+                </button>
                 <a href={`/admin/bilim-test/report?group=${exam.group_id}&exam=${exam.id}`} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white" style={{ background: BRAND.blue }}>
                   Барлығының PDF есебі
                 </a>
