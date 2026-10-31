@@ -22,6 +22,7 @@ import PracticeRunner from '@/components/bilim/PracticeRunner'
 import { ExamCountdown, SeasonMatrix, SeasonStrip } from '@/components/bilim/Season'
 import { seasonFor, type SeasonView } from '@/lib/bilimSeason'
 import { GrantPanel } from '@/components/bilim/Grant'
+import InstallApp from '@/components/pwa/InstallApp'
 import { grantGroup } from '@/lib/nisGrant'
 
 type OpenExam = { id: string; title: string; shuffle?: boolean; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
@@ -186,6 +187,7 @@ function Login({ onDone }: { onDone: () => void }) {
               ))}
               {groups.length === 0 && (err ? <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{err}</p> : <p className="text-slate-500">Әзірге топ жоқ.</p>)}
             </div>
+            <InstallApp className="mt-6" />
           </>
         )}
 

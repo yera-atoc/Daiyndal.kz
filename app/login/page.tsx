@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { BookOpen, ClipboardCheck, Globe2, GraduationCap, Headphones, ShieldCheck, type LucideIcon } from 'lucide-react'
 import AuthShell from '@/components/site/AuthShell'
+import InstallApp from '@/components/pwa/InstallApp'
 
 export const metadata = { title: 'Кабинетке кіру — Beles education' }
 
@@ -44,6 +45,7 @@ export default function LoginHub() {
   return (
     <AuthShell title="Кабинетке кіру" subtitle="Оқушы атын таңдап, мұғалім берген 4 таңбалы PIN кодпен кіреді.">
       <div className="space-y-7">
+        <InstallApp />
         <Group title="Оқушыларға" items={STUDENTS} />
         <Group title="Мұғалімдерге" items={TEACHERS} />
       </div>

@@ -1,7 +1,8 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geologica, Inter } from 'next/font/google'
 import ChatWidget from '@/components/site/ChatWidget'
 import ErrorReporter from '@/components/ErrorReporter'
+import RegisterSW from '@/components/pwa/RegisterSW'
 import './globals.css'
 
 // Негізгі мәтін. cyrillic-ext – қазақ әріптері (Ә Ғ Қ Ң Ө Ұ Ү Һ І) үшін міндетті
@@ -18,7 +19,12 @@ export const metadata: Metadata = {
   title: 'Beles education — НЗМ, БИЛ, РФМШ, ҰБТ, IELTS дайындық орталығы',
   description:
     'Жезқазғандағы Beles education оқу орталығы: НЗМ, БИЛ, РФМШ, ҰБТ, IELTS және TOEFL емтихандарына дайындық. Ай сайынғы Білім тексеру сынағы, онлайн сынақтар және оқушының жеке кабинеті.',
+  applicationName: 'Beles education',
+  appleWebApp: { capable: true, title: 'Beles', statusBarStyle: 'default' },
+  formatDetection: { telephone: false },
 }
+
+export const viewport: Viewport = { themeColor: '#FFFFFF' }
 
 export default function RootLayout({
   children,
@@ -33,6 +39,7 @@ export default function RootLayout({
         {children}
         <ChatWidget />
         <ErrorReporter />
+        <RegisterSW />
       </body>
     </html>
   )
