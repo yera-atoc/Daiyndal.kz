@@ -20,6 +20,8 @@ import { GroupModal, KeyEditor, QuestionsEditor, Results, Settings, StudentsTab 
 import { BRAND, post, type Resp } from '@/components/bilim/admin/shared'
 import { ExamCountdown, SeasonMatrix } from '@/components/bilim/Season'
 import { seasonFor } from '@/lib/bilimSeason'
+import { GrantTable } from '@/components/bilim/Grant'
+import { grantGroup } from '@/lib/nisGrant'
 
 type View = 'overview' | 'rating' | 'results' | 'key' | 'questions' | 'settings' | 'students' | 'groups'
 
@@ -257,6 +259,7 @@ function Admin() {
                     Айлар бойынша жалпы балл және топтағы орын (#). Жарияланбаған айлар оқушыларға әлі көрінбейді — «Сынақты басқару» бөлімінен жариялайсыз.
                   </p>
                   <SeasonMatrix season={data.season} admin />
+                  {grantGroup(group.id) && <GrantTable season={data.season} />}
                 </>
               ) : (
                 <Empty text="Бұл топта әзірге нәтиже жоқ." />

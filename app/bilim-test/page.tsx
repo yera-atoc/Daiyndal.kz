@@ -21,6 +21,8 @@ import { monthName } from '@/lib/bilimTest'
 import PracticeRunner from '@/components/bilim/PracticeRunner'
 import { ExamCountdown, SeasonMatrix, SeasonStrip } from '@/components/bilim/Season'
 import { seasonFor, type SeasonView } from '@/lib/bilimSeason'
+import { GrantPanel } from '@/components/bilim/Grant'
+import { grantGroup } from '@/lib/nisGrant'
 
 type OpenExam = { id: string; title: string; shuffle?: boolean; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
 type Summary = {
@@ -339,7 +341,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
           detail ? (
             <ResultDetail examId={detail} onBack={() => setDetail(null)} />
           ) : (
-            <Results list={me.results} onOpen={setDetail} season={me.season ?? null} drills={(me.practice ?? []).length > 0} />
+            <Results list={me.results} onOpen={setDetail} season={me.season ?? null} drills={(me.practice ?? []).length > 0} grant={grantGroup(me.group.id)} />
           )
         ) : (
           <Rating list={me.results} season={me.season ?? null} />
@@ -465,7 +467,7 @@ function Tests({
     </div>
   )
 }
-function Results({ list, onOpen, season, drills }: { list: Summary[]; onOpen: (id: string) => void; season: SeasonView | null; drills: boolean }) {
+function Results({ list, onOpen, season, drills, grant = false }: { list: Summary[]; onOpen: (id: string) => void; season: SeasonView | null; drills: boolean; grant?: boolean }) {
   if (!list.length && !season) return <Empty title="Нәтиже әлі жоқ" text="Мұғалім нәтижені жариялағанда осында шығады." />
   const scored = list.filter((r) => r.score !== null)
   return (
@@ -483,6 +485,7 @@ function Results({ list, onOpen, season, drills }: { list: Summary[]; onOpen: (i
         }}
       />
     )}
+    {season && grant && <GrantPanel season={season} />}
     {scored.length > 0 && (
       <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
         <h3 className="mb-3 font-bold">Менің өсуім</h3>
