@@ -3,6 +3,7 @@ import { Geologica, Inter } from 'next/font/google'
 import ChatWidget from '@/components/site/ChatWidget'
 import ErrorReporter from '@/components/ErrorReporter'
 import RegisterSW from '@/components/pwa/RegisterSW'
+import Script from 'next/script'
 import './globals.css'
 
 // Негізгі мәтін. cyrillic-ext – қазақ әріптері (Ә Ғ Қ Ң Ө Ұ Ү Һ І) үшін міндетті
@@ -40,6 +41,8 @@ export default function RootLayout({
         <ChatWidget />
         <ErrorReporter />
         <RegisterSW />
+        {/* Vercel Web Analytics (Vercel → Project → Analytics → Enable). Жеке дерек жинамайды, cookie жоқ. */}
+        <Script src="/_vercel/insights/script.js" strategy="afterInteractive" />
       </body>
     </html>
   )

@@ -15,6 +15,8 @@ import {
   Headphones,
   ShieldCheck,
   BookOpenCheck,
+  Inbox,
+  Trophy,
 } from 'lucide-react'
 import { BRAND, dmy, type CrmData } from '@/components/crm/core'
 import Overview from '@/components/crm/Overview'
@@ -22,11 +24,14 @@ import Students from '@/components/crm/Students'
 import { Attendance, Groups, Payments, Schedule, Teachers } from '@/components/crm/Views'
 import Journal from '@/components/crm/Journal'
 import LessonJournal from '@/components/crm/LessonJournal'
+import Leads from '@/components/crm/Leads'
+import Achievements from '@/components/crm/Achievements'
 
-type View = 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons'
+type View = 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
 
 const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Шолу', icon: LayoutDashboard },
+  { id: 'leads', label: 'Өтінімдер', icon: Inbox },
   { id: 'students', label: 'Оқушылар', icon: Users },
   { id: 'payments', label: 'Төлемдер', icon: Wallet },
   { id: 'lessons', label: 'Сабақ журналы', icon: BookOpenCheck },
@@ -35,6 +40,7 @@ const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'groups', label: 'Топтар', icon: UsersRound },
   { id: 'teachers', label: 'Мұғалімдер', icon: GraduationCap },
   { id: 'journal', label: 'Әрекеттер', icon: ShieldCheck },
+  { id: 'site', label: 'Жетістіктер', icon: Trophy },
 ]
 
 function Crm() {
@@ -167,6 +173,8 @@ function Crm() {
         {view === 'teachers' && <Teachers data={data} reload={load} flash={flash} />}
         {view === 'journal' && <Journal />}
         {view === 'lessons' && <LessonJournal flash={flash} />}
+        {view === 'leads' && <Leads flash={flash} />}
+        {view === 'site' && <Achievements flash={flash} />}
       </main>
 
       {msg && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg px-4 py-2 text-sm text-white" style={{ background: BRAND.ink }} role="status">{msg}</div>}

@@ -23,6 +23,9 @@ import { ExamCountdown, SeasonMatrix, SeasonStrip } from '@/components/bilim/Sea
 import { seasonFor, type SeasonView } from '@/lib/bilimSeason'
 import { GrantPanel } from '@/components/bilim/Grant'
 import InstallApp from '@/components/pwa/InstallApp'
+import MistakeDrill, { mistakeCount } from '@/components/bilim/MistakeDrill'
+import { DailyCard, DailyRunner, useDaily } from '@/components/bilim/Daily'
+import { dailyTrack } from '@/lib/daily'
 import { grantGroup } from '@/lib/nisGrant'
 
 type OpenExam = { id: string; title: string; shuffle?: boolean; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
@@ -255,11 +258,14 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
   const [detail, setDetail] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
   const [drill, setDrill] = useState<{ examId: string; subjectId: string } | null>(null)
+  const [daily, setDaily] = useState(false)
+  const dq = useDaily(!!dailyTrack(me.group.id))
 
   const go = (t: Tab) => {
     setTab(t)
     setSheet(null)
     setDrill(null)
+    setDaily(false)
     setDetail(null)
     window.scrollTo({ top: 0 })
   }
@@ -282,7 +288,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
             </button>
           </div>
         </div>
-        {!sheet && !drill && (
+        {!sheet && !drill && !daily && (
           <nav className="mx-auto flex max-w-3xl gap-1 px-2">
             {([
               ['tests', 'Сынақ'],
@@ -303,7 +309,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-32 pt-5">
-        {!sheet && !drill && !detail && seasonFor(me.group.id, me.group.name) && (
+        {!sheet && !drill && !daily && !detail && seasonFor(me.group.id, me.group.name) && (
           <div className="mb-5">
             <ExamCountdown cfg={seasonFor(me.group.id, me.group.name)!} compact />
           </div>
@@ -332,16 +338,23 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
               onChanged={refresh}
             />
           </div>
+        ) : daily && dq.data ? (
+          <div className="mx-auto max-w-xl">
+            <DailyRunner data={dq.data} onBack={() => { setDaily(false); window.scrollTo({ top: 0 }) }} onDone={dq.setData} />
+          </div>
         ) : tab === 'tests' ? (
+          <>
+          {dq.data && <DailyCard data={dq.data} onOpen={() => { setDaily(true); window.scrollTo({ top: 0 }) }} />}
           <Tests
             me={me}
             done={done}
             onOpen={(examId, subject) => { setDone(null); setSheet({ examId, subject }) }}
             onPractice={(examId, subjectId) => { setDone(null); setDrill({ examId, subjectId }); window.scrollTo({ top: 0 }) }}
           />
+          </>
         ) : tab === 'results' ? (
           detail ? (
-            <ResultDetail examId={detail} onBack={() => setDetail(null)} />
+            <ResultDetail key={detail} examId={detail.replace(/#mistakes$/, '')} startMistakes={detail.endsWith('#mistakes')} onBack={() => { setDetail(null); window.scrollTo({ top: 0 }) }} />
           ) : (
             <Results list={me.results} onOpen={setDetail} season={me.season ?? null} drills={(me.practice ?? []).length > 0} grant={grantGroup(me.group.id)} />
           )
@@ -532,7 +545,12 @@ function Results({ list, onOpen, season, drills, grant = false }: { list: Summar
             {r.legacy ? (
               <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs text-slate-500">Қағаз түрінде тапсырылған.{drills && ' Сұрақтарын «Сынақ» бетіндегі «Дайындық» бөлімінен қайта тапсырып көруге болады.'}</p>
             ) : (
-              <button onClick={() => onOpen(r.examId)} className="w-full rounded-xl bg-blue-600 py-2.5 font-semibold text-white active:bg-blue-700">Толық нәтиже</button>
+              <div className="grid gap-2">
+                <button onClick={() => onOpen(r.examId)} className="w-full rounded-xl bg-blue-600 py-2.5 font-semibold text-white active:bg-blue-700">Толық нәтиже</button>
+                {r.wrong + r.blank > 0 && (
+                  <button onClick={() => onOpen(r.examId + '#mistakes')} className="w-full rounded-xl border border-blue-200 py-2.5 font-semibold text-blue-600 active:bg-blue-50">Қатемен жұмыс</button>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -563,13 +581,23 @@ function Stat({ label, value, sub, tone }: { label: string; value: string; sub?:
   )
 }
 
-function ResultDetail({ examId, onBack }: { examId: string; onBack: () => void }) {
+function ResultDetail({ examId, onBack, startMistakes = false }: { examId: string; onBack: () => void; startMistakes?: boolean }) {
   const { data, err } = useResult(examId)
   const [subj, setSubj] = useState<string | null>(null)
   const [q, setQ] = useState<number | null>(null)
+  const [mist, setMist] = useState(startMistakes)
+  const [award, setAward] = useState<{ kind: string; place?: number; delta?: number } | null>(null)
+  useEffect(() => {
+    fetch(`/api/bilim-test/awards?exam=${encodeURIComponent(examId)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setAward(j?.awards?.[0] ?? null))
+      .catch(() => {})
+  }, [examId])
 
   if (err) return <p className="rounded-xl bg-rose-50 p-4 text-rose-700">{err}</p>
   if (!data) return <p className="py-20 text-center text-slate-400">Жүктелуде…</p>
+  if (mist) return <div className="mx-auto max-w-xl"><MistakeDrill data={data} onBack={() => (startMistakes ? onBack() : setMist(false))} /></div>
+  const nMist = mistakeCount(data)
 
   const { exam, subs, rank, prev } = data
   const graded = exam.subjects.map((s) => {
@@ -604,6 +632,27 @@ function ResultDetail({ examId, onBack }: { examId: string; onBack: () => void }
         <Stat label="Қате" value={`${wrong}`} tone="text-red-600" />
         <Stat label="Бос" value={`${blank}`} tone="text-amber-600" />
       </div>
+
+      {award && (
+        <a href={`/bilim-test/certificate?exam=${encodeURIComponent(exam.id)}`} className="mt-4 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 active:bg-amber-100">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-amber-500 text-xl text-white">★</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-bold">Құттықтаймыз! Саған мадақтама</span>
+            <span className="block text-sm text-slate-600">{award.kind === 'place' ? `${award.place}-орын` : `Ең үлкен өсу: +${award.delta} балл`} · PDF жүктеп, басып шығар</span>
+          </span>
+          <span className="text-amber-600">→</span>
+        </a>
+      )}
+      {nMist > 0 && (
+        <button onClick={() => { setMist(true); window.scrollTo({ top: 0 }) }} className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-left active:bg-blue-100">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-600 text-lg font-bold text-white">{nMist}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-bold">Қатемен жұмыс</span>
+            <span className="block text-sm text-slate-600">Қате және бос сұрақтарыңды қайта шеш — жауабы бірден тексеріледі</span>
+          </span>
+          <span className="text-blue-600">→</span>
+        </button>
+      )}
 
       {(() => {
         const fc = buildForecast(exam, nowRow, data.history)

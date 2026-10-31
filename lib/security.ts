@@ -22,8 +22,10 @@ export const RULES = {
   account: { max: 5, windowMs: 15 * 60_000, lockMs: 15 * 60_000 },
   // ИИ-көмекші: бір IP-ден сағатына 40 хабарлама (токен шығынын шектеу)
   chat: { max: 40, windowMs: 60 * 60_000, lockMs: 60 * 60_000 },
+  // Сайттағы өтінім / тегін сынақ: бір IP-ден сағатына 8 (спамнан қорғау)
+  lead: { max: 8, windowMs: 60 * 60_000, lockMs: 60 * 60_000 },
 }
-const ruleFor = (key: string) => (key.startsWith('ip:') ? RULES.ip : key.startsWith('chat:') ? RULES.chat : RULES.account)
+const ruleFor = (key: string) => (key.startsWith('ip:') ? RULES.ip : key.startsWith('chat:') ? RULES.chat : key.startsWith('lead:') ? RULES.lead : RULES.account)
 
 /** Таза функция: бір сәтсіз әрекеттен кейінгі жаңа күй (тесттерде тексеріледі). */
 export function nextFail(prev: ThrottleRow | undefined, key: string, now = Date.now()): ThrottleRow {

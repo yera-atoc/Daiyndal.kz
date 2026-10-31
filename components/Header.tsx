@@ -6,9 +6,10 @@ import { B } from './site/brand'
 
 const NAV: [string, string][] = [
   ['Бағдарламалар', '/#programs'],
-  ['Мұғалімдер', '/#teachers'],
+  ['Тегін сынақ', '/sinaq'],
+  ['Жетістіктер', '/zhetistikter'],
   ['Платформа', '/#platform'],
-  ['Материалдар', '/materials'],
+  ['Жазылу', '/zhazylu'],
   ['Байланыс', '/#contact'],
 ]
 
@@ -21,7 +22,7 @@ export default function Header() {
           <img src="/beles-logo.png" alt="Beles education" className="h-9 w-auto" />
         </Link>
 
-        <nav className="hidden items-center gap-7 text-sm font-medium md:flex" style={{ color: B.muted }}>
+        <nav className="hidden items-center gap-6 text-sm font-medium lg:flex" style={{ color: B.muted }}>
           {NAV.map(([label, href]) => (
             <Link key={href} href={href} className="transition hover:text-black">{label}</Link>
           ))}
@@ -35,7 +36,7 @@ export default function Header() {
             onClick={() => setOpen((o) => !o)}
             aria-label="Мәзір"
             aria-expanded={open}
-            className="grid h-10 w-10 place-items-center rounded-lg border md:hidden"
+            className="grid h-10 w-10 place-items-center rounded-lg border lg:hidden"
             style={{ borderColor: B.line }}
           >
             <span className="relative block h-3 w-4">
@@ -47,7 +48,7 @@ export default function Header() {
         </div>
       </div>
       {open && (
-        <nav className="border-t px-4 pb-4 pt-2 md:hidden" style={{ borderColor: B.line }}>
+        <nav className="border-t px-4 pb-4 pt-2 lg:hidden" style={{ borderColor: B.line }}>
           {NAV.map(([label, href]) => (
             <Link key={href} href={href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-base font-medium hover:bg-slate-50">
               {label}

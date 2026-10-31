@@ -12,6 +12,7 @@ import {
 import { groupHistories, listGroups, listStudents, listSubmissions, previousScores } from './bilimTestStore'
 import type { HistPoint } from './bilimTestForecast'
 import { personalizeFor } from './bilimShuffle'
+import { computeAwards } from './bilimAwards'
 
 export type RankRow = { place: number | null; name: string; me: boolean; scores: ScoreRow; total: number | null }
 
@@ -92,5 +93,15 @@ export function resultSummary(exam: Exam, mine: Submission[], place: number | nu
     max: examMax(exam),
     place,
     of,
+  }
+}
+
+// Мадақтама алатындар (айдың үздік 3-і және ең көп өскен оқушы)
+export async function examAwards(exam: Exam) {
+  const [subs, prev, students, groups] = await Promise.all([listSubmissions(exam.id), previousScores(exam), listStudents(exam.group_id), listGroups()])
+  return {
+    exam: { id: exam.id, title: exam.title, month: exam.month, published: exam.published },
+    groupName: groups.find((g) => g.id === exam.group_id)?.name ?? '',
+    awards: computeAwards(exam, subs, students.map((s) => s.full_name), prev),
   }
 }

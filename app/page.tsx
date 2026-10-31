@@ -45,8 +45,8 @@ const PLATFORM = [
 ]
 
 const STEPS = [
-  ['Жазылу', 'WhatsApp арқылы жазыласыз, біз сынып пен мақсатқа қарай топ ұсынамыз.'],
-  ['Деңгейді анықтау', 'Алғашқы Білім тексеру сынағы оқушының күшті және әлсіз тұстарын көрсетеді.'],
+  ['Жазылу', 'Сайттан немесе WhatsApp арқылы жазыласыз, біз сынып пен мақсатқа қарай топ ұсынамыз.'],
+  ['Деңгейді анықтау', 'Тегін сынақ пен алғашқы Білім тексеру сынағы оқушының күшті және әлсіз тұстарын көрсетеді.'],
   ['Сабақтар', 'Тәжірибелі мұғалімдермен топтық сабақтар, үй тапсырмасы мен материалдар.'],
   ['Ай сайынғы нәтиже', 'Әр айдың соңында сынақ, рейтинг және ата-анаға арналған PDF есеп.'],
 ]
@@ -70,9 +70,12 @@ export default function Home() {
               Beles education – тәжірибелі мұғалімдер, ай сайынғы Білім тексеру сынағы және ҰБТ, IELTS, TOEFL сынақтары бір жерде. Оқушы нәтижесін кабинетінен, ата-ана – PDF есептен көреді.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a href={waLink('Сәлеметсіз бе! Балама дайындық сабағына жазылғым келеді.')} target="_blank" rel="noopener noreferrer" className="rounded-xl px-6 py-3.5 text-center text-sm font-semibold text-white transition hover:opacity-90" style={{ background: B.blue }}>
-                Сабаққа жазылу (WhatsApp)
-              </a>
+              <Link href="/zhazylu" className="rounded-xl px-6 py-3.5 text-center text-sm font-semibold text-white transition hover:opacity-90" style={{ background: B.blue }}>
+                Онлайн жазылу
+              </Link>
+              <Link href="/sinaq" className="rounded-xl px-6 py-3.5 text-center text-sm font-semibold text-white transition hover:opacity-90" style={{ background: B.ink }}>
+                Тегін сынақ тапсыру
+              </Link>
               <Link href="/login" className="rounded-xl border bg-white px-6 py-3.5 text-center text-sm font-semibold transition hover:border-black" style={{ borderColor: B.line }}>
                 Кабинетке кіру
               </Link>

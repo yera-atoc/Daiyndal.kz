@@ -13,6 +13,9 @@ export default function Footer() {
           <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-black">Орталық</h4>
           <ul className="space-y-2 text-xs">
             <li><Link href="/#programs" className="hover:text-black">Бағдарламалар</Link></li>
+            <li><Link href="/zhazylu" className="hover:text-black">Онлайн жазылу</Link></li>
+            <li><Link href="/sinaq" className="hover:text-black">Тегін сынақ</Link></li>
+            <li><Link href="/zhetistikter" className="hover:text-black">Жетістіктер · НЗМ шекті балдары</Link></li>
             <li><Link href="/#platform" className="hover:text-black">Платформа</Link></li>
             <li><Link href="/materials" className="hover:text-black">Оқу материалдары</Link></li>
             <li><Link href="/ielts/materials" className="hover:text-black">IELTS · TOEFL материалдары</Link></li>
