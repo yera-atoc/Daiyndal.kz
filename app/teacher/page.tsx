@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { type ScheduleSlot } from '@/lib/schedule'
 import WeeklyTimetable from '@/components/WeeklyTimetable'
 import TeacherJournal from '@/components/journal/TeacherJournal'
+import EnglishResults from '@/components/teacher/EnglishResults'
 
 const MATERIALS_BUCKET = 'materials'
 const MAX_FILE_MB = 30
@@ -39,7 +40,7 @@ type StudentRow = {
 }
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-type Tab = 'journal' | 'schedule' | 'students' | 'materials' | 'tests' | 'profile'
+type Tab = 'journal' | 'schedule' | 'students' | 'results' | 'materials' | 'tests' | 'profile'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -102,6 +103,7 @@ export default function TeacherDashboard() {
     ['journal', 'Сабақ журналы'],
     ['schedule', 'Менің кестем'],
     ['students', 'Оқушылар'],
+    ...(isEnglishSubject(me?.subject) ? ([['results', 'Нәтижелер']] as [Tab, string][]) : []),
     ['materials', 'Материалдар'],
     ['tests', 'Тесттер'],
     ['profile', 'Профиль'],
@@ -161,6 +163,7 @@ export default function TeacherDashboard() {
         {tab === 'journal' && <TeacherJournal />}
         {tab === 'schedule' && <ScheduleTab slots={slots} students={students} />}
         {tab === 'students' && <StudentsTab students={students} onRatingChanged={loadAll} />}
+        {tab === 'results' && <EnglishResults />}
         {(tab === 'materials' || tab === 'tests') && isEnglishSubject(me?.subject) && <EnglishHub tab={tab} />}
         {tab === 'materials' && <MaterialsTab materials={materials} reload={loadAll} />}
         {tab === 'tests' && <TestsTab tests={tests} reload={loadAll} />}
