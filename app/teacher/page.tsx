@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { subjects } from '@/lib/subjects'
+import { isEnglishSubject } from '@/lib/teacherSubject'
 import { supabase } from '@/lib/supabaseClient'
 import { type ScheduleSlot } from '@/lib/schedule'
 import WeeklyTimetable from '@/components/WeeklyTimetable'
@@ -160,6 +161,7 @@ export default function TeacherDashboard() {
         {tab === 'journal' && <TeacherJournal />}
         {tab === 'schedule' && <ScheduleTab slots={slots} students={students} />}
         {tab === 'students' && <StudentsTab students={students} onRatingChanged={loadAll} />}
+        {(tab === 'materials' || tab === 'tests') && isEnglishSubject(me?.subject) && <EnglishHub tab={tab} />}
         {tab === 'materials' && <MaterialsTab materials={materials} reload={loadAll} />}
         {tab === 'tests' && <TestsTab tests={tests} reload={loadAll} />}
         {tab === 'profile' && <ProfileTab me={me} onSaved={loadAll} />}
@@ -418,6 +420,33 @@ function RatingControl({
   )
 }
 
+// Ағылшын тілі мұғаліміне: IELTS/TOEFL кабинеті, оқушылардың нәтижелері және материалдар бір жерде
+function EnglishHub({ tab }: { tab: 'materials' | 'tests' }) {
+  const links: [string, string, string][] =
+    tab === 'tests'
+      ? [
+          ['/ielts/teacher', 'IELTS · TOEFL mock тесттер', 'Барлық тесттер, оқушыларға рұқсат беру, нәтижелер мен Writing/Speaking тексеру'],
+          ['/ielts/teacher/subjects', 'Пән тесттері', 'Ағылшын тілі бойынша ұпай кестелері'],
+        ]
+      : [
+          ['/ielts/materials', 'IELTS · TOEFL материалдары', 'Ресми тегін ресурстар мен дайындық материалдары'],
+          ['/ielts/teacher', 'Mock тесттер мен нәтижелер', 'Оқушылардың тапсырулары және бағалары'],
+        ]
+  return (
+    <div className="mt-8 grid gap-3 sm:grid-cols-2">
+      {links.map(([href, title, desc]) => (
+        <Link key={href} href={href} className="flex items-start justify-between gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-black">
+          <div>
+            <p className="font-semibold text-zinc-900">{title}</p>
+            <p className="mt-1 text-xs text-zinc-500">{desc}</p>
+          </div>
+          <span className="text-zinc-400">→</span>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
 function MaterialsTab({
   materials,
   reload,
@@ -516,12 +545,12 @@ function MaterialsTab({
           />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-3 text-sm text-zinc-600 hover:border-black">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="flex min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-3 text-sm text-zinc-600 hover:border-black">
             <span className="shrink-0 rounded-md bg-black px-3 py-1 text-xs font-semibold text-white">
               Файл таңдау
             </span>
-            <span className="truncate">
+            <span className="min-w-0 truncate">
               {file ? file.name : 'Ноутбук немесе телефоннан (PDF, сурет, Word...)'}
             </span>
             <input
@@ -535,7 +564,7 @@ function MaterialsTab({
             onChange={(e) => setUrl(e.target.value)}
             disabled={!!file}
             placeholder="Немесе сілтеме (Google Drive, PDF)"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:opacity-40"
+            className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:opacity-40"
           />
         </div>
 

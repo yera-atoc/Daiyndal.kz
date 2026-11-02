@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { currentTeacherId } from '@/lib/requireTeacher'
+import { isEnglishTeacher } from '@/lib/teacherScope'
 
 export async function GET() {
   const teacherId = await currentTeacherId()
@@ -8,11 +9,11 @@ export async function GET() {
     return NextResponse.json({ error: 'Рұқсат жоқ' }, { status: 401 })
   }
 
-  const { data, error } = await supabaseAdmin
-    .from('tests')
-    .select('*, test_questions(count)')
-    .eq('teacher_id', teacherId)
-    .order('created_at', { ascending: false })
+  // Ағылшын тілі мұғалімі ағылшын пәніндегі барлық жазбаны көреді (кім құрса да)
+  const english = await isEnglishTeacher(teacherId)
+  let query = supabaseAdmin.from('tests').select('*, test_questions(count)')
+  query = english ? query.or(`teacher_id.eq.${teacherId},subject.eq.english`) : query.eq('teacher_id', teacherId)
+  const { data, error } = await query.order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)

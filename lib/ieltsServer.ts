@@ -2,6 +2,7 @@
 import { cookies } from 'next/headers'
 import { isAdmin } from './requireAdmin'
 import { currentTeacherId } from './requireTeacher'
+import { isEnglishTeacher } from './teacherScope'
 import {
   sectionMinutes,
   sectionsOf,
@@ -17,16 +18,25 @@ export async function db() {
   return supabaseAdmin
 }
 
-/** Мұғалім (өз тесттері) немесе админ (барлығы). Екеуі де болмаса — null. */
-export async function staff(): Promise<{ teacherId: string | null; admin: boolean } | null> {
+export type Staff = { teacherId: string | null; admin: boolean; english?: boolean }
+
+/** Мұғалім (өз тесттері) немесе админ (барлығы). Екеуі де болмаса — null.
+ *  english: ағылшын тілі мұғалімі — барлық IELTS/TOEFL тесттері мен нәтижелері оған тиесілі. */
+export async function staff(): Promise<Staff | null> {
   const [teacherId, admin] = await Promise.all([currentTeacherId(), isAdmin()])
   if (!teacherId && !admin) return null
-  return { teacherId, admin }
+  const english = await isEnglishTeacher(teacherId)
+  return { teacherId, admin, english }
 }
 
-export function canEdit(who: { teacherId: string | null; admin: boolean }, test: Pick<IeltsTest, 'teacher_id'> & { exam?: string }) {
-  // ҰБТ сынақтары – орталықтың ортақ тесттері: кез келген мұғалім рұқсат бере алады
-  return who.admin || (!!who.teacherId && (test.teacher_id === who.teacherId || test.exam === 'ubt'))
+export function canEdit(who: Staff, test: Pick<IeltsTest, 'teacher_id'> & { exam?: string }) {
+  // ҰБТ сынақтары – орталықтың ортақ тесттері: кез келген мұғалім рұқсат бере алады.
+  // IELTS/TOEFL — ағылшын тілі мұғалімінің аймағы, кім құрса да.
+  const englishExam = !test.exam || test.exam === 'ielts' || test.exam === 'toefl'
+  return (
+    who.admin ||
+    (!!who.teacherId && (test.teacher_id === who.teacherId || test.exam === 'ubt' || (!!who.english && englishExam)))
+  )
 }
 
 // ── Оқушы сессиясы (HMAC қолтаңбалы cookie) ─────────────────
