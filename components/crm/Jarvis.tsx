@@ -1,8 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bell, Mic, MicOff, RefreshCw, Send, Sparkles, Volume2, VolumeX } from 'lucide-react'
-import type { JarvisData, JLevel } from '@/lib/jarvis'
+import { Bell, CloudSun, Mic, MicOff, Newspaper, RefreshCw, Send, Sparkles, Volume2, VolumeX } from 'lucide-react'
+import { almatyHour, greeting, type JarvisData, type JLevel } from '@/lib/jarvis'
+import { weatherSentence, type Weather } from '@/lib/weather'
+import type { NewsItem } from '@/lib/goodNews'
 
 const C = {
   bg: '#07111F',
@@ -24,6 +26,7 @@ const LEVEL: Record<JLevel, { color: string; label: string }> = {
 
 const QUICK = [
   'Бүгін не істеуім керек?',
+  'Ертең ауа райы қандай?',
   'Кімнің төлемі кешікті?',
   'Қай оқушылар кетіп қалуы мүмкін?',
   'Қай мұғалімнің тобы ең жақсы?',
@@ -48,7 +51,8 @@ function speak(text: string) {
 }
 
 export default function Jarvis() {
-  const [data, setData] = useState<(JarvisData & { assistant: boolean }) | null>(null)
+  const [data, setData] = useState<(JarvisData & { assistant: boolean; weather: Weather | null; name: string }) | null>(null)
+  const [news, setNews] = useState<NewsItem[] | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -68,6 +72,13 @@ export default function Jarvis() {
   }, [])
 
   useEffect(() => {
+    fetch('/api/admin/jarvis/news')
+      .then((r) => r.json())
+      .then((j) => setNews(j.news ?? []))
+      .catch(() => setNews([]))
+  }, [])
+
+  useEffect(() => {
     load()
     const t = setInterval(load, 60_000) // әр минут сайын жаңартамыз
     return () => clearInterval(t)
@@ -78,6 +89,18 @@ export default function Jarvis() {
 
   const k = data.kpi
   const revMax = Math.max(1, ...data.revenue6.map((r) => r.value))
+  const hello = `${greeting(almatyHour())}, ${data.name}!`
+  const wText = weatherSentence(data.weather)
+  const speech = () =>
+    [
+      hello,
+      ...data.briefing,
+      wText,
+      news?.length ? `Бүгінгі жақсы жаңалықтар: ${news.slice(0, 4).map((n) => n.title).join('. ')}.` : '',
+      'Сәтті күн тілеймін!',
+    ]
+      .filter(Boolean)
+      .join(' ')
   const attDiff = k.attendance30 != null && k.attendancePrev30 != null ? k.attendance30 - k.attendancePrev30 : null
 
   return (
@@ -93,8 +116,8 @@ export default function Jarvis() {
           <div className="flex items-center gap-3">
             <Core />
             <div>
-              <div className="font-mono text-xs tracking-[0.3em]" style={{ color: C.glow }}>J.A.R.V.I.S · BELES</div>
-              <div className="text-lg font-semibold">Орталықтың басқару жүйесі</div>
+              <div className="font-mono text-xs tracking-[0.3em]" style={{ color: C.glow }}>ONLINE BELES MANAGER</div>
+              <div className="text-lg font-semibold">{hello}</div>
             </div>
           </div>
           <button onClick={load} className="flex items-center gap-2 rounded-lg border px-3 py-1.5 font-mono text-xs" style={{ borderColor: C.line, color: C.muted }}>
@@ -104,13 +127,18 @@ export default function Jarvis() {
         </div>
 
         {/* Брифинг */}
-        <Hud title="Таңғы брифинг" icon={<Sparkles size={14} />} action={
-          <button onClick={() => speak(data.briefing.join(' '))} className="flex items-center gap-1 font-mono text-xs" style={{ color: C.glow }}>
+        <Hud title="Күн брифингі" icon={<Sparkles size={14} />} action={
+          <button onClick={() => speak(speech())} className="flex items-center gap-1 font-mono text-xs" style={{ color: C.glow }}>
             <Volume2 size={14} /> Тыңдау
           </button>
         }>
           <p className="text-[15px] leading-relaxed">{data.briefing.join(' ')}</p>
         </Hud>
+
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
+          <WeatherCard w={data.weather} />
+          <NewsCard news={news} />
+        </div>
 
         {/* KPI */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -305,7 +333,7 @@ function Assistant({ enabled }: { enabled: boolean }) {
 
   return (
     <Hud
-      title="Jarvis-пен сөйлесу"
+      title="Менеджермен сөйлесу"
       icon={<Sparkles size={14} />}
       action={
         <button onClick={() => { setVoice(!voice); if (voice) window.speechSynthesis?.cancel() }} className="flex items-center gap-1 font-mono text-xs" style={{ color: voice ? C.glow : C.muted }}>
@@ -319,7 +347,7 @@ function Assistant({ enabled }: { enabled: boolean }) {
         <>
           <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
             {msgs.length === 0 && (
-              <p className="text-sm" style={{ color: C.muted }}>Сәлеметсіз бе! Мен орталықтың барлық деректерін көріп тұрмын — оқушылар, төлемдер, қатысу, мұғалімдер, өтінімдер. Кез келген сұрақ қойыңыз немесе микрофонды басып айтыңыз.</p>
+              <p className="text-sm" style={{ color: C.muted }}>Сәлеметсіз бе! Мен орталықтың барлық деректерін көріп тұрмын — оқушылар, төлемдер, қатысу, мұғалімдер, өтінімдер. Сонымен қатар ауа райы, жаңалық не кез келген басқа сұраққа жауап беремін. Жазыңыз немесе микрофонды басып айтыңыз.</p>
             )}
             {msgs.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -367,6 +395,77 @@ function Assistant({ enabled }: { enabled: boolean }) {
             </button>
           </form>
         </>
+      )}
+    </Hud>
+  )
+}
+
+function WeatherCard({ w }: { w: Weather | null }) {
+  const sign = (n: number) => (n > 0 ? `+${n}` : `${n}`)
+  return (
+    <Hud title="Жезқазған · ауа райы" icon={<CloudSun size={14} />}>
+      {!w?.today ? (
+        <p className="text-sm" style={{ color: C.muted }}>Ауа райы дерегі қазір қолжетімсіз.</p>
+      ) : (
+        <div className="space-y-3">
+          {w.now && (
+            <div className="flex items-center gap-3">
+              <span className="text-4xl">{w.now.icon}</span>
+              <div>
+                <div className="text-3xl font-semibold tabular-nums">{sign(w.now.temp)}°</div>
+                <div className="text-xs" style={{ color: C.muted }}>қазір · {w.now.label}{w.now.wind != null ? ` · жел ${w.now.wind} м/с` : ''}</div>
+              </div>
+            </div>
+          )}
+          {[['Бүгін', w.today], ['Ертең', w.tomorrow]].map(([label, d]) =>
+            d && typeof d === 'object' ? (
+              <div key={label as string} className="flex items-center gap-3 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: C.line }}>
+                <span className="w-14 font-mono text-xs" style={{ color: C.glow }}>{label as string}</span>
+                <span className="text-xl">{d.icon}</span>
+                <span className="min-w-0 flex-1 truncate">{d.label}</span>
+                <span className="font-mono tabular-nums">{sign(d.min)}…{sign(d.max)}°</span>
+                {d.rain != null && d.rain >= 30 && <span className="font-mono text-xs" style={{ color: C.glow }}>💧{d.rain}%</span>}
+              </div>
+            ) : null,
+          )}
+        </div>
+      )}
+    </Hud>
+  )
+}
+
+function NewsCard({ news }: { news: NewsItem[] | null }) {
+  const groups: [string, NewsItem[]][] = news
+    ? [
+        ['🇰🇿 Қазақстан', news.filter((n) => n.region === 'kz')],
+        ['🌍 Әлем', news.filter((n) => n.region === 'world')],
+      ]
+    : []
+  return (
+    <Hud title="Күннің жақсы жаңалықтары" icon={<Newspaper size={14} />}>
+      {news === null ? (
+        <p className="font-mono text-xs" style={{ color: C.glow }}>Жаңалықтарды іздеп жатырмын…</p>
+      ) : news.length === 0 ? (
+        <p className="text-sm" style={{ color: C.muted }}>Қазір жаңалық жүктелмеді. Кейінірек қайта көріңіз.</p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {groups.map(([title, items]) =>
+            items.length ? (
+              <div key={title}>
+                <div className="mb-2 text-xs font-semibold" style={{ color: C.muted }}>{title}</div>
+                <ul className="space-y-2.5">
+                  {items.map((n) => (
+                    <li key={n.url}>
+                      <a href={n.url} target="_blank" rel="noopener noreferrer" className="block text-sm font-medium leading-snug hover:underline">{n.title}</a>
+                      {n.summary && <p className="mt-0.5 text-xs leading-snug" style={{ color: C.muted }}>{n.summary}</p>}
+                      {n.source && <p className="mt-0.5 font-mono text-[10px]" style={{ color: C.glow }}>{n.source}</p>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null,
+          )}
+        </div>
       )}
     </Hud>
   )

@@ -70,3 +70,24 @@ describe('jarvis', () => {
     expect(j.revenue6).toHaveLength(6)
   })
 })
+
+import { adminFirstName, greeting } from '@/lib/jarvis'
+import { weatherSentence, wmo } from '@/lib/weather'
+
+describe('manager greeting & weather', () => {
+  it('greets by Almaty hour', () => {
+    expect(greeting(7)).toBe('Қайырлы таң')
+    expect(greeting(13)).toBe('Қайырлы күн')
+    expect(greeting(19)).toBe('Қайырлы кеш')
+    expect(greeting(2)).toBe('Қайырлы түн')
+  })
+  it('names the admin', () => {
+    expect(adminFirstName({ kind: 'owner', name: 'Иесі' })).toBe('Ернар')
+    expect(adminFirstName({ kind: 'teacher', name: 'Диана Серікқызы' })).toBe('Диана')
+  })
+  it('describes weather', () => {
+    expect(wmo(0).label).toContain('ашық')
+    const w = { city: 'Жезқазған', now: { temp: -3, code: 3, label: 'бұлтты', icon: '', wind: 4 }, today: { date: '2026-11-03', min: -6, max: 2, code: 3, label: 'бұлтты', icon: '', rain: 10, wind: 5 }, tomorrow: { date: '2026-11-04', min: -8, max: -1, code: 71, label: 'қар', icon: '', rain: 60, wind: 7 } }
+    expect(weatherSentence(w)).toBe('Жезқазғанда бүгін бұлтты, -6…+2°C (қазір -3°). Ертең қар, -8…-1°C.')
+  })
+})
