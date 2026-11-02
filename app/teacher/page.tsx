@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { subjects } from '@/lib/subjects'
+import { isEnglishSubject } from '@/lib/teacherSubject'
 import { supabase } from '@/lib/supabaseClient'
 import { type ScheduleSlot } from '@/lib/schedule'
 import WeeklyTimetable from '@/components/WeeklyTimetable'
@@ -160,6 +161,7 @@ export default function TeacherDashboard() {
         {tab === 'journal' && <TeacherJournal />}
         {tab === 'schedule' && <ScheduleTab slots={slots} students={students} />}
         {tab === 'students' && <StudentsTab students={students} onRatingChanged={loadAll} />}
+        {(tab === 'materials' || tab === 'tests') && isEnglishSubject(me?.subject) && <EnglishHub tab={tab} />}
         {tab === 'materials' && <MaterialsTab materials={materials} reload={loadAll} />}
         {tab === 'tests' && <TestsTab tests={tests} reload={loadAll} />}
         {tab === 'profile' && <ProfileTab me={me} onSaved={loadAll} />}
@@ -414,6 +416,33 @@ function RatingControl({
         +
       </button>
       <span className="pr-1 text-xs text-zinc-400">ұпай</span>
+    </div>
+  )
+}
+
+// Ағылшын тілі мұғаліміне: IELTS/TOEFL кабинеті, оқушылардың нәтижелері және материалдар бір жерде
+function EnglishHub({ tab }: { tab: 'materials' | 'tests' }) {
+  const links: [string, string, string][] =
+    tab === 'tests'
+      ? [
+          ['/ielts/teacher', 'IELTS · TOEFL mock тесттер', 'Барлық тесттер, оқушыларға рұқсат беру, нәтижелер мен Writing/Speaking тексеру'],
+          ['/ielts/teacher/subjects', 'Пән тесттері', 'Ағылшын тілі бойынша ұпай кестелері'],
+        ]
+      : [
+          ['/ielts/materials', 'IELTS · TOEFL материалдары', 'Ресми тегін ресурстар мен дайындық материалдары'],
+          ['/ielts/teacher', 'Mock тесттер мен нәтижелер', 'Оқушылардың тапсырулары және бағалары'],
+        ]
+  return (
+    <div className="mt-8 grid gap-3 sm:grid-cols-2">
+      {links.map(([href, title, desc]) => (
+        <Link key={href} href={href} className="flex items-start justify-between gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-black">
+          <div>
+            <p className="font-semibold text-zinc-900">{title}</p>
+            <p className="mt-1 text-xs text-zinc-500">{desc}</p>
+          </div>
+          <span className="text-zinc-400">→</span>
+        </Link>
+      ))}
     </div>
   )
 }

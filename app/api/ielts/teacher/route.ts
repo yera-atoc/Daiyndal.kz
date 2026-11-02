@@ -37,7 +37,14 @@ export async function GET(req: NextRequest) {
   // exam бағаны migration_toefl.sql іске қосылғанға дейін болмауы мүмкін
   const listTests = async (cols: string, withUbt: boolean) => {
     let tq = sb.from('ielts_tests').select(cols).order('created_at', { ascending: false })
-    if (!who.admin) tq = withUbt ? tq.or(`teacher_id.eq.${who.teacherId},exam.eq.ubt`) : tq.eq('teacher_id', who.teacherId!)
+    if (!who.admin) {
+      if (who.english) {
+        // Ағылшын тілі мұғалімі: барлық IELTS/TOEFL (+ ортақ ҰБТ). exam бағаны жоқ ескі базада бәрі IELTS.
+        if (withUbt) tq = tq.or(`teacher_id.eq.${who.teacherId},exam.in.(ielts,toefl,ubt)`)
+      } else {
+        tq = withUbt ? tq.or(`teacher_id.eq.${who.teacherId},exam.eq.ubt`) : tq.eq('teacher_id', who.teacherId!)
+      }
+    }
     return tq
   }
   let { data: tests, error } = (await listTests('id, teacher_id, title, exam, variant, mode, published, created_at, updated_at', true)) as { data: any[] | null; error: any }

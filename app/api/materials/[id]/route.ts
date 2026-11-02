@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { currentTeacherId } from '@/lib/requireTeacher'
+import { isEnglishTeacher } from '@/lib/teacherScope'
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const teacherId = await currentTeacherId()
@@ -9,11 +10,11 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   }
 
   // Ownership check: a teacher can only delete their own materials.
-  const { error } = await supabaseAdmin
-    .from('materials')
-    .delete()
-    .eq('id', params.id)
-    .eq('teacher_id', teacherId)
+  // Ағылшын тілі мұғалімі ағылшын пәніндегі кез келген жазбаны өшіре алады.
+  const english = await isEnglishTeacher(teacherId)
+  let query = supabaseAdmin.from('materials').delete().eq('id', params.id)
+  query = english ? query.or(`teacher_id.eq.${teacherId},subject.eq.english`) : query.eq('teacher_id', teacherId)
+  const { error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
