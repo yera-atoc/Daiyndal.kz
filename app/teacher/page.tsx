@@ -10,6 +10,7 @@ import { type ScheduleSlot } from '@/lib/schedule'
 import WeeklyTimetable from '@/components/WeeklyTimetable'
 import TeacherJournal from '@/components/journal/TeacherJournal'
 import EnglishResults from '@/components/teacher/EnglishResults'
+import OverviewTab from '@/components/teacher/OverviewTab'
 
 const MATERIALS_BUCKET = 'materials'
 const MAX_FILE_MB = 30
@@ -40,7 +41,7 @@ type StudentRow = {
 }
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-type Tab = 'journal' | 'schedule' | 'students' | 'results' | 'materials' | 'tests' | 'profile'
+type Tab = 'overview' | 'journal' | 'schedule' | 'students' | 'results' | 'materials' | 'tests' | 'profile'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -57,7 +58,7 @@ function initials(name: string) {
 
 export default function TeacherDashboard() {
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>('journal')
+  const [tab, setTab] = useState<Tab>('overview')
   const [me, setMe] = useState<Teacher | null>(null)
   const [materials, setMaterials] = useState<Material[]>([])
   const [tests, setTests] = useState<Test[]>([])
@@ -100,6 +101,7 @@ export default function TeacherDashboard() {
   }
 
   const tabs: [Tab, string][] = [
+    ['overview', 'Шолу'],
     ['journal', 'Сабақ журналы'],
     ['schedule', 'Менің кестем'],
     ['students', 'Оқушылар'],
@@ -160,6 +162,7 @@ export default function TeacherDashboard() {
           ))}
         </div>
 
+        {tab === 'overview' && <OverviewTab />}
         {tab === 'journal' && <TeacherJournal />}
         {tab === 'schedule' && <ScheduleTab slots={slots} students={students} />}
         {tab === 'students' && <StudentsTab students={students} onRatingChanged={loadAll} />}

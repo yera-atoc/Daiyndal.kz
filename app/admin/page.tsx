@@ -17,6 +17,7 @@ import {
   BookOpenCheck,
   Inbox,
   Trophy,
+  Sparkles,
 } from 'lucide-react'
 import { BRAND, dmy, type CrmData } from '@/components/crm/core'
 import Overview from '@/components/crm/Overview'
@@ -26,10 +27,12 @@ import Journal from '@/components/crm/Journal'
 import LessonJournal from '@/components/crm/LessonJournal'
 import Leads from '@/components/crm/Leads'
 import Achievements from '@/components/crm/Achievements'
+import Jarvis from '@/components/crm/Jarvis'
 
-type View = 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
+type View = 'jarvis' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
 
 const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'jarvis', label: 'Jarvis', icon: Sparkles },
   { id: 'overview', label: 'Шолу', icon: LayoutDashboard },
   { id: 'leads', label: 'Өтінімдер', icon: Inbox },
   { id: 'students', label: 'Оқушылар', icon: Users },
@@ -165,6 +168,7 @@ function Crm() {
             go={go}
           />
         )}
+        {view === 'jarvis' && <Jarvis />}
         {view === 'students' && <Students data={data} reload={load} flash={flash} openId={openId} setOpenId={setOpenId} payId={payId} setPayId={setPayId} />}
         {view === 'payments' && <Payments data={data} reload={load} flash={flash} onStudent={openStudent} />}
         {view === 'attendance' && <Attendance key={attGroup ?? ''} data={data} reload={load} flash={flash} initialGroup={attGroup} />}
