@@ -32,7 +32,7 @@ import Jarvis from '@/components/crm/Jarvis'
 type View = 'jarvis' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
 
 const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'jarvis', label: 'Jarvis', icon: Sparkles },
+  { id: 'jarvis', label: 'Beles Manager', icon: Sparkles },
   { id: 'overview', label: 'Шолу', icon: LayoutDashboard },
   { id: 'leads', label: 'Өтінімдер', icon: Inbox },
   { id: 'students', label: 'Оқушылар', icon: Users },

@@ -204,3 +204,21 @@ function topSource(errs: { source: string }[]) {
   for (const e of errs) c.set(e.source, (c.get(e.source) ?? 0) + 1)
   return Array.from(c.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—'
 }
+
+/** Алматы уақыты бойынша сәлемдесу */
+export function greeting(hour: number) {
+  if (hour >= 5 && hour < 11) return 'Қайырлы таң'
+  if (hour >= 11 && hour < 17) return 'Қайырлы күн'
+  if (hour >= 17 && hour < 23) return 'Қайырлы кеш'
+  return 'Қайырлы түн'
+}
+
+export function almatyHour(d = new Date()) {
+  return (d.getUTCHours() + 5) % 24
+}
+
+/** Әкімшінің аты: иесі үшін OWNER_NAME (әдепкі «Ернар»), мұғалім-әкімші үшін өз атының бірінші сөзі */
+export function adminFirstName(me: { kind: string; name: string }, ownerName?: string) {
+  if (me.kind === 'owner') return ownerName?.trim() || 'Ернар'
+  return me.name.trim().split(/\s+/)[0] || me.name
+}
