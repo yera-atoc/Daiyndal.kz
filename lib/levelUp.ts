@@ -28,12 +28,15 @@ export type LevelUpInput = {
   daily: DailyRow[]
   streak: number
   today: string
+  points?: Record<string, number> // стат ұпайлары: пән → салынған ұпай
+  practiceToday?: string[] // бүгін дайындық сынағын тапсырған пәндер
 }
 
 export type SubjectStat = { id: string; name: string; score: number; max: number; pct: number; delta: number | null }
 export type Growth = { id: string; name: string; topic: string | null; gain: number }
 export type Skill = { subject: string; topic: string; level: number; pct: number }
-export type Quest = { id: string; title: string; xp: number; done: boolean }
+export type Quest = { id: string; title: string; xp: number; done: boolean; kind?: 'penalty' | 'focus' }
+export type Title = { id: string; name: string; hint: string; got: boolean }
 
 export type LevelUp = {
   month: string
@@ -55,6 +58,9 @@ export type LevelUp = {
   xp: { got: number; of: number }
   streak: number
   tip: { subject: string; subjectName: string; text: string }
+  points: { total: number; free: number; spent: Record<string, number>; focus: string | null }
+  penalty: boolean
+  titles: Title[]
 }
 
 const NAMES: Record<string, string> = Object.fromEntries(DEFAULT_SUBJECTS.map((s) => [s.id, s.name]))
@@ -148,10 +154,25 @@ export function buildLevelUp(input: LevelUpInput): LevelUp | null {
   const rt = recent.reduce((a, d) => a + d.total, 0)
   const accuracy = rt ? Math.round((rc / rt) * 100) : null
 
+  const todayShare = todayRow && todayRow.total > 0 ? todayRow.correct / todayRow.total : 0
+  const { level, toNext } = levelOf(total)
+
+  // Стат ұпайлары: әр деңгей сайын 1 ұпай (Lv 1-де — 0). Ең көп ұпай салынған пән — фокус.
+  const spent = Object.fromEntries(Object.entries(input.points ?? {}).filter(([id, n]) => ORDER.includes(id) && n > 0))
+  const used = Object.values(spent).reduce((a, n) => a + n, 0)
+  const ptsTotal = level - 1
+  const focus = Object.entries(spent).sort((a, b) => b[1] - a[1] || ORDER.indexOf(a[0]) - ORDER.indexOf(b[0]))[0]?.[0] ?? null
+
+  // Айыппұл: кеше күннің сұрақтары тапсырылмаса (бұрын тапсырып жүрген оқушыға ғана)
+  const yesterday = new Date(new Date(input.today + 'T00:00:00Z').getTime() - 864e5).toISOString().slice(0, 10)
+  const penalty = input.daily.some((d) => d.day < yesterday) && !input.daily.some((d) => d.day === yesterday)
+
   const quests: Quest[] = [
+    ...(penalty ? [{ id: 'penalty', title: 'Айыппұл квесті: кеше квест орындалмады. Бүгін күннің сұрақтарын 90 %-дан жоғары орында', xp: 0, done: todayShare >= 0.9, kind: 'penalty' as const }] : []),
     { id: 'daily', title: 'Күннің сұрақтарын тапсыр', xp: 50, done: !!todayRow },
-    { id: 'accuracy', title: 'Бүгін 80 %-дан жоғары дұрыс', xp: 30, done: !!todayRow && todayRow.total > 0 && todayRow.correct / todayRow.total >= 0.8 },
+    { id: 'accuracy', title: 'Бүгін 80 %-дан жоғары дұрыс', xp: 30, done: todayShare >= 0.8 },
     { id: 'streak', title: 'Серияны үзбе: 3 күн қатарынан', xp: 20, done: input.streak >= 3 },
+    ...(focus ? [{ id: 'focus', title: `Фокус-квест: ${NAMES[focus] ?? focus} бойынша дайындық сынағын тапсыр`, xp: 40, done: (input.practiceToday ?? []).includes(focus), kind: 'focus' as const }] : []),
   ]
   const xp = { got: quests.filter((q) => q.done).reduce((a, q) => a + q.xp, 0), of: quests.reduce((a, q) => a + q.xp, 0) }
 
@@ -160,7 +181,6 @@ export function buildLevelUp(input: LevelUpInput): LevelUp | null {
   const tips = NIS_TIPS.find((t) => t.id === weakest?.id)?.hacks ?? NIS_TIPS[0].hacks
   const tip = { subject: weakest?.id ?? 'math', subjectName: weakest?.name ?? 'Математика', text: tips[daySeed(input.today) % tips.length] }
 
-  const { level, toNext } = levelOf(total)
   return {
     month: cur.month,
     monthName: cur.name,
@@ -181,7 +201,36 @@ export function buildLevelUp(input: LevelUpInput): LevelUp | null {
     xp,
     streak: input.streak,
     tip,
+    points: { total: ptsTotal, free: Math.max(0, ptsTotal - used), spent, focus },
+    penalty,
+    titles: titlesFor({ subjects, streak: input.streak, totalDelta, total, accuracy }),
   }
+}
+
+/** Атақтар: нәтижеден есептеледі (алынбағаны сұр түспен, шартымен көрсетіледі) */
+export function titlesFor(x: { subjects: SubjectStat[]; streak: number; totalDelta: number | null; total: number; accuracy: number | null }): Title[] {
+  const pct = (id: string) => x.subjects.find((s) => s.id === id)?.pct ?? 0
+  return [
+    { id: 'math', name: 'Математика шебері', hint: 'Математикадан 85 %+', got: pct('math') >= 85 },
+    { id: 'quant', name: 'Сандық шебері', hint: 'Сандық сипаттамадан 85 %+', got: pct('quant') >= 85 },
+    { id: 'lang', name: 'Үш тілді', hint: 'Үш тілдің әрқайсысынан 80 %+', got: ['kazakh', 'russian', 'english'].every((id) => pct(id) >= 80) },
+    { id: 'science', name: 'Зерттеуші', hint: 'Жаратылыстанудан 85 %+', got: pct('science') >= 85 },
+    { id: 'streak7', name: '7 күн тоқтамаған', hint: '7 күн қатарынан күннің сұрақтары', got: x.streak >= 7 },
+    { id: 'streak30', name: 'Темір тәртіп', hint: '30 күн қатарынан', got: x.streak >= 30 },
+    { id: 'jump', name: 'Секіріс', hint: 'Бір айда +100 балл', got: (x.totalDelta ?? 0) >= 100 },
+    { id: 'sniper', name: 'Мерген', hint: 'Күнделікті дұрыстық 90 %+', got: (x.accuracy ?? 0) >= 90 },
+    { id: 'grant', name: 'Грант аймағы', hint: '1050 балл және одан жоғары', got: x.total >= 1050 },
+    { id: 'elite', name: 'Үздіктер қатары', hint: 'A ранг: 1350+', got: x.total >= 1350 },
+  ]
+}
+
+/** Деңгей/ранг көтерілді ме: бұрын көрген күйімен салыстыру (бірінші кіргенде хабарлама жоқ) */
+export function levelEvent(seen: { level: number; rank: string } | null, now: { level: number; rank: string }) {
+  if (!seen || seen.level <= 0) return null
+  const order = RANKS.map((r) => r.id).reverse() // E..S
+  const rankUp = order.indexOf(now.rank) > order.indexOf(seen.rank)
+  if (now.level <= seen.level && !rankUp) return null
+  return { from: seen.level, to: now.level, rankFrom: seen.rank, rankTo: now.rank, rankUp }
 }
 
 export type BoardRow = { place: number; name: string; me: boolean; total: number; level: number; rank: string }
