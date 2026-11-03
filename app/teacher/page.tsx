@@ -170,6 +170,7 @@ export default function TeacherDashboard() {
         {tab === 'results' && <EnglishResults />}
         {(tab === 'materials' || tab === 'tests') && isEnglishSubject(me?.subject) && <EnglishHub tab={tab} />}
         {tab === 'materials' && <MaterialsTab materials={materials} reload={loadAll} />}
+        {tab === 'materials' && <SharedMaterials mineIds={materials.map((m) => m.id)} />}
         {tab === 'tests' && <TestsTab tests={tests} reload={loadAll} />}
         {tab === 'profile' && <ProfileTab me={me} onSaved={loadAll} />}
       </div>
@@ -633,6 +634,114 @@ function MaterialsTab({
 
 type DraftQuestion = { questionText: string; options: string[]; correctIndex: number }
 
+/** Ортақ қор: басқа мұғалімдердің материалдары (тек көру) — бір рет жүктелген материалды бәрі қолданады */
+function SharedMaterials({ mineIds }: { mineIds: string[] }) {
+  const [list, setList] = useState<(Material & { teachers?: { name: string } | null })[] | null>(null)
+  const [q, setQ] = useState('')
+  useEffect(() => {
+    fetch('/api/materials/public')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setList(Array.isArray(d) ? d : []))
+      .catch(() => setList([]))
+  }, [])
+  const mine = new Set(mineIds)
+  const shown = (list ?? []).filter((m) => !mine.has(m.id) && `${m.title} ${m.description ?? ''} ${m.teachers?.name ?? ''}`.toLowerCase().includes(q.toLowerCase()))
+  if (!list || (!shown.length && !q)) return null
+  return (
+    <section className="mt-8">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-base font-bold">Ортақ қор · басқа мұғалімдердің материалдары</h3>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Іздеу…" className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm" />
+      </div>
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        {shown.slice(0, 60).map((m) => (
+          <li key={m.id} className="rounded-xl border border-zinc-200 bg-white p-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-blue-600">{subjects.find((s) => s.id === m.subject)?.name ?? m.subject}</div>
+            <div className="mt-0.5 font-medium">{m.title}</div>
+            {m.teachers?.name && <div className="text-xs text-zinc-500">{m.teachers.name}</div>}
+            {m.url && <a href={fileSrc(m.url) ?? undefined} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-semibold text-blue-600">Ашу →</a>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** ИИ-мен тест құрастыру: мұғалім тақырыпты жазады, сұрақтар төмендегі формаға түседі — тексеріп, сақтайды */
+function AiTestBuilder({ subjectName, onReady }: { subjectName: string; onReady: (qs: DraftQuestion[], topic: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [topic, setTopic] = useState('')
+  const [grade, setGrade] = useState('')
+  const [count, setCount] = useState(10)
+  const [level, setLevel] = useState('орташа')
+  const [format, setFormat] = useState('')
+  const [lang, setLang] = useState('kk')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const go = async () => {
+    setBusy(true)
+    setErr('')
+    try {
+      const r = await fetch('/api/teacher/ai-test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject: subjectName, topic, grade, count, level, format, lang }) })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error ?? 'Қате')
+      onReady(j.questions, topic)
+      setOpen(false)
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const field = 'rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm'
+  if (!open)
+    return (
+      <button onClick={() => setOpen(true)} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-dashed border-blue-300 bg-blue-50/60 p-4 text-left">
+        <span className="text-2xl">✨</span>
+        <span>
+          <span className="block font-semibold">ИИ-мен тест құрастыру</span>
+          <span className="block text-sm text-zinc-500">Тақырыпты жазыңыз — сұрақтар 10–20 секундта дайын, сіз тек тексересіз</span>
+        </span>
+      </button>
+    )
+  return (
+    <div className="mb-4 rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">✨ ИИ-мен тест · {subjectName}</h3>
+        <button onClick={() => setOpen(false)} className="text-sm text-zinc-500">Жабу</button>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Тақырыбы: мысалы, Жай бөлшектерді қосу" className={`${field} sm:col-span-2`} />
+        <input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="Сынып (мысалы, 5)" className={field} />
+        <select value={count} onChange={(e) => setCount(Number(e.target.value))} className={field}>
+          {[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n} сұрақ</option>)}
+        </select>
+        <select value={level} onChange={(e) => setLevel(e.target.value)} className={field}>
+          <option>жеңіл</option>
+          <option>орташа</option>
+          <option>қиын</option>
+        </select>
+        <select value={format} onChange={(e) => setFormat(e.target.value)} className={field}>
+          <option value="">Кәдімгі тест</option>
+          <option value="НИШ (НЗМ)">НИШ (НЗМ) форматы</option>
+          <option value="БИЛ">БИЛ форматы</option>
+          <option value="ҰБТ">ҰБТ форматы</option>
+        </select>
+        <select value={lang} onChange={(e) => setLang(e.target.value)} className={field}>
+          <option value="kk">Қазақша</option>
+          <option value="ru">Орысша</option>
+          <option value="en">Ағылшынша</option>
+        </select>
+      </div>
+      {err && <p className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{err}</p>}
+      <button onClick={go} disabled={busy || !topic.trim()} className="mt-3 w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+        {busy ? 'Құрастырып жатыр… (10–20 сек)' : 'Сұрақтарды құрастыру'}
+      </button>
+      <p className="mt-2 text-xs text-zinc-500">ИИ қателесуі мүмкін — сақтамас бұрын әр сұрақ пен дұрыс жауапты тексеріңіз.</p>
+    </div>
+  )
+}
+
 function emptyQuestion(): DraftQuestion {
   return { questionText: '', options: ['', '', '', ''], correctIndex: 0 }
 }
@@ -695,6 +804,13 @@ function TestsTab({ tests, reload }: { tests: Test[]; reload: () => Promise<void
 
   return (
     <section className="mt-8">
+      <AiTestBuilder
+        subjectName={subjects.find((s) => s.id === subject)?.name ?? subject}
+        onReady={(qs, topic) => {
+          setQuestions(qs)
+          if (!title.trim()) setTitle(topic)
+        }}
+      />
       <form onSubmit={createTest} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-3">
           <select
