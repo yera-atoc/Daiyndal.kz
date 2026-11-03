@@ -26,6 +26,8 @@ import { GrantPanel } from '@/components/bilim/Grant'
 import InstallApp from '@/components/pwa/InstallApp'
 import MistakeDrill, { mistakeCount } from '@/components/bilim/MistakeDrill'
 import { DailyCard, DailyRunner, useDaily } from '@/components/bilim/Daily'
+import { LevelUpTab } from '@/components/bilim/LevelUp'
+import { isNishGroup } from '@/lib/levelUp'
 import { dailyTrack } from '@/lib/daily'
 import { grantGroup } from '@/lib/nisGrant'
 import { fileSrc } from '@/lib/fileUrl'
@@ -57,7 +59,7 @@ type Practice = {
   subjects: { id: string; name: string; questions: number; max: number; score: number | null; correct: number | null }[]
 }
 type Me = { student: { id: string; name: string }; group: { id: string; name: string }; open: OpenExam[]; results: Summary[]; practice?: Practice[]; season?: SeasonView | null }
-type Tab = 'tests' | 'results' | 'rating'
+type Tab = 'tests' | 'level' | 'results' | 'rating'
 
 async function api<T>(url: string, body?: unknown): Promise<T> {
   const r = await fetch(url, {
@@ -234,6 +236,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
   const [drill, setDrill] = useState<{ examId: string; subjectId: string } | null>(null)
   const [daily, setDaily] = useState(false)
   const dq = useDaily(!!dailyTrack(me.group.id, me.group.name))
+  const nish = isNishGroup(me.group.id, me.group.name)
 
   const go = (t: Tab) => {
     setTab(t)
@@ -267,6 +270,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
           <nav className="mx-auto flex max-w-3xl gap-1 px-2">
             {([
               ['tests', 'Сынақ'],
+              ...(nish ? [['level', 'Деңгей']] : []),
               ['results', 'Нәтижелерім'],
               ['rating', 'Рейтинг'],
             ] as [Tab, string][]).map(([t, l]) => (
@@ -332,6 +336,8 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
             onPractice={(examId, subjectId) => { setDone(null); setDrill({ examId, subjectId }); window.scrollTo({ top: 0 }) }}
           />
           </>
+        ) : tab === 'level' ? (
+          <LevelUpTab name={me.student.name} />
         ) : tab === 'results' ? (
           detail ? (
             <ResultDetail key={detail} examId={detail.replace(/#mistakes$/, '')} startMistakes={detail.endsWith('#mistakes')} onBack={() => { setDetail(null); window.scrollTo({ top: 0 }) }} />
