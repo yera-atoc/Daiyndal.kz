@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { LETTERS } from '@/lib/bilimTest'
 import { fileSrc } from '@/lib/fileUrl'
+import { useProctor } from '@/components/useProctor'
 
 export type SheetSubject = { id: string; name: string; questions: number; options: number }
 
@@ -45,6 +46,7 @@ export default function AnswerSheet({
   const [confirm, setConfirm] = useState(false)
   const [sending, setSending] = useState(false)
   const [err, setErr] = useState('')
+  const pr = useProctor({ kind: 'bilim', ref: `${examId}/${subject.id}`, title: `Білім тексеру · ${subject.name}`, questions: subject.questions })
 
   useEffect(() => store(key, answers), [key, answers])
 
@@ -64,8 +66,10 @@ export default function AnswerSheet({
   const filled = answers.filter(Boolean).length
   const blanks = useMemo(() => answers.map((a, i) => (a ? 0 : i + 1)).filter(Boolean), [answers])
 
-  const pick = (i: number, l: string) =>
+  const pick = (i: number, l: string) => {
+    pr.mark(i)
     setAnswers((prev) => prev.map((a, j) => (j === i ? (a === l ? '' : l) : a)))
+  }
 
   const submit = async () => {
     setSending(true)
@@ -79,6 +83,7 @@ export default function AnswerSheet({
       const j = await r.json()
       if (!r.ok) throw new Error(j.error)
       store(key, null)
+      pr.report()
       onSubmitted()
     } catch (e: any) {
       setErr(e.message || 'Жіберілмеді. Интернетті тексеріп, қайта бас.')
@@ -88,6 +93,7 @@ export default function AnswerSheet({
 
   return (
     <>
+      {pr.ui}
       <button onClick={onBack} className="-ml-2 rounded-lg px-2 py-1 text-sm text-blue-600 active:bg-blue-50">
         ← Пәндер
       </button>

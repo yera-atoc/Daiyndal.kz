@@ -65,6 +65,10 @@ export async function loadJarvis(): Promise<{ data: JarvisData; context: string 
     .filter((s: any) => s.day_of_week === wd)
     .map((s: any) => ({ time: String(s.start_time).slice(0, 5), end: String(s.end_time).slice(0, 5), title: s.title || gName.get(s.group_id) || 'Сабақ', teacher: tName.get(s.teacher_id) ?? '—', room: s.room ?? null }))
 
+  // Тест бақылауы: соңғы 24 сағаттағы күдікті тапсырулар
+  const proctor = await sb.from('audit_log').select('detail').like('action', 'proctor:%').gte('at', day1).limit(500)
+  const suspicious = (proctor.data ?? []).filter((r: any) => r.detail?.risk === 'high')
+
   const data = buildJarvis({
     today,
     now,
@@ -80,6 +84,11 @@ export async function loadJarvis(): Promise<{ data: JarvisData; context: string 
     overview,
     missing,
   })
+
+  if (suspicious.length) {
+    const names = Array.from(new Set(suspicious.map((r: any) => r.detail?.name).filter(Boolean))).slice(0, 5)
+    data.alerts.unshift({ level: 'high', area: 'student', href: '/admin?view=proctor', text: `Тест бақылауы: соңғы тәулікте ${suspicious.length} күдікті тапсыру${names.length ? ` (${names.join(', ')})` : ''}` })
+  }
 
   // ИИ-көмекшіге арналған қысқа мәтін (телефон, PIN сияқты жеке байланыс деректері жоқ)
   const insight = new Map(overview.students.map((s) => [s.id, s]))

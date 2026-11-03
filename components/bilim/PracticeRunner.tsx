@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { LETTERS, gradeSubject, topicStats, weakTopics, type Question } from '@/lib/bilimTest'
 import { fileSrc } from '@/lib/fileUrl'
+import { useProctor } from '@/components/useProctor'
 
 // Дайындық сынағы: сұрақтар мәтінімен, нұсқаларымен экранда. Тапсырған соң
 // бірден тексеріліп, әр сұрақтың дұрыс жауабы көрсетіледі. Қайта тапсыруға болады.
@@ -93,13 +94,17 @@ function Runner({ data, onSubmitted }: { data: Data; onSubmitted: () => Promise<
   const [confirm, setConfirm] = useState(false)
   const [sending, setSending] = useState(false)
   const [err, setErr] = useState('')
+  const pr = useProctor({ kind: 'practice', ref: `${exam.id}/${subject.id}`, title: `Дайындық · ${exam.title}`, questions: subject.questions })
 
   useEffect(() => save(key, answers), [key, answers])
 
   const letters = LETTERS.slice(0, subject.options)
   const filled = answers.filter(Boolean).length
   const blanks = useMemo(() => answers.map((a, i) => (a ? 0 : i + 1)).filter(Boolean), [answers])
-  const pick = (i: number, l: string) => setAnswers((p) => p.map((a, j) => (j === i ? (a === l ? '' : l) : a)))
+  const pick = (i: number, l: string) => {
+    pr.mark(i)
+    setAnswers((p) => p.map((a, j) => (j === i ? (a === l ? '' : l) : a)))
+  }
 
   const submit = async () => {
     setSending(true)
@@ -114,6 +119,7 @@ function Runner({ data, onSubmitted }: { data: Data; onSubmitted: () => Promise<
       if (!r.ok) throw new Error(j.error)
       save(key, null)
       setConfirm(false)
+      pr.report()
       await onSubmitted()
     } catch (e: any) {
       setErr(e.message || 'Жіберілмеді. Интернетті тексеріп, қайта бас.')
@@ -123,6 +129,7 @@ function Runner({ data, onSubmitted }: { data: Data; onSubmitted: () => Promise<
 
   return (
     <>
+      {pr.ui}
       <div className="sticky top-[57px] z-10 -mx-4 mt-1 border-b border-slate-200 bg-slate-50/95 px-4 pb-3 pt-2 backdrop-blur">
         <div className="flex items-end justify-between">
           <div>

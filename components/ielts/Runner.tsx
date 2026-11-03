@@ -16,6 +16,7 @@ import type { QGroup } from '@/lib/ielts'
 import { LETTERS, comboName, pointsOf, type UbtQ, type UbtScores } from '@/lib/ubt'
 import { UbtPlanView } from './UbtGrowth'
 import { fileSrc } from '@/lib/fileUrl'
+import { useProctor } from '@/components/useProctor'
 
 export type AttemptView = {
   attempt: {
@@ -56,6 +57,18 @@ export default function Runner({ initial, student, onExit, onReview }: { initial
   const [finErr, setFinErr] = useState('')
   const sec: Section | undefined = v.attempt.state.order[v.attempt.state.current]
   const exam = v.test.mode === 'exam'
+  const testing = v.attempt.status === 'in_progress'
+  const pr = useProctor({ kind: v.test.exam ?? 'ielts', ref: v.attempt.id, title: v.test.title }, testing)
+  // Жауап уақыттары: тест ішіндегі кез келген жауап өрісінің өзгеруі
+  useEffect(() => {
+    if (!testing) return
+    const h = (e: Event) => {
+      const t = e.target as HTMLInputElement | null
+      if (t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) pr.mark(t.name || t.id || t.getAttribute('aria-label') || t.value || 'answer')
+    }
+    document.addEventListener('change', h, true)
+    return () => document.removeEventListener('change', h, true)
+  }, [testing, pr.mark])
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now() + offset), 500)
@@ -67,6 +80,7 @@ export default function Runner({ initial, student, onExit, onReview }: { initial
     setBusy(true)
     try {
       const j = await call({ action: 'finish', id: v.attempt.id, section: sec })
+      if (j?.attempt?.status && j.attempt.status !== 'in_progress') pr.report()
       setV(j)
       setConfirm(false)
       setFinErr('')
@@ -76,7 +90,7 @@ export default function Runner({ initial, student, onExit, onReview }: { initial
     } finally {
       setBusy(false)
     }
-  }, [sec, v.attempt.id])
+  }, [sec, v.attempt.id, pr.report])
 
   // Уақыт біткенде бөлім өзі тапсырылады
   const left = v.deadline !== null ? v.deadline - now : null
@@ -124,6 +138,7 @@ export default function Runner({ initial, student, onExit, onReview }: { initial
 
   return (
     <div className="flex min-h-screen flex-col bg-white" style={{ color: INK }}>
+      {testing && <div className="px-3 pt-2">{pr.ui}</div>}
       <header className="sticky top-0 z-30 flex items-center gap-2 border-b bg-white/95 px-3 py-2 backdrop-blur sm:gap-4 sm:px-4" style={{ borderColor: LINE }}>
         <button onClick={() => setLeave(true)} aria-label="Тесттен шығу" title="Тесттен шығу" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-xl transition hover:bg-slate-100" style={{ color: MUTED }}>
           ×
