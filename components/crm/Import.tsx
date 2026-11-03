@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, ChevronDown, Plus, Trash2, Upload } from 'lucide-react'
-import { BRAND, inputCls, selCls, btnDark, btnLine, type CTeacher } from './core'
+import { BRAND, inputCls, selCls, btnDark, btnLine, type CGroup, type CStudent, type CTeacher } from './core'
+import { candidates, confident } from '@/lib/studentMatch'
 import { IMPORT_SEED, REMOVED_SEED_KEYS } from '@/lib/importSeed'
 import { guessTeacher, validateGroup, type ImpGroup, type ImpLesson, type ImpStudent } from '@/lib/importPlan'
 
@@ -23,7 +24,50 @@ function fromSeed(teachers: CTeacher[], only?: Set<string>): Draft[] {
   }))
 }
 
-export default function Import({ teachers, reload, flash }: { teachers: CTeacher[]; reload: () => Promise<void>; flash: (m: string) => void }) {
+/** Журналдағы аттарды базадағы оқушылармен сәйкестендіру: сенімді болса — бірден байланыстырамыз, әйтпесе үміткерлерді ұсынамыз */
+function autoMatch(g: Draft, students: CStudent[]): Draft {
+  const used = new Set<string>()
+  const first = g.students.map((s) => {
+    if (s.id) {
+      used.add(s.id)
+      return s
+    }
+    const c = candidates(s.name, g.grade, students)
+    return { ...s, cands: c.map((x) => x.id) }
+  })
+  // Топ бойынша бонус: сенімді табылғандардың CRM тобы
+  const groupsOf = new Map<string, number>()
+  for (const s of first) {
+    const id = s.id ?? (s.cands?.length ? confident(candidates(s.name, g.grade, students)) : null)
+    const gid = id ? students.find((x) => x.id === id)?.group_id : null
+    if (gid) groupsOf.set(gid, (groupsOf.get(gid) ?? 0) + 1)
+  }
+  const hint = new Set(Array.from(groupsOf.keys()))
+  const out = first.map((s) => {
+    if (s.id) return s
+    const c = candidates(s.name, g.grade, students, hint).filter((x) => !used.has(x.id))
+    const id = confident(c)
+    if (!id) return { ...s, cands: c.map((x) => x.id) }
+    used.add(id)
+    return link(s, students.find((x) => x.id === id)!, c.map((x) => x.id))
+  })
+  const best = Array.from(groupsOf.entries()).sort((a, b) => b[1] - a[1])[0]
+  const linkedCount = out.filter((s) => s.id).length
+  return { ...g, students: out, matched: true, crmGroupId: g.crmGroupId ?? (best && best[1] * 2 >= linkedCount && best[1] >= 2 ? best[0] : undefined) }
+}
+
+function link(s: ImpStudent, st: CStudent, cands?: string[]): ImpStudent {
+  return {
+    ...s,
+    id: st.id,
+    cands: cands ?? s.cands,
+    name: st.full_name.replace(/[)\s]+$/, ''),
+    parentName: s.parentName || st.parent_name || '',
+    parentPhone: s.parentPhone || st.parent_phone || st.phone || '',
+  }
+}
+
+export default function Import({ teachers, students, crmGroups, reload, flash }: { teachers: CTeacher[]; students: CStudent[]; crmGroups: CGroup[]; reload: () => Promise<void>; flash: (m: string) => void }) {
   const [groups, setGroups] = useState<Draft[] | null>(null)
   const [done, setDone] = useState<string[]>([])
   const [busy, setBusy] = useState<string | null>(null)
@@ -53,6 +97,12 @@ export default function Import({ teachers, reload, flash }: { teachers: CTeacher
     } catch {}
   }, [groups, done])
 
+  // Базадағы оқушылармен бір рет автоматты сәйкестендіру (қолмен таңдағандарға тимейді)
+  useEffect(() => {
+    if (!groups || !students.length || groups.every((g) => g.matched || done.includes(g.key))) return
+    setGroups(groups.map((g) => (g.matched || done.includes(g.key) ? g : autoMatch(g, students))))
+  }, [groups, students, done])
+
   const issues = useMemo(() => (groups ?? []).map((g) => validateGroup(g)), [groups])
 
   if (!groups) return null
@@ -81,14 +131,18 @@ export default function Import({ teachers, reload, flash }: { teachers: CTeacher
 
   const ready = groups.filter((g, i) => !done.includes(g.key) && issues[i].length === 0)
   const totalStudents = groups.reduce((a, g) => a + g.students.length, 0)
-  const unsure = groups.reduce((a, g) => a + g.students.filter((s) => s.name.includes('?')).length, 0)
+  const unsure = groups.reduce((a, g) => a + g.students.filter((s) => !s.id && s.name.includes('?')).length, 0)
+  const linked = groups.reduce((a, g) => a + g.students.filter((s) => s.id).length, 0)
+  const byId = new Map(students.map((s) => [s.id, s]))
+  const gName = (id: string | null) => crmGroups.find((g) => g.id === id)?.name ?? 'топсыз'
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
         <p>
           Қағаз журналдардан <b>{groups.length} топ</b>, <b>{totalStudents} оқушы</b> көшірілді.
-          {unsure > 0 && <> Қолжазбадан нақты оқылмаған <b style={{ color: '#B45309' }}>{unsure} атты</b> (сары, «?» белгісі бар) тексеріп түзетіңіз.</>}
+          {linked > 0 && <> Оның <b style={{ color: '#15803D' }}>{linked}-і базадағы бар оқушылармен</b> байланыстырылды (жасыл) — аты-жөні мен телефоны базадан алынды, жаңа оқушы ашылмайды.</>}
+          {unsure > 0 && <> Сәйкесі табылмаған, нақты оқылмаған <b style={{ color: '#B45309' }}>{unsure} атты</b> (сары) тексеріңіз: ұсынылғандардан таңдаңыз не түзетіңіз.</>}
         </p>
         <p className="mt-1" style={{ color: BRAND.muted }}>
           Әр топқа мұғалімді таңдаңыз, ата-ананың WhatsApp нөмірін жазыңыз (кейін де қосуға болады) да, «Енгізу» басыңыз. Қайта басса, екі есе жазылмайды.
@@ -165,6 +219,13 @@ export default function Import({ teachers, reload, flash }: { teachers: CTeacher
                     </select>
                   </label>
                 </div>
+                <label className="block text-xs" style={{ color: BRAND.muted }}>
+                  CRM тобы (оқушылар тізіміндегі топ)
+                  <select value={g.crmGroupId ?? ''} onChange={(e) => set(i, { crmGroupId: e.target.value || undefined })} className={`${selCls} mt-1 w-full`} style={{ borderColor: BRAND.line }}>
+                    <option value="">Жаңа топ ашу: «{g.name}»</option>
+                    {crmGroups.map((cg) => <option key={cg.id} value={cg.id}>{cg.name}</option>)}
+                  </select>
+                </label>
 
                 {/* Сабақтар */}
                 <div>
@@ -209,7 +270,32 @@ export default function Import({ teachers, reload, flash }: { teachers: CTeacher
                     {g.students.map((s, k) => (
                       <div key={k} className="grid grid-cols-[24px_1fr_auto] items-center gap-2 sm:grid-cols-[24px_1.3fr_1fr_1fr_1fr_auto]">
                         <span className="text-right text-xs tabular-nums" style={{ color: BRAND.muted }}>{k + 1}</span>
-                        <input value={s.name} onChange={(e) => setStudent(i, k, { name: e.target.value })} placeholder="Аты-жөні" className={inputCls} style={{ borderColor: s.name.includes('?') ? '#F59E0B' : BRAND.line, background: s.name.includes('?') ? '#FFFBEB' : undefined }} />
+                        <div className="min-w-0">
+                          {s.id ? (
+                            <div className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: '#86EFAC', background: '#F0FDF4' }}>
+                              <div className="font-semibold">✓ {s.name}</div>
+                              <div className="text-xs" style={{ color: BRAND.muted }}>Базада бар · {gName(byId.get(s.id)?.group_id ?? null)}{byId.get(s.id)?.grade ? ` · ${byId.get(s.id)!.grade}-сынып` : ''}</div>
+                            </div>
+                          ) : (
+                            <input value={s.name} onChange={(e) => setStudent(i, k, { name: e.target.value })} placeholder="Аты-жөні" className={inputCls} style={{ borderColor: s.name.includes('?') ? '#F59E0B' : BRAND.line, background: s.name.includes('?') ? '#FFFBEB' : undefined }} />
+                          )}
+                          {(s.cands?.length || s.id) && (
+                            <select
+                              value={s.id ?? ''}
+                              onChange={(e) => {
+                                const st = byId.get(e.target.value)
+                                setStudent(i, k, st ? link(s, st) : { id: undefined, name: s.name })
+                              }}
+                              className={`${selCls} mt-1 w-full text-xs`}
+                              style={{ borderColor: BRAND.line }}
+                            >
+                              <option value="">{s.id ? 'Байланысты алу (жаңа оқушы)' : `Базадан таңдау (${s.cands?.length ?? 0} ұқсас)…`}</option>
+                              {Array.from(new Set([...(s.id ? [s.id] : []), ...(s.cands ?? [])])).map((id) => byId.get(id)).filter(Boolean).map((st) => (
+                                <option key={st!.id} value={st!.id}>{st!.full_name} · {gName(st!.group_id)}{st!.grade ? ` · ${st!.grade}-сын.` : ''}</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
                         <button onClick={() => set(i, { students: g.students.filter((_, j) => j !== k) })} aria-label="Оқушыны өшіру" className="p-1.5 sm:order-last" style={{ color: BRAND.muted }}>
                           <Trash2 size={15} />
                         </button>

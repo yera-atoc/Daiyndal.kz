@@ -175,7 +175,7 @@ function Crm() {
           />
         )}
         {view === 'jarvis' && <Jarvis />}
-        {view === 'import' && <Import teachers={data.teachers} reload={load} flash={flash} />}
+        {view === 'import' && <Import teachers={data.teachers} students={data.students} crmGroups={data.groups} reload={load} flash={flash} />}
         {view === 'parents' && <Parents flash={flash} />}
         {view === 'students' && <Students data={data} reload={load} flash={flash} openId={openId} setOpenId={setOpenId} payId={payId} setPayId={setPayId} />}
         {view === 'payments' && <Payments data={data} reload={load} flash={flash} onStudent={openStudent} />}

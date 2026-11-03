@@ -8,14 +8,17 @@ import { logServerError } from '@/lib/serverLog'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-type Counts = { groups: number; students: number; updated: number; classes: number; members: number; slots: number }
+type Counts = { groups: number; students: number; linked: number; updated: number; classes: number; members: number; slots: number }
 
 // Бір топты енгізу. Қайта жіберсе де екі есе жазбайды: бар топ, оқушы, журнал тобы, кесте жолы қайта пайдаланылады.
 async function importGroup(g: ImpGroup, c: Counts) {
   const name = cleanName(g.name)
 
   // 1) CRM тобы
-  let { data: grp } = await sb.from('student_groups').select('id').eq('name', name).maybeSingle()
+  // Бар CRM тобы таңдалса — сол (оқушылары бұрыннан сонда), әйтпесе атауы бойынша табамыз/құрамыз
+  let grp: { id: string } | null = null
+  if (g.crmGroupId) grp = (await sb.from('student_groups').select('id').eq('id', g.crmGroupId).maybeSingle()).data
+  if (!grp) grp = (await sb.from('student_groups').select('id').eq('name', name).maybeSingle()).data
   if (!grp) {
     const r = await sb.from('student_groups').insert({ name }).select('id').single()
     if (r.error) throw new Error(`Топ «${name}»: ${r.error.message}`)
@@ -31,6 +34,23 @@ async function importGroup(g: ImpGroup, c: Counts) {
     if (!full) continue
     const phone = normPhone(s.parentPhone) || null
     const parent = cleanName(s.parentName) || null
+    // Базадағы бар оқушымен байланыстырылған: жаңасын ашпаймыз, тобына тимейміз, тек өзгерген ата-ана деректерін жаңартамыз
+    if (s.id) {
+      const { data: ex } = await sb.from('students').select('id, group_id, parent_phone, parent_name').eq('id', s.id).maybeSingle()
+      if (ex) {
+        const patch: Record<string, unknown> = {}
+        if (!ex.group_id) patch.group_id = groupId
+        if (phone && phone !== normPhone(ex.parent_phone ?? '')) patch.parent_phone = phone
+        if (parent && parent !== ex.parent_name) patch.parent_name = parent
+        if (Object.keys(patch).length) {
+          await sb.from('students').update(patch).eq('id', ex.id)
+          c.updated++
+        }
+        c.linked++
+        ids.set(full, ex.id)
+        continue
+      }
+    }
     const { data: same } = await sb.from('students').select('id, group_id, grade, parent_phone, parent_name').eq('full_name', full).neq('status', 'left')
     // Аттас оқушы: осы топта болса не топсыз болса — сол. Басқа топта болса, тек толық аты-жөні (2+ сөз) мен сыныбы
     // бірдей болғанда ғана бір бала деп есептейміз (мысалы, математика мен ағылшынға екі топта барады).
@@ -103,7 +123,7 @@ export async function POST(req: NextRequest) {
     const errs = validateGroup(g)
     if (errs.length) return NextResponse.json({ error: `«${g.name}»: ${errs.join('; ')}` }, { status: 400 })
   }
-  const c: Counts = { groups: 0, students: 0, updated: 0, classes: 0, members: 0, slots: 0 }
+  const c: Counts = { groups: 0, students: 0, linked: 0, updated: 0, classes: 0, members: 0, slots: 0 }
   const done: string[] = []
   try {
     for (const g of groups) {

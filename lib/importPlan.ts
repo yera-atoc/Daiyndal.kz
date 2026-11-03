@@ -1,8 +1,8 @@
 // «Оқушыларды енгізу»: топтар тізімінен нені құру керегін есептеу (таза функциялар, клиент пен сервер).
 
 export type ImpLesson = { days: number[]; start: string; end: string; subject: string; teacherId: string }
-export type ImpStudent = { name: string; parentName: string; parentPhone: string; note: string }
-export type ImpGroup = { key: string; name: string; grade: number | null; teacherId: string; lessons: ImpLesson[]; students: ImpStudent[] }
+export type ImpStudent = { name: string; parentName: string; parentPhone: string; note: string; id?: string; cands?: string[] }
+export type ImpGroup = { key: string; name: string; grade: number | null; teacherId: string; lessons: ImpLesson[]; students: ImpStudent[]; crmGroupId?: string; matched?: boolean }
 
 export type PlannedClass = { teacherId: string; name: string; subject: string; days: number[]; students: string[] }
 export type PlannedSlot = { teacherId: string; day: number; start: string; end: string; title: string }
@@ -45,7 +45,7 @@ export function validateGroup(g: ImpGroup): string[] {
   if (!g.teacherId && g.lessons.some((l) => !l.teacherId)) errs.push('Мұғалім таңдалмаған')
   const names = g.students.map((s) => cleanName(s.name)).filter(Boolean)
   if (!names.length) errs.push('Оқушы жоқ')
-  const unsure = names.filter((n) => n.includes('?'))
+  const unsure = g.students.filter((s) => !s.id && s.name.includes('?')).map((s) => s.name)
   if (unsure.length) errs.push(`Тексерілмеген аттар (?): ${unsure.length}`)
   const dup = names.filter((n, i) => names.indexOf(n) !== i)
   if (dup.length) errs.push(`Қайталанған аттар: ${Array.from(new Set(dup)).join(', ')}`)
