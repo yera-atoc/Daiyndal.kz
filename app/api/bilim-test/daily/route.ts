@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/bilimTestAuth'
-import { listStudents } from '@/lib/bilimTestStore'
+import { listGroups, listStudents } from '@/lib/bilimTestStore'
+import { formulaQuiz } from '@/lib/formulaQuiz'
 import { shortName } from '@/lib/bilimTest'
 import { TRACK_NAMES, dailyTrack, dayKey, pickIndices, streak, type DailyTrack } from '@/lib/daily'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
@@ -10,6 +11,8 @@ export const dynamic = 'force-dynamic'
 type PoolRow = { id: number; text: string; options: string[]; answer: string; topic: string | null; explain: string | null }
 
 async function todays(track: DailyTrack, day: string): Promise<PoolRow[]> {
+  // НЗМ / БИЛ: «Математика формулалары» (67 формула) бойынша сұрақтар
+  if (track === 'nzm') return formulaQuiz(day)
   const { data, error } = await supabaseAdmin
     .from('bt_daily_pool')
     .select('id, text, options, answer, topic, explain')
@@ -60,7 +63,7 @@ export async function GET() {
   try {
     const me = await currentStudent()
     if (!me) return NextResponse.json({ error: 'Кіру керек' }, { status: 401 })
-    const track = dailyTrack(me.group_id)
+    const track = dailyTrack(me.group_id, (await listGroups()).find((g) => g.id === me.group_id)?.name)
     if (!track) return NextResponse.json({ error: 'Бұл топқа күнделікті сұрақтар жоқ' }, { status: 404 })
     return NextResponse.json(await view(me, track, dayKey()), { headers: { 'Cache-Control': 'no-store' } })
   } catch (e: any) {
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
   try {
     const me = await currentStudent()
     if (!me) return NextResponse.json({ error: 'Кіру керек' }, { status: 401 })
-    const track = dailyTrack(me.group_id)
+    const track = dailyTrack(me.group_id, (await listGroups()).find((g) => g.id === me.group_id)?.name)
     if (!track) return NextResponse.json({ error: 'Бұл топқа күнделікті сұрақтар жоқ' }, { status: 404 })
     const day = dayKey()
     const qs = await todays(track, day)

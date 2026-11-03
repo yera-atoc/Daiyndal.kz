@@ -127,35 +127,23 @@ function Logo() {
 
 // ── Кіру: топ → аты → PIN ────────────────────────────────
 
-type LoginGroup = { id: string; name: string; students: { id: string; name: string }[] }
 
 function Login({ onDone }: { onDone: () => void }) {
-  const [groups, setGroups] = useState<LoginGroup[] | null>(null)
-  const [group, setGroup] = useState<LoginGroup | null>(null)
-  const [student, setStudent] = useState<{ id: string; name: string } | null>(null)
-  const [q, setQ] = useState('')
+  const [login, setLogin] = useState('')
   const [pin, setPin] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
-    api<{ groups: LoginGroup[] }>('/api/bilim-test')
-      .then((j) => {
-        setGroups(j.groups)
-        if (j.groups.length === 1) setGroup(j.groups[0])
-      })
-      .catch((e) => {
-        setGroups([])
-        setErr(`Тізім жүктелмеді: ${e.message}. Бетті жаңартып көріңіз.`)
-      })
-  }, [])
-
   const submit = async (code: string) => {
-    if (!student || code.length !== 4) return
+    if (!login.trim()) return setErr('Аты-жөніңді жаз')
+    if (code.length !== 4) return
     setBusy(true)
     setErr('')
     try {
-      await api('/api/bilim-test/login', { studentId: student.id, pin: code })
+      await api('/api/bilim-test/login', { login: login.trim(), pin: code })
+      try {
+        localStorage.setItem('bt_login', login.trim())
+      } catch {}
       onDone()
     } catch (e: any) {
       setErr(e.message)
@@ -163,6 +151,12 @@ function Login({ onDone }: { onDone: () => void }) {
       setBusy(false)
     }
   }
+
+  useEffect(() => {
+    try {
+      setLogin(localStorage.getItem('bt_login') ?? '')
+    } catch {}
+  }, [])
 
   return (
     <>
@@ -176,76 +170,53 @@ function Login({ onDone }: { onDone: () => void }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-xl px-4 pb-16 pt-6">
-        {!groups && <p className="py-20 text-center text-slate-400">Жүктелуде…</p>}
-
-        {groups && !group && (
-          <>
-            <h1 className="text-2xl font-bold">Тобыңды таңда</h1>
-            <div className="mt-4 space-y-2.5">
-              {groups.map((g) => (
-                <button key={g.id} onClick={() => setGroup(g)} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left text-lg font-semibold active:bg-blue-50">
-                  {g.name}
-                  <span className="text-sm font-normal text-slate-400">{g.students.length} оқушы</span>
-                </button>
-              ))}
-              {groups.length === 0 && (err ? <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{err}</p> : <p className="text-slate-500">Әзірге топ жоқ.</p>)}
-            </div>
-            <InstallApp className="mt-6" />
-          </>
-        )}
-
-        {group && !student && (
-          <>
-            {groups && groups.length > 1 && (
-              <button onClick={() => setGroup(null)} className="-ml-2 rounded-lg px-2 py-1 text-sm text-blue-600">← Топтар</button>
-            )}
-            <h1 className="mt-1 text-2xl font-bold">Кіру</h1>
-            <p className="text-slate-500">{group.name} · өз атыңды тап</p>
+      <main className="mx-auto max-w-sm px-4 pb-16 pt-8">
+        <h1 className="text-2xl font-bold">Кабинетке кіру</h1>
+        <p className="mt-1 text-slate-500">Логин — өз аты-жөнің, PIN — мұғалім берген 4 сан.</p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            submit(pin)
+          }}
+          className="mt-6 space-y-4"
+        >
+          <label className="block">
+            <span className="text-sm font-medium text-slate-600">Логин (аты-жөнің)</span>
             <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Атыңды іздеу…"
-              className="mt-4 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              autoComplete="username"
+              autoCapitalize="words"
+              placeholder="Мысалы: Айтбек Ақжол"
+              disabled={busy}
+              className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
-            <ul className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              {group.students
-                .filter((s) => s.name.toLowerCase().includes(q.trim().toLowerCase()))
-                .map((s) => (
-                  <li key={s.id}>
-                    <button onClick={() => setStudent(s)} className="w-full px-4 py-3.5 text-left text-base font-medium active:bg-blue-50">
-                      {s.name}
-                    </button>
-                  </li>
-                ))}
-            </ul>
-          </>
-        )}
-
-        {student && (
-          <div className="mx-auto max-w-sm pt-6 text-center">
-            <button onClick={() => { setStudent(null); setPin(''); setErr('') }} className="rounded-lg px-2 py-1 text-sm text-blue-600">← Басқа ат</button>
-            <h1 className="mt-3 text-2xl font-bold">{student.name}</h1>
-            <p className="mt-1 text-slate-500">Мұғалім берген 4 таңбалы PIN-ді жаз</p>
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium text-slate-600">PIN</span>
             <input
-              autoFocus
               inputMode="numeric"
-              autoComplete="one-time-code"
+              autoComplete="current-password"
+              type="password"
               maxLength={4}
               value={pin}
               disabled={busy}
               onChange={(e) => {
                 const v = e.target.value.replace(/\D/g, '').slice(0, 4)
                 setPin(v)
-                if (v.length === 4) submit(v)
+                if (v.length === 4 && login.trim()) submit(v)
               }}
-              className="mt-6 w-48 rounded-2xl border-2 border-slate-300 bg-white py-3 text-center font-mono text-4xl tracking-[.5em] outline-none focus:border-blue-500"
+              className="mt-1 w-full rounded-xl border-2 border-slate-300 bg-white py-3 text-center font-mono text-3xl tracking-[.5em] outline-none focus:border-blue-500"
               placeholder="••••"
             />
-            {err && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{err}</p>}
-            {busy && <p className="mt-4 text-sm text-slate-400">Тексерілуде…</p>}
-          </div>
-        )}
+          </label>
+          {err && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{err}</p>}
+          <button disabled={busy || !login.trim() || pin.length !== 4} className="w-full rounded-xl bg-blue-600 py-3 text-base font-semibold text-white disabled:opacity-50">
+            {busy ? 'Тексерілуде…' : 'Кіру'}
+          </button>
+        </form>
+        <p className="mt-6 text-center text-sm text-slate-500">Логинің не PIN-ің есіңде жоқ па? Мұғаліміңнен сұра.</p>
+        <InstallApp className="mt-6" />
       </main>
     </>
   )
@@ -260,7 +231,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
   const [done, setDone] = useState<string | null>(null)
   const [drill, setDrill] = useState<{ examId: string; subjectId: string } | null>(null)
   const [daily, setDaily] = useState(false)
-  const dq = useDaily(!!dailyTrack(me.group.id))
+  const dq = useDaily(!!dailyTrack(me.group.id, me.group.name))
 
   const go = (t: Tab) => {
     setTab(t)

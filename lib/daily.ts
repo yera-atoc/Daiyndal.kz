@@ -4,16 +4,20 @@
 export type DailyTrack = 'nzm' | 'ubt-math' | 'ubt-phys'
 
 export const TRACK_NAMES: Record<DailyTrack, string> = {
-  nzm: 'НЗМ: математика және логика',
+  nzm: 'Математика формулалары (НЗМ, БИЛ)',
   'ubt-math': 'ҰБТ: математика',
   'ubt-phys': 'ҰБТ: физика',
 }
 
 export const DAILY_COUNT = 5
 
-export function dailyTrack(groupId: string | null | undefined): DailyTrack | null {
+/** НЗМ, БИЛ (БІЛ) топтары — формулалар; атауы бойынша да танимыз («НЗМ 2-топ», «БИЛ 1-топ») */
+const NZM_BIL = /(^|[^А-ЯӘҒҚҢӨҰҮҺІа-яәғқңөұүһі])(НЗМ|НИШ|БИЛ|БІЛ)([^А-ЯӘҒҚҢӨҰҮҺІа-яәғқңөұүһі]|$)/i
+
+export function dailyTrack(groupId: string | null | undefined, groupName?: string | null): DailyTrack | null {
   if (!groupId) return null
-  if (groupId === 'nzm' || groupId === 'nzm5') return 'nzm'
+  if (groupId === 'nzm' || groupId === 'nzm5' || /^bil\d*$/.test(groupId)) return 'nzm'
+  if (groupName && NZM_BIL.test(groupName)) return 'nzm'
   if (groupId === 'ubt1') return 'ubt-math'
   if (/^phys\d+$/.test(groupId)) return 'ubt-phys'
   return null
