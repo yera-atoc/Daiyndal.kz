@@ -20,6 +20,7 @@ import {
 } from '@/lib/bilimTest'
 import { post, type Resp } from './shared'
 import { exportResultsXlsx } from './exportExcel'
+import { fileSrc } from '@/lib/fileUrl'
 
 export function newSubjectId() {
   return `s${Math.random().toString(36).slice(2, 8)}`
@@ -339,7 +340,7 @@ export function QuestionsEditor({ draft, setDraft, flash }: { draft: Exam; setDr
                 <div>
                   {q.image ? (
                     <div>
-                      <img src={q.image} alt="" className="max-h-48 rounded-lg border border-slate-200 object-contain" />
+                      <img src={fileSrc(q.image)} alt="" className="max-h-48 rounded-lg border border-slate-200 object-contain" />
                       <button onClick={() => setQ(i, { image: '' })} className="mt-1 text-sm text-red-600">Суретті алып тастау</button>
                     </div>
                   ) : (

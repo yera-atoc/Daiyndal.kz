@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { emptyContent, emptyToeflContent, sectionsOf, type Exam, type IeltsContent, type IeltsTest, type QGroup, type QItem, type QType } from '@/lib/ielts'
 import { BLUE, INK, LINE, MUTED } from './Questions'
+import { fileSrc } from '@/lib/fileUrl'
 
 export async function tcall(body: unknown) {
   const r = await fetch('/api/ielts/teacher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -334,7 +335,7 @@ function FileField({ label, accept, value, onChange }: { label: string; accept: 
         </label>
         {value && <button onClick={() => onChange(undefined)} className="text-sm text-red-600">Өшіру</button>}
       </div>
-      {value && (accept.startsWith('audio') ? <audio src={value} controls className="mt-2 w-full" /> : <img src={value} alt="" className="mt-2 max-h-48 rounded border" />)}
+      {value && (accept.startsWith('audio') ? <audio src={fileSrc(value)} controls className="mt-2 w-full" /> : <img src={fileSrc(value)} alt="" className="mt-2 max-h-48 rounded border" />)}
       {err && <p className="mt-1 text-red-600">{err}</p>}
     </div>
   )

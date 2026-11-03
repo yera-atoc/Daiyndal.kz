@@ -3,6 +3,7 @@
 // Күннің 5 сұрағы: кабинеттегі карточка және шешу беті (тапсырған соң — шешімдері мен топ рейтингі)
 import { useEffect, useState } from 'react'
 import { LETTERS } from '@/lib/bilimTest'
+import { fileSrc } from '@/lib/fileUrl'
 
 type DailyData = {
   day: string
@@ -149,7 +150,7 @@ export function DailyRunner({ data, onBack, onDone }: { data: DailyData; onBack:
                 <div className="min-w-0 flex-1">
                   <p className="whitespace-pre-line font-semibold leading-snug">{q.text}</p>
                   {q.topic && <p className="mt-0.5 text-xs text-slate-400">{q.topic}</p>}
-                  {q.image && <img src={q.image} alt="" className="mt-2 max-h-80 w-auto max-w-full rounded-lg border border-slate-200" loading="lazy" />}
+                  {q.image && <img src={fileSrc(q.image)} alt="" className="mt-2 max-h-80 w-auto max-w-full rounded-lg border border-slate-200" loading="lazy" />}
                 </div>
               </div>
               <div className="mt-3 grid gap-2">

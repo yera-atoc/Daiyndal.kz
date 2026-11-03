@@ -15,6 +15,7 @@ import Questions, { BLUE, INK, LINE, MUTED } from './Questions'
 import type { QGroup } from '@/lib/ielts'
 import { LETTERS, comboName, pointsOf, type UbtQ, type UbtScores } from '@/lib/ubt'
 import { UbtPlanView } from './UbtGrowth'
+import { fileSrc } from '@/lib/fileUrl'
 
 export type AttemptView = {
   attempt: {
@@ -336,7 +337,7 @@ function ListeningAudio({ v, exam, now }: { v: AttemptView; exam: boolean; now: 
     <div className="flex flex-wrap items-center gap-3 border-b px-4 py-2" style={{ borderColor: LINE, background: '#F9FAFB' }}>
       {exam ? (
         <>
-          <audio ref={ref} src={src} preload="auto" onEnded={() => { setPlaying(false); setEnded(true) }} onPlay={() => setPlaying(true)} onPause={() => { if (!ref.current?.ended) ref.current?.play().catch(() => {}) }} />
+          <audio ref={ref} src={fileSrc(src)} preload="auto" onEnded={() => { setPlaying(false); setEnded(true) }} onPlay={() => setPlaying(true)} onPause={() => { if (!ref.current?.ended) ref.current?.play().catch(() => {}) }} />
           {!playing && !ended && (
             <button onClick={startExam} className="rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: BLUE }}>
               ▶ Аудионы бастау
@@ -351,7 +352,7 @@ function ListeningAudio({ v, exam, now }: { v: AttemptView; exam: boolean; now: 
           </label>
         </>
       ) : (
-        <audio src={src} controls className="w-full max-w-xl" />
+        <audio src={fileSrc(src)} controls className="w-full max-w-xl" />
       )}
     </div>
   )
@@ -403,7 +404,7 @@ function WritingSection({ v, saveRef }: { v: AttemptView; saveRef: React.Mutable
         <article className="border-b px-6 py-5 md:border-b-0 md:border-r" style={{ borderColor: LINE }}>
           <p className="text-sm font-semibold" style={{ color: MUTED }}>{hint}</p>
           <div className="mt-3 whitespace-pre-wrap text-[16px] leading-7">{t.prompt}</div>
-          {t.image && <img src={t.image} alt="Task 1 chart" className="mt-4 max-h-[420px] w-full rounded-lg border object-contain" style={{ borderColor: LINE }} />}
+          {t.image && <img src={fileSrc(t.image)} alt="Task 1 chart" className="mt-4 max-h-[420px] w-full rounded-lg border object-contain" style={{ borderColor: LINE }} />}
         </article>
         <div className="flex flex-col px-6 py-5">
           <textarea
@@ -534,7 +535,7 @@ function Recorder({ attemptId, stepKey, text, cue, audio, limit, prep, onSaved }
 
   return (
     <div className="mt-4 rounded-2xl border p-6" style={{ borderColor: LINE }}>
-      {audio && <audio ref={player} src={audio} preload="auto" onEnded={() => startRec()} />}
+      {audio && <audio ref={player} src={fileSrc(audio)} preload="auto" onEnded={() => startRec()} />}
       {cue ? (
         <div className="whitespace-pre-wrap rounded-xl border p-5 text-[16px] leading-7" style={{ borderColor: INK }}>{text}</div>
       ) : text ? (

@@ -201,6 +201,8 @@ export default function Jarvis() {
         {/* Чат */}
         <Assistant enabled={data.assistant} />
 
+        <StorageGuard />
+
         <div className="grid gap-5 lg:grid-cols-2">
           {/* Мұғалімдер */}
           <Hud title="Мұғалімдер">
@@ -441,6 +443,40 @@ function Assistant({ enabled }: { enabled: boolean }) {
           </form>
         </>
       )}
+    </Hud>
+  )
+}
+
+function StorageGuard() {
+  const [state, setState] = useState<{ public: boolean } | null>(null)
+  const [msg, setMsg] = useState('')
+  useEffect(() => {
+    fetch('/api/admin/storage').then((r) => r.json()).then((j) => !j.error && setState(j)).catch(() => {})
+  }, [])
+  if (!state) return null
+  const toggle = async () => {
+    if (state.public && !confirm('Файлдар қоймасын жабамыз ба? Бұдан кейін тест суреттері мен материалдар тек кірген адамдарға ашылады, ескі ашық сілтемелер жұмыс істемейді.')) return
+    const r = await fetch('/api/admin/storage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ public: !state.public }) })
+    const j = await r.json()
+    if (!r.ok) return setMsg(j.error ?? 'Қате')
+    setState(j)
+    setMsg('')
+  }
+  return (
+    <Hud title="Материалдарды қорғау">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <span className="flex-1">
+          {state.public ? (
+            <span style={{ color: C.amber }}>Файлдар қоймасы әзірге АШЫҚ: тест суреттері мен материалдардың сілтемесі бар кез келген адам жүктей алады.</span>
+          ) : (
+            <span style={{ color: C.green }}>Файлдар қоймасы жабық: материалдар тек кірген оқушы мен мұғалімге, 10 минуттық уақытша сілтемемен ашылады.</span>
+          )}
+        </span>
+        <button onClick={toggle} className="rounded-lg border px-3 py-1.5 font-mono text-xs" style={{ borderColor: state.public ? C.amber : C.line, color: state.public ? C.amber : C.muted }}>
+          {state.public ? 'Қойманы жабу' : 'Қайта ашу'}
+        </button>
+      </div>
+      {msg && <p className="mt-2 text-xs" style={{ color: C.red }}>{msg}</p>}
     </Hud>
   )
 }

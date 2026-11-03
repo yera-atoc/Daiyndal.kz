@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { LETTERS } from '@/lib/bilimTest'
+import { fileSrc } from '@/lib/fileUrl'
 
 export type SheetSubject = { id: string; name: string; questions: number; options: number }
 
@@ -126,7 +127,7 @@ export default function AnswerSheet({
                   <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold ${a ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
                   <div className="min-w-0 flex-1">
                     {q?.text && <p className="whitespace-pre-line font-semibold leading-snug">{q.text}</p>}
-                    {q?.image && <img src={q.image} alt="" className="mt-2 max-h-72 rounded-lg border border-slate-200" />}
+                    {q?.image && <img src={fileSrc(q.image)} alt="" className="mt-2 max-h-72 rounded-lg border border-slate-200" />}
                   </div>
                 </div>
                 <div className="mt-3 grid gap-2">
