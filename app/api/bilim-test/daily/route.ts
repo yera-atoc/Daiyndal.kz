@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/bilimTestAuth'
-import { listGroups, listStudents } from '@/lib/bilimTestStore'
+import { listExams, listGroups, listStudents } from '@/lib/bilimTestStore'
+import { examDaily, pickExam } from '@/lib/examDaily'
 import { formulaQuiz } from '@/lib/formulaQuiz'
 import { shortName } from '@/lib/bilimTest'
 import { TRACK_NAMES, dailyTrack, dayKey, pickIndices, streak, type DailyTrack } from '@/lib/daily'
@@ -8,11 +9,20 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export const dynamic = 'force-dynamic'
 
-type PoolRow = { id: number; text: string; options: string[]; answer: string; topic: string | null; explain: string | null }
+type PoolRow = { id: number | string; text: string; options: string[]; answer: string; topic: string | null; explain: string | null; section?: string; image?: string; passage?: string }
 
-async function todays(track: DailyTrack, day: string): Promise<PoolRow[]> {
-  // НЗМ / БИЛ: «Математика формулалары» (67 формула) бойынша сұрақтар
-  if (track === 'nzm') return formulaQuiz(day)
+/** НИШ (НЗМ) тобы ма — БИЛ емес */
+const isNish = (groupId: string, name?: string) => /^nzm/.test(groupId) || /(НЗМ|НИШ)/i.test(name ?? '')
+
+async function todays(track: DailyTrack, day: string, groupId: string, groupName?: string): Promise<PoolRow[]> {
+  // НЗМ / БИЛ: «Математика формулалары» (67 формула) бойынша 5 сұрақ
+  if (track === 'nzm') {
+    const formulas: PoolRow[] = formulaQuiz(day).map((q) => ({ ...q, section: 'Математика формулалары' }))
+    if (!isNish(groupId, groupName)) return formulas
+    // НИШ: + Білім тексеру сынағының (қазан) сұрақтарынан әр пәннен 5-тен
+    const exam = pickExam(await listExams(groupId))
+    return exam ? [...formulas, ...examDaily(exam, day)] : formulas
+  }
   const { data, error } = await supabaseAdmin
     .from('bt_daily_pool')
     .select('id, text, options, answer, topic, explain')
@@ -24,8 +34,8 @@ async function todays(track: DailyTrack, day: string): Promise<PoolRow[]> {
   return pickIndices(day, pool.length).map((i) => pool[i])
 }
 
-async function view(me: { id: string; full_name: string; group_id: string }, track: DailyTrack, day: string) {
-  const qs = await todays(track, day)
+async function view(me: { id: string; full_name: string; group_id: string }, track: DailyTrack, day: string, groupName?: string) {
+  const qs = await todays(track, day, me.group_id, groupName)
   const students = await listStudents(me.group_id)
   const ids = students.map((s) => s.id)
   const month = day.slice(0, 7)
@@ -50,7 +60,7 @@ async function view(me: { id: string; full_name: string; group_id: string }, tra
     day,
     track,
     trackName: TRACK_NAMES[track],
-    questions: qs.map((q) => ({ id: q.id, text: q.text, options: q.options, topic: q.topic })),
+    questions: qs.map((q) => ({ id: q.id, text: q.text, options: q.options, topic: q.topic, section: q.section ?? null, image: q.image ?? null, passage: q.passage ?? null })),
     result: mine
       ? { answers: mine.answers as string[], correct: mine.correct, key: qs.map((q) => q.answer), explain: qs.map((q) => q.explain ?? '') }
       : null,
@@ -63,9 +73,10 @@ export async function GET() {
   try {
     const me = await currentStudent()
     if (!me) return NextResponse.json({ error: 'Кіру керек' }, { status: 401 })
-    const track = dailyTrack(me.group_id, (await listGroups()).find((g) => g.id === me.group_id)?.name)
+    const groupName = (await listGroups()).find((g) => g.id === me.group_id)?.name
+    const track = dailyTrack(me.group_id, groupName)
     if (!track) return NextResponse.json({ error: 'Бұл топқа күнделікті сұрақтар жоқ' }, { status: 404 })
-    return NextResponse.json(await view(me, track, dayKey()), { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json(await view(me, track, dayKey(), groupName), { headers: { 'Cache-Control': 'no-store' } })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
@@ -75,10 +86,11 @@ export async function POST(req: NextRequest) {
   try {
     const me = await currentStudent()
     if (!me) return NextResponse.json({ error: 'Кіру керек' }, { status: 401 })
-    const track = dailyTrack(me.group_id, (await listGroups()).find((g) => g.id === me.group_id)?.name)
+    const groupName = (await listGroups()).find((g) => g.id === me.group_id)?.name
+    const track = dailyTrack(me.group_id, groupName)
     if (!track) return NextResponse.json({ error: 'Бұл топқа күнделікті сұрақтар жоқ' }, { status: 404 })
     const day = dayKey()
-    const qs = await todays(track, day)
+    const qs = await todays(track, day, me.group_id, groupName)
     if (!qs.length) return NextResponse.json({ error: 'Бүгінгі сұрақтар әлі қосылмаған' }, { status: 404 })
     const body = await req.json().catch(() => null)
     const answers = qs.map((_, i) => {
@@ -88,7 +100,7 @@ export async function POST(req: NextRequest) {
     const correct = qs.reduce((n, q, i) => n + (answers[i] === q.answer ? 1 : 0), 0)
     const { error } = await supabaseAdmin.from('bt_daily_answers').insert({ student_id: me.id, day, track, answers, correct })
     if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message)
-    return NextResponse.json(await view(me, track, day))
+    return NextResponse.json(await view(me, track, day, groupName))
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
