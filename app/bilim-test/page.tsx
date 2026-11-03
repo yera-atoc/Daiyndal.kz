@@ -15,6 +15,7 @@ import {
 } from '@/lib/bilimTest'
 import type { StudentResult } from '@/lib/bilimTestResults'
 import ProgressChart, { type ChartPoint } from '@/components/bilim/ProgressChart'
+import QuoteCard from '@/components/bilim/QuoteCard'
 import { buildForecast } from '@/lib/bilimTestForecast'
 import { UbtTrend } from '@/components/ielts/UbtGrowth'
 import { monthName } from '@/lib/bilimTest'
@@ -312,6 +313,11 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
         {!sheet && !drill && !daily && !detail && seasonFor(me.group.id, me.group.name) && (
           <div className="mb-5">
             <ExamCountdown cfg={seasonFor(me.group.id, me.group.name)!} compact />
+          </div>
+        )}
+        {!sheet && !drill && !daily && !detail && tab === 'tests' && (
+          <div className="mb-5">
+            <QuoteCard seed={me.student.name} />
           </div>
         )}
         {sheet ? (
