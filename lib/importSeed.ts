@@ -79,9 +79,9 @@ export const IMPORT_SEED: SeedGroup[] = [
   },
   {
     key: '5-2-a',
-    name: '5-сынып 2-топ (Айдос)',
+    name: '5-сынып 2-топ (Айдын)',
     grade: 5,
-    teacherHint: 'Айдос',
+    teacherHint: 'Айдын',
     note: 'Сабақ уақыты журналда жазылмаған — толтырыңыз',
     lessons: [{ days: TTS, start: '', end: '', subject: 'Математика' }],
     students: [{ name: 'Бекжан' }, { name: 'Айзере' }, { name: 'Айнара' }, { name: 'Айару' }],
@@ -90,7 +90,7 @@ export const IMPORT_SEED: SeedGroup[] = [
     key: '5-shift2',
     name: '5-сынып (2-ауысым)',
     grade: 5,
-    teacherHint: 'Айдос',
+    teacherHint: 'Айдын',
     lessons: [
       { days: TTS, start: '16:00', end: '17:00', subject: 'Математика' },
       { days: TTS, start: '17:00', end: '18:00', subject: 'Ағылшын тілі' },
@@ -104,7 +104,7 @@ export const IMPORT_SEED: SeedGroup[] = [
     key: '3',
     name: '3-сынып',
     grade: 3,
-    teacherHint: 'Айдос',
+    teacherHint: 'Айдын',
     lessons: [
       { days: TTS, start: '10:30', end: '11:30', subject: 'Ағылшын тілі' },
       { days: TTS, start: '11:30', end: '12:30', subject: 'Математика' },
@@ -118,7 +118,7 @@ export const IMPORT_SEED: SeedGroup[] = [
     key: '4-1',
     name: '4-сынып 1-топ',
     grade: 4,
-    teacherHint: 'Айдос',
+    teacherHint: 'Айдын',
     lessons: [
       { days: TTS, start: '14:00', end: '15:00', subject: 'Математика' },
       { days: TTS, start: '15:00', end: '16:00', subject: 'Ағылшын тілі' },
@@ -132,7 +132,7 @@ export const IMPORT_SEED: SeedGroup[] = [
     key: '4-2',
     name: '4-сынып 2-топ',
     grade: 4,
-    teacherHint: 'Айдос',
+    teacherHint: 'Айдын',
     lessons: [
       { days: TTS, start: '14:00', end: '15:00', subject: 'Ағылшын тілі' },
       { days: TTS, start: '15:00', end: '16:00', subject: 'Математика' },
@@ -146,7 +146,7 @@ export const IMPORT_SEED: SeedGroup[] = [
     key: '4-3',
     name: '4-сынып 3-топ',
     grade: 4,
-    teacherHint: 'Айдос',
+    teacherHint: 'Айдын',
     lessons: [
       { days: [3, 5, 6], start: '11:30', end: '12:30', subject: 'Ағылшын тілі' },
       { days: [3, 5, 6], start: '12:30', end: '13:30', subject: 'Математика' },
@@ -160,7 +160,7 @@ export const IMPORT_SEED: SeedGroup[] = [
     key: '7',
     name: '7-сынып',
     grade: 7,
-    teacherHint: 'Айдос',
+    teacherHint: 'Айдын',
     lessons: [{ days: TTS, start: '08:30', end: '09:30', subject: 'Математика' }],
     students: [
       { name: 'Ісләмбаев Нұрәмір?' }, { name: 'Жантай Бибібала?' }, { name: 'Мандабай Зере' },

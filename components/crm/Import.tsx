@@ -82,7 +82,11 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
         const doneKeys: string[] = saved.done ?? []
         const have = new Set((saved.groups as Draft[]).map((g) => g.key))
         const added = fromSeed(teachers, new Set(IMPORT_SEED.map((g) => g.key).filter((k) => !have.has(k))))
-        const kept = (saved.groups as Draft[]).filter((g) => !REMOVED_SEED_KEYS.includes(g.key) || doneKeys.includes(g.key))
+        // Мұғалімі таңдалмаған топтарға журналдағы аты бойынша қайта іздейміз (мысалы, «Айдын ағай»)
+        const hints = new Map(IMPORT_SEED.map((g) => [g.key, g.teacherHint]))
+        const kept = (saved.groups as Draft[])
+          .filter((g) => !REMOVED_SEED_KEYS.includes(g.key) || doneKeys.includes(g.key))
+          .map((g) => (g.teacherId || !hints.get(g.key) ? g : { ...g, teacherId: guessTeacher(hints.get(g.key)!, teachers), name: g.name.replace('(Айдос)', '(Айдын)') }))
         setGroups([...kept, ...added])
         setDone(doneKeys)
         return
