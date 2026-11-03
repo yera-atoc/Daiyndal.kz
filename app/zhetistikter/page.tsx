@@ -6,6 +6,7 @@ import { B } from '@/components/site/brand'
 import Stripes from '@/components/site/Stripes'
 import { NIS_GRANT_2026, NIS_GRANT_YEAR, NIS_SUBJECT_MIN } from '@/lib/nisGrant'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { loadTopResults, type Category, type TopItem } from '@/lib/topResults'
 
 export const revalidate = 300
 
@@ -32,8 +33,21 @@ async function load(): Promise<Item[]> {
 
 const TONE: Record<string, string> = { НЗМ: B.blue, БИЛ: B.red, РФМШ: B.ink, ҰБТ: '#5B4CF0', IELTS: '#0F9D6B', TOEFL: '#0F9D6B' }
 
+const MONTHS = ['қаңтар', 'ақпан', 'наурыз', 'сәуір', 'мамыр', 'маусым', 'шілде', 'тамыз', 'қыркүйек', 'қазан', 'қараша', 'желтоқсан']
+const CAT_TONE: Record<Category, string> = { НЗМ: B.blue, БИЛ: B.red, ҰБТ: '#5B4CF0' }
+const CAT_NAME: Record<Category, string> = { НЗМ: 'НЗМ (НИШ) дайындығы', БИЛ: 'БИЛ дайындығы', ҰБТ: 'ҰБТ дайындығы' }
+
+async function loadTop(): Promise<Record<Category, TopItem[]>> {
+  try {
+    return await loadTopResults()
+  } catch {
+    return { НЗМ: [], БИЛ: [], ҰБТ: [] }
+  }
+}
+
 export default async function Page() {
-  const items = await load()
+  const [items, top] = await Promise.all([load(), loadTop()])
+  const cats = (Object.keys(top) as Category[]).filter((c) => top[c].length)
   const years = Array.from(new Set(items.map((x) => x.year)))
   const bySchool = [...NIS_GRANT_2026].sort((a, b) => a.name.localeCompare(b.name, 'kk'))
   return (
@@ -53,10 +67,46 @@ export default async function Page() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6"><Stripes count={64} height="h-12" /></div>
       </section>
 
+      {cats.length > 0 && (
+        <section className="mx-auto w-full max-w-6xl px-4 pt-14 sm:px-6">
+          <h2 className="font-display text-2xl font-semibold sm:text-3xl">Осы оқу жылының үздіктері</h2>
+          <p className="mt-3 max-w-2xl leading-relaxed" style={{ color: B.muted }}>
+            Орталықтағы ай сайынғы «Білім тексеру» сынақтарының соңғы нәтижелері: НЗМ, БИЛ және ҰБТ топтарындағы ең жоғары балдар. Нәтиже әр сынақтан кейін өзі жаңарады.
+          </p>
+          <div className="mt-8 grid gap-6 lg:grid-cols-3">
+            {cats.map((c) => (
+              <div key={c} className="rounded-2xl border bg-white p-5" style={{ borderColor: B.line }}>
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full" style={{ background: CAT_TONE[c] }} />
+                  <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: CAT_TONE[c] }}>{CAT_NAME[c]}</h3>
+                </div>
+                <ol className="mt-4 space-y-3">
+                  {top[c].map((x, i) => (
+                    <li key={`${x.group}-${x.name}`} className="flex items-center gap-3">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: i === 0 ? '#F59E0B' : i === 1 ? '#94A3B8' : i === 2 ? '#B45309' : B.ink }}>{i + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-semibold">{x.name}</div>
+                        <div className="truncate text-xs" style={{ color: B.muted }}>{x.group} · {MONTHS[Number(x.month.slice(5, 7)) - 1]} сынағы</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-display text-lg font-semibold tabular-nums">{x.score}<span className="text-xs font-normal" style={{ color: B.muted }}> / {x.max}</span></div>
+                        <div className="text-xs tabular-nums" style={{ color: CAT_TONE[c] }}>{String(x.pct).replace('.', ',')} %</div>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6">
         <h2 className="font-display text-2xl font-semibold sm:text-3xl">Түлектер</h2>
         {items.length === 0 ? (
-          <p className="mt-3 max-w-2xl rounded-2xl border bg-white p-5" style={{ borderColor: B.line, color: B.muted }}>Түлектеріміздің нәтижелері жақында осында жарияланады.</p>
+          <p className="mt-3 max-w-2xl rounded-2xl border bg-white p-5" style={{ borderColor: B.line, color: B.muted }}>
+            Түлектеріміздің НЗМ, БИЛ, ҰБТ нәтижелері осында жарияланады.{cats.length > 0 ? ' Әзірге жоғарыда — осы жылғы оқушыларымыздың нәтижелері.' : ''}
+          </p>
         ) : (
           years.map((y) => (
             <div key={y} className="mt-8">
