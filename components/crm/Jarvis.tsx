@@ -358,7 +358,7 @@ function Assistant({ enabled }: { enabled: boolean }) {
       }
     >
       {!enabled ? (
-        <p className="text-sm" style={{ color: C.amber }}>Көмекші өшірулі: Vercel-де ANTHROPIC_API_KEY айнымалысын қосыңыз.</p>
+        <p className="text-sm" style={{ color: C.amber }}>Көмекші өшірулі: Vercel-де GEMINI_API_KEY (не ANTHROPIC_API_KEY) айнымалысын қосып, Redeploy басыңыз.</p>
       ) : (
         <>
           <div className="max-h-80 space-y-3 overflow-y-auto pr-1">

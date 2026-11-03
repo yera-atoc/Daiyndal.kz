@@ -1,7 +1,8 @@
-// Күннің жағымды жаңалықтары: Claude интернеттен іздеп, Қазақстан мен әлемнен 3+3 жақсы жаңалық таңдайды.
+// Күннің жағымды жаңалықтары: ИИ (Claude не Gemini) интернеттен іздеп, Қазақстан мен әлемнен 3+3 жақсы жаңалық таңдайды.
 // Нәтиже 3 сағатқа кэштеледі (Vercel data cache), сондықтан іздеу күніне бірнеше-ақ рет жүреді.
 import { unstable_cache } from 'next/cache'
 import { logServerError } from './serverLog'
+import { askLLM, provider } from './llm'
 
 export type NewsItem = { region: 'kz' | 'world'; title: string; summary: string; source: string; url: string }
 
@@ -13,22 +14,8 @@ const PROMPT = (today: string) => `Бүгін ${today}. Соңғы 1–2 күн�
 [{"region":"kz"|"world","title":"қазақша қысқа тақырып","summary":"қазақша 1 сөйлем","source":"басылым атауы","url":"https://..."}]`
 
 async function fetchGoodNews(today: string): Promise<NewsItem[]> {
-  const key = process.env.ANTHROPIC_API_KEY
-  if (!key) return []
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
-      model: process.env.ADMIN_CHAT_MODEL ?? 'claude-sonnet-5-5',
-      max_tokens: 2000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
-      messages: [{ role: 'user', content: PROMPT(today) }],
-    }),
-    cache: 'no-store',
-  })
-  if (!r.ok) throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 300)}`)
-  const d = await r.json()
-  const text = (d.content ?? []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
+  if (!provider()) return []
+  const text = await askLLM({ system: ['Сен — жаңалықтар редакторысың. Тек нақты, интернеттен тапқан жаңалықтарды бер.'], messages: [{ role: 'user', content: PROMPT(today) }], maxTokens: 2000, webSearch: true })
   const json = text.slice(text.indexOf('['), text.lastIndexOf(']') + 1)
   const items = JSON.parse(json) as NewsItem[]
   return items

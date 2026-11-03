@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { CONTACT, MORE_SUBJECTS, TEACHERS, waLink } from '@/components/site/brand'
 import { clientIp, throttleCheck, throttleFail } from '@/lib/security'
 import { logServerError } from '@/lib/serverLog'
+import { askLLM, provider } from '@/lib/llm'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,8 +38,7 @@ const SYSTEM = `Сен – Жезқазғандағы Beles education оқу о�
 type Msg = { role: 'user' | 'assistant'; content: string }
 
 export async function POST(req: NextRequest) {
-  const key = process.env.ANTHROPIC_API_KEY
-  if (!key) return NextResponse.json({ error: 'no_key' }, { status: 503 })
+  if (!provider()) return NextResponse.json({ error: 'no_key' }, { status: 503 })
 
   const body = await req.json().catch(() => null)
   const raw: Msg[] = Array.isArray(body?.messages) ? body.messages : []
@@ -54,20 +54,11 @@ export async function POST(req: NextRequest) {
   await throttleFail(ipKey) // әр хабарлама санауышқа қосылады
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: process.env.CHAT_MODEL ?? 'claude-haiku-5-5', max_tokens: 600, system: SYSTEM, messages }),
-    })
-    if (!r.ok) {
-      await logServerError('chat', new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 300)}`))
-      return NextResponse.json({ error: 'Көмекші қазір жауап бере алмайды. WhatsApp арқылы жазыңыз.' }, { status: 502 })
-    }
-    const d = await r.json()
-    const answer = (d.content ?? []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n').trim()
+    const text = await askLLM({ system: [SYSTEM], messages, maxTokens: 600, model: { anthropic: process.env.CHAT_MODEL ?? 'claude-haiku-5-5' } })
+    const answer = text.trim()
     return NextResponse.json({ answer })
   } catch (e) {
     await logServerError('chat', e)
-    return NextResponse.json({ error: 'Байланыс үзілді. Қайта жазып көріңіз.' }, { status: 502 })
+    return NextResponse.json({ error: 'Көмекші қазір жауап бере алмайды. WhatsApp арқылы жазыңыз.' }, { status: 502 })
   }
 }
