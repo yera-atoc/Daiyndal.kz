@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { statusLabel } from '@/lib/payments'
 import { WINDOW_DAYS, type Alert, type Overview, type StudentInsight } from '@/lib/teacherInsights'
+import type { TeacherReport } from '@/lib/teacherOps'
 
 const ALERT_STYLE: Record<Alert['level'], { bg: string; dot: string; label: string }> = {
   high: { bg: 'bg-red-50 border-red-200', dot: 'bg-red-500', label: 'Шұғыл' },
@@ -33,6 +34,14 @@ export default function OverviewTab() {
   const [classFilter, setClassFilter] = useState<string>('all')
   const [riskOnly, setRiskOnly] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
+  const [week, setWeek] = useState<{ from: string; to: string; row: TeacherReport | null } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/teacher/report')
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setWeek)
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch('/api/teacher/overview')
@@ -64,6 +73,28 @@ export default function OverviewTab() {
         <Stat label={`Қатысу (${WINDOW_DAYS} күн)`} value={totals.rate == null ? '—' : `${totals.rate}%`} />
         <Stat label="Назар керек" value={String(totals.atRisk)} accent={totals.atRisk > 0} />
       </div>
+
+      {/* Менің аптам */}
+      {week?.row && (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-base font-bold">Менің аптам <span className="text-sm font-normal text-zinc-500">· {week.from.slice(8, 10)}.{week.from.slice(5, 7)}–{week.to.slice(8, 10)}.{week.to.slice(5, 7)}</span></h2>
+            {week.row.score !== null && <span className="text-2xl font-black">{week.row.score}<span className="text-xs font-normal text-zinc-400">/100</span></span>}
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
+            <div className="rounded-xl bg-zinc-50 p-2"><div className="text-lg font-bold">{week.row.held}{week.row.scheduled ? `/${week.row.scheduled}` : ''}</div><div className="text-xs text-zinc-500">сабақ</div></div>
+            <div className="rounded-xl bg-zinc-50 p-2"><div className="text-lg font-bold">{week.row.journal ?? '—'}%</div><div className="text-xs text-zinc-500">журнал</div></div>
+            <div className="rounded-xl bg-zinc-50 p-2"><div className="text-lg font-bold">{week.row.attendance ?? '—'}%</div><div className="text-xs text-zinc-500">қатысу</div></div>
+          </div>
+          {week.row.unmarked.length > 0 ? (
+            <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Журналда белгіленбеген: {week.row.unmarked.map((u) => `${u.class} (${u.date.slice(8, 10)}.${u.date.slice(5, 7)})`).join(', ')} — «Сабақ журналы» бөлімінде толтырыңыз.
+            </p>
+          ) : (
+            <p className="mt-3 text-sm text-emerald-700">Журнал толық толтырылған ✓</p>
+          )}
+        </section>
+      )}
 
       {/* Хабарламалар */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-5">

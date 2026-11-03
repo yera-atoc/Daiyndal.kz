@@ -21,6 +21,7 @@ import {
   Upload,
   MessageCircle,
   Eye,
+  BarChart3,
 } from 'lucide-react'
 import { BRAND, dmy, type CrmData } from '@/components/crm/core'
 import Overview from '@/components/crm/Overview'
@@ -34,8 +35,9 @@ import Jarvis from '@/components/crm/Jarvis'
 import Import from '@/components/crm/Import'
 import Parents from '@/components/crm/Parents'
 import Proctor from '@/components/crm/Proctor'
+import TeacherOps from '@/components/crm/TeacherOps'
 
-type View = 'jarvis' | 'import' | 'parents' | 'proctor' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
+type View = 'jarvis' | 'import' | 'parents' | 'proctor' | 'tops' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
 
 const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'jarvis', label: 'Beles Manager', icon: Sparkles },
@@ -50,6 +52,7 @@ const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'schedule', label: 'Кесте', icon: CalendarDays },
   { id: 'groups', label: 'Топтар', icon: UsersRound },
   { id: 'teachers', label: 'Мұғалімдер', icon: GraduationCap },
+  { id: 'tops', label: 'Мұғалім есебі', icon: BarChart3 },
   { id: 'proctor', label: 'Тест бақылауы', icon: Eye },
   { id: 'journal', label: 'Әрекеттер', icon: ShieldCheck },
   { id: 'site', label: 'Жетістіктер', icon: Trophy },
@@ -181,6 +184,7 @@ function Crm() {
         {view === 'import' && <Import teachers={data.teachers} students={data.students} crmGroups={data.groups} reload={load} flash={flash} />}
         {view === 'parents' && <Parents flash={flash} />}
         {view === 'proctor' && <Proctor />}
+        {view === 'tops' && <TeacherOps flash={flash} />}
         {view === 'students' && <Students data={data} reload={load} flash={flash} openId={openId} setOpenId={setOpenId} payId={payId} setPayId={setPayId} />}
         {view === 'payments' && <Payments data={data} reload={load} flash={flash} onStudent={openStudent} />}
         {view === 'attendance' && <Attendance key={attGroup ?? ''} data={data} reload={load} flash={flash} initialGroup={attGroup} />}
