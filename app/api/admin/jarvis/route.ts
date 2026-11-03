@@ -4,6 +4,7 @@ import { loadJarvis } from '@/lib/jarvisServer'
 import { adminFirstName } from '@/lib/jarvis'
 import { getWeather } from '@/lib/weather'
 import { logServerError } from '@/lib/serverLog'
+import { provider } from '@/lib/llm'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,7 @@ export async function GET() {
   try {
     const [{ data }, weather] = await Promise.all([loadJarvis(), getWeather()])
     return NextResponse.json(
-      { ...data, weather, name: adminFirstName(me, process.env.OWNER_NAME), assistant: !!process.env.ANTHROPIC_API_KEY },
+      { ...data, weather, name: adminFirstName(me, process.env.OWNER_NAME), assistant: !!provider() },
       { headers: { 'Cache-Control': 'no-store' } },
     )
   } catch (e) {
