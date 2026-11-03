@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, ChevronDown, Plus, Trash2, Upload } from 'lucide-react'
 import { BRAND, inputCls, selCls, btnDark, btnLine, type CTeacher } from './core'
-import { IMPORT_SEED } from '@/lib/importSeed'
+import { IMPORT_SEED, REMOVED_SEED_KEYS } from '@/lib/importSeed'
 import { guessTeacher, validateGroup, type ImpGroup, type ImpLesson, type ImpStudent } from '@/lib/importPlan'
 
 const DAYS = ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жс']
@@ -11,8 +11,8 @@ const KEY = 'beles-import-draft-v1'
 
 type Draft = ImpGroup & { note?: string; open?: boolean }
 
-function fromSeed(teachers: CTeacher[]): Draft[] {
-  return IMPORT_SEED.map((g) => ({
+function fromSeed(teachers: CTeacher[], only?: Set<string>): Draft[] {
+  return IMPORT_SEED.filter((g) => !only || only.has(g.key)).map((g) => ({
     key: g.key,
     name: g.name,
     grade: g.grade,
@@ -34,8 +34,13 @@ export default function Import({ teachers, reload, flash }: { teachers: CTeacher
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null')
       if (saved?.groups) {
-        setGroups(saved.groups)
-        setDone(saved.done ?? [])
+        // Жобада жоқ жаңа топтарды (кейін қосылған журналдар) соңына қосамыз, ауыстырылған ескілерін аламыз
+        const doneKeys: string[] = saved.done ?? []
+        const have = new Set((saved.groups as Draft[]).map((g) => g.key))
+        const added = fromSeed(teachers, new Set(IMPORT_SEED.map((g) => g.key).filter((k) => !have.has(k))))
+        const kept = (saved.groups as Draft[]).filter((g) => !REMOVED_SEED_KEYS.includes(g.key) || doneKeys.includes(g.key))
+        setGroups([...kept, ...added])
+        setDone(doneKeys)
         return
       }
     } catch {}
