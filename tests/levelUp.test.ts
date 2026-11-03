@@ -81,3 +81,40 @@ describe('cleanNote', () => {
     expect(cleanNote(null)).toBe('')
   })
 })
+
+import { buildLevelUp as build2, levelEvent } from '@/lib/levelUp'
+
+describe('system: points, penalty, focus, titles, events', () => {
+  const months = [{ month: '2026-10', name: 'Қазан', maxes: { math: 400, quant: 300, science: 200, english: 200, kazakh: 200, russian: 200 }, scores: { math: 360, quant: 270, science: 150, english: 180, kazakh: 170, russian: 120 } }]
+  it('points, focus quest and penalty', () => {
+    const d = build2({
+      months,
+      topics: [],
+      daily: [{ day: '2026-11-02', correct: 30, total: 35 }, { day: '2026-11-04', correct: 33, total: 35 }],
+      streak: 1,
+      today: '2026-11-04',
+      points: { russian: 3, math: 1, bogus: 5 },
+      practiceToday: ['russian'],
+    })!
+    expect(d.total).toBe(1250)
+    expect(d.points).toEqual({ total: 25, free: 21, spent: { russian: 3, math: 1 }, focus: 'russian' })
+    expect(d.penalty).toBe(true)
+    expect(d.quests[0]).toMatchObject({ id: 'penalty', done: true })
+    expect(d.quests.find((q) => q.id === 'focus')).toMatchObject({ done: true, xp: 40 })
+    const got = d.titles.filter((t) => t.got).map((t) => t.id)
+    expect(got).toEqual(expect.arrayContaining(['math', 'quant', 'grant']))
+    expect(got).not.toContain('elite')
+  })
+  it('no penalty for newcomers', () => {
+    const d = build2({ months, topics: [], daily: [], streak: 0, today: '2026-11-04' })!
+    expect(d.penalty).toBe(false)
+    expect(d.quests.some((q) => q.id === 'focus')).toBe(false)
+  })
+  it('level events', () => {
+    expect(levelEvent(null, { level: 5, rank: 'E' })).toBeNull()
+    expect(levelEvent({ level: 5, rank: 'E' }, { level: 5, rank: 'E' })).toBeNull()
+    expect(levelEvent({ level: 5, rank: 'E' }, { level: 6, rank: 'E' })).toMatchObject({ from: 5, to: 6, rankUp: false })
+    expect(levelEvent({ level: 20, rank: 'D' }, { level: 22, rank: 'C' })).toMatchObject({ rankUp: true, rankTo: 'C' })
+    expect(levelEvent({ level: 22, rank: 'C' }, { level: 20, rank: 'D' })).toBeNull()
+  })
+})
