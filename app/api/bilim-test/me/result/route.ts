@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/bilimTestAuth'
 import { getExam } from '@/lib/bilimTestStore'
 import { studentResult } from '@/lib/bilimTestResults'
+import { listNotes } from '@/lib/teacherNotes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,7 +17,8 @@ export async function GET(req: NextRequest) {
     if (!exam || exam.group_id !== me.group_id || !exam.published) {
       return NextResponse.json({ error: 'Нәтиже әлі жарияланбаған' }, { status: 404 })
     }
-    return NextResponse.json(await studentResult(exam, me.full_name, { fullNames: false }), {
+    const [res, notes] = await Promise.all([studentResult(exam, me.full_name, { fullNames: false }), listNotes(exam.id, [me.id])])
+    return NextResponse.json({ ...res, notes }, {
       headers: { 'Cache-Control': 'no-store' },
     })
   } catch (e: any) {

@@ -4,7 +4,7 @@ import { listExams, listGroups, listSubmissions } from '@/lib/bilimTestStore'
 import { seasonView } from '@/lib/bilimSeasonServer'
 import { topicStats } from '@/lib/bilimTest'
 import { dayKey, streak } from '@/lib/daily'
-import { buildLevelUp, isNishGroup, type MonthScores, type TopicRow } from '@/lib/levelUp'
+import { buildLevelUp, isNishGroup, rankBoard, type MonthScores, type TopicRow } from '@/lib/levelUp'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export const dynamic = 'force-dynamic'
@@ -56,7 +56,9 @@ export async function GET() {
       streak: streak(rows.map((r) => r.day), today),
       today,
     })
-    return NextResponse.json({ name: me.full_name, data }, { headers: { 'Cache-Control': 'no-store' } })
+    // Ранг рейтингі: менің соңғы айымдағы топ (басқалардың аты қысқа — seasonView оны өзі жасайды)
+    const board = data ? rankBoard(season.rows.map((r) => ({ name: r.name, me: r.me, total: r.cells[data.month]?.total }))) : []
+    return NextResponse.json({ name: me.full_name, data, board }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
