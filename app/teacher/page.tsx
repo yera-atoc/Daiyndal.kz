@@ -11,6 +11,7 @@ import WeeklyTimetable from '@/components/WeeklyTimetable'
 import TeacherJournal from '@/components/journal/TeacherJournal'
 import EnglishResults from '@/components/teacher/EnglishResults'
 import OverviewTab from '@/components/teacher/OverviewTab'
+import { fileSrc } from '@/lib/fileUrl'
 
 const MATERIALS_BUCKET = 'materials'
 const MAX_FILE_MB = 30
@@ -605,7 +606,7 @@ function MaterialsTab({
               {m.description && <p className="mt-1 text-sm text-zinc-700">{m.description}</p>}
               {m.url && (
                 <a
-                  href={m.url}
+                  href={fileSrc(m.url) ?? undefined}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-1 inline-block text-sm text-sky-600 underline"

@@ -7,6 +7,7 @@ import { UBT_COMBOS, comboName } from '@/lib/ubt'
 import { ubtExcel, ubtPrint, type UbtRow } from '@/components/ielts/ubtExport'
 import { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
 import { SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, speakingBand, writingBand, overallBand, toeflOverall, toeflSpeakingBand, toeflWritingBand, wordCount, type Attempt, type Exam, type IeltsTest, type Scores } from '@/lib/ielts'
+import { fileSrc } from '@/lib/fileUrl'
 
 type Data = {
   me: { admin: boolean; teacher: { id: string; name: string } | null }
@@ -580,7 +581,7 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
                 <div key={s.key} className="rounded-lg border p-3" style={{ borderColor: LINE }}>
                   <div className="text-xs" style={{ color: MUTED }}>{s.part}</div>
                   <div className="whitespace-pre-wrap text-sm font-medium">{s.q}</div>
-                  {a.speaking?.[s.key] ? <audio src={a.speaking[s.key]} controls preload="none" className="mt-2 w-full" /> : <div className="mt-1 text-xs text-amber-700">Жазба жоқ</div>}
+                  {a.speaking?.[s.key] ? <audio src={fileSrc(a.speaking[s.key])} controls preload="none" className="mt-2 w-full" /> : <div className="mt-1 text-xs text-amber-700">Жазба жоқ</div>}
                 </div>
               ))}
             </div>

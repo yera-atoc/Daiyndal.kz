@@ -5,6 +5,8 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { subjects } from '@/lib/subjects'
 import { B } from '@/components/site/brand'
+import { fileSrc } from '@/lib/fileUrl'
+import Watermark from '@/components/Watermark'
 
 type Material = {
   id: string
@@ -20,11 +22,20 @@ type Material = {
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([])
   const [loading, setLoading] = useState(true)
+  const [needLogin, setNeedLogin] = useState(false)
+  const [viewer, setViewer] = useState<{ kind: string; name: string | null } | null>(null)
   const [activeSubject, setActiveSubject] = useState<string>('barlyk')
 
   useEffect(() => {
+    fetch('/api/whoami')
+      .then((r) => r.json())
+      .then(setViewer)
+      .catch(() => {})
     fetch('/api/materials/public')
-      .then((res) => res.json())
+      .then((res) => {
+        if (res.status === 401) setNeedLogin(true)
+        return res.json()
+      })
       .then((data) => setMaterials(Array.isArray(data) ? data : []))
       .catch(() => setMaterials([]))
       .finally(() => setLoading(false))
@@ -40,6 +51,7 @@ export default function MaterialsPage() {
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: B.paper, color: B.ink }}>
+      {viewer?.kind === 'student' && <Watermark name={viewer.name} />}
       <Header />
 
       <section className="border-b bg-white" style={{ borderColor: B.line }}>
@@ -62,6 +74,14 @@ export default function MaterialsPage() {
 
         {loading && <p className="mt-10" style={{ color: B.muted }}>Жүктелуде...</p>}
 
+        {!loading && needLogin && (
+          <div className="mt-8 rounded-2xl border bg-white p-6 text-center" style={{ borderColor: B.line }}>
+            <p className="text-lg font-semibold">Материалдар тек Beles education оқушыларына ашық</p>
+            <p className="mt-1 text-sm" style={{ color: B.muted }}>Көру үшін өз кабинетіңе кір (Білім тексеру, IELTS не мұғалім кабинеті).</p>
+            <a href="/login" className="mt-4 inline-block rounded-xl px-5 py-2.5 text-sm font-semibold text-white" style={{ background: B.blue }}>Кабинетке кіру</a>
+          </div>
+        )}
+
         {!loading && filtered.length > 0 && (
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((m) => (
@@ -75,7 +95,7 @@ export default function MaterialsPage() {
                   <p className="mt-3 text-xs" style={{ color: B.muted }}>Мұғалім: {m.teachers?.name ?? 'Белгісіз'}</p>
                 </div>
                 {m.url && (
-                  <a href={m.url} target="_blank" rel="noreferrer" className="mt-4 rounded-xl px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:opacity-90" style={{ background: B.blue }}>
+                  <a href={fileSrc(m.url) ?? undefined} target="_blank" rel="noreferrer" className="mt-4 rounded-xl px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:opacity-90" style={{ background: B.blue }}>
                     Ашу
                   </a>
                 )}
@@ -84,7 +104,7 @@ export default function MaterialsPage() {
           </div>
         )}
 
-        {!loading && filtered.length === 0 && (
+        {!loading && !needLogin && filtered.length === 0 && (
           <div className="mt-10 rounded-2xl border border-dashed bg-white p-10 text-center" style={{ borderColor: B.line, color: B.muted }}>
             Бұл пән бойынша материалдар жақында қосылады.
           </div>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { LETTERS, gradeSubject, topicStats, weakTopics, type Question } from '@/lib/bilimTest'
+import { fileSrc } from '@/lib/fileUrl'
 
 // Дайындық сынағы: сұрақтар мәтінімен, нұсқаларымен экранда. Тапсырған соң
 // бірден тексеріліп, әр сұрақтың дұрыс жауабы көрсетіледі. Қайта тапсыруға болады.
@@ -149,7 +150,7 @@ function Runner({ data, onSubmitted }: { data: Data; onSubmitted: () => Promise<
                   <span className="shrink-0 font-bold text-slate-400 tabular-nums">{i + 1}.</span>
                   <p className="whitespace-pre-wrap font-medium leading-relaxed">{q.text || `${i + 1}-сұрақ`}</p>
                 </div>
-                {q.image && <img src={q.image} alt="" className="mt-3 max-h-80 w-full rounded-lg object-contain" />}
+                {q.image && <img src={fileSrc(q.image)} alt="" className="mt-3 max-h-80 w-full rounded-lg object-contain" />}
                 <div className="mt-3 space-y-2">
                   {letters.map((l, j) => {
                     const on = answers[i] === l

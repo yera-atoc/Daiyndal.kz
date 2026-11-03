@@ -28,6 +28,8 @@ import MistakeDrill, { mistakeCount } from '@/components/bilim/MistakeDrill'
 import { DailyCard, DailyRunner, useDaily } from '@/components/bilim/Daily'
 import { dailyTrack } from '@/lib/daily'
 import { grantGroup } from '@/lib/nisGrant'
+import { fileSrc } from '@/lib/fileUrl'
+import Watermark from '@/components/Watermark'
 
 type OpenExam = { id: string; title: string; shuffle?: boolean; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
 type Summary = {
@@ -244,6 +246,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
 
   return (
     <>
+      <Watermark name={me.student.name} />
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-2.5">
           <Logo />
@@ -743,7 +746,7 @@ function ResultDetail({ examId, onBack, startMistakes = false }: { examId: strin
                   {qs[q]?.topic && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">{qs[q]!.topic}</span>}
                 </div>
                 {qs[q]?.text && <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed">{qs[q]!.text}</p>}
-                {qs[q]?.image && <img src={qs[q]!.image} alt={`${q + 1}-сұрақ`} className="mt-3 max-h-[420px] w-full rounded-lg border border-slate-100 object-contain" />}
+                {qs[q]?.image && <img src={fileSrc(qs[q]!.image)} alt={`${q + 1}-сұрақ`} className="mt-3 max-h-[420px] w-full rounded-lg border border-slate-100 object-contain" />}
                 {!qs[q]?.text && !qs[q]?.image && <p className="mt-3 text-sm text-slate-400">Сұрақтың мәтіні енгізілмеген.</p>}
                 <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                   <div className={`rounded-xl p-3 ${!cur.sub.answers[q] ? 'bg-amber-50' : cur.sub.answers[q] === key[q] ? 'bg-emerald-50' : 'bg-red-50'}`}>

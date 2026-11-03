@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { whoIsLoggedIn } from '@/lib/anySession'
 
-// Public, read-only endpoint: students have no individual login in this app
-// (see lib/requireTeacher.ts / lib/requireAdmin.ts — only teachers and the
-// admin authenticate), so materials a teacher publishes need to be
-// reachable without a session. This route intentionally has no auth check.
+// Материалдар тізімі — тек кірген адамдарға (оқушы, мұғалім, әкімші). Бәсекелестер көшіріп алмауы үшін
+// бөгде адамға ештеңе көрсетілмейді; файлдардың өзі /api/files арқылы уақытша сілтемемен беріледі.
 // It only ever SELECTs from `materials` + the teacher's public name/subject
 // — never password_hash/password_salt (see app/api/teachers/route.ts for
 // why those are excluded from any response that isn't admin-only).
 export async function GET(req: NextRequest) {
+  if (!(await whoIsLoggedIn())) return NextResponse.json({ error: 'login' }, { status: 401 })
   const subject = req.nextUrl.searchParams.get('subject')
   const teacherId = req.nextUrl.searchParams.get('teacherId')
 

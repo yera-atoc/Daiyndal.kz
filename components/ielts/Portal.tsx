@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import Watermark from '@/components/Watermark'
 import Runner, { UbtAnswer, UbtResult, type AttemptView } from '@/components/ielts/Runner'
 import { UBT_COMBOS, comboName } from '@/lib/ubt'
 import { UbtPlanView, UbtTrend } from '@/components/ielts/UbtGrowth'
@@ -118,7 +119,12 @@ export default function Portal({ exam }: { exam: Exam }) {
   if (aid && cur) {
     const view = cur
     if (view.attempt.status === 'in_progress')
-      return <Runner key={view.attempt.id} initial={view} student={me.student.full_name} onExit={home} onReview={() => fetchView(view.attempt.id)} />
+      return (
+        <>
+          <Watermark name={me.student.full_name} />
+          <Runner key={view.attempt.id} initial={view} student={me.student.full_name} onExit={home} onReview={() => fetchView(view.attempt.id)} />
+        </>
+      )
     return (
       <Shell exam={exam} me={me} onLogout={logout}>
         <button onClick={() => router.push(path)} className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: BLUE }}>← Барлық тесттер</button>

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { LETTERS } from '@/lib/bilimTest'
 import { collectMistakes } from '@/lib/bilimMistakes'
 import type { StudentResult } from '@/lib/bilimTestResults'
+import { fileSrc } from '@/lib/fileUrl'
 
 const storeKey = (exam: string, student: string) => `bt_mistakes:${exam}:${student}`
 function loadFixed(k: string): string[] {
@@ -110,7 +111,7 @@ export default function MistakeDrill({ data, onBack }: { data: StudentResult; on
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-blue-600 transition-all" style={{ width: `${(pos / queue.length) * 100}%` }} /></div>
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
           {m.passage && <div className="mb-3 max-h-80 overflow-y-auto whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">{m.passage}</div>}
-          {m.image && <img src={m.image} alt="" className="mb-3 max-h-72 rounded-lg border border-slate-200" />}
+          {m.image && <img src={fileSrc(m.image)} alt="" className="mb-3 max-h-72 rounded-lg border border-slate-200" />}
           {q.text && <p className="whitespace-pre-line font-semibold leading-snug">{q.text}</p>}
           {q.topic && <p className="mt-1 text-xs text-slate-400">Тақырып: {q.topic}</p>}
           <p className="mt-2 text-xs text-slate-500">Сынақта: {m.given ? <b className="text-red-600">{m.given}</b> : <b className="text-amber-600">бос қалдырдың</b>}</p>
