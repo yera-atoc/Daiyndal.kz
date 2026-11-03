@@ -38,6 +38,17 @@ const MONTHS = ['Қаң', 'Ақп', 'Нау', 'Сәу', 'Мам', 'Мау', 'Ш�
 
 type Msg = { role: 'user' | 'assistant'; content: string }
 
+/** iPhone (Safari) дауысты тек батырма басқанда іске қосады: алғашқы басуда бос сөйлеммен «ашып» қоямыз,
+ * сонда жауап кейін келсе де дауыстап оқылады. */
+function unlockSpeech() {
+  try {
+    if (!window.speechSynthesis) return
+    const u = new SpeechSynthesisUtterance(' ')
+    u.volume = 0
+    window.speechSynthesis.speak(u)
+  } catch {}
+}
+
 function speak(text: string) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return
   window.speechSynthesis.cancel()
@@ -305,6 +316,7 @@ function Assistant({ enabled }: { enabled: boolean }) {
     }
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SR) return
+    unlockSpeech()
     const rec = new SR()
     rec.lang = 'ru-RU' // қазақ тілін браузерлердің көбі әлі танымайды; орысша сөйлеу ең сенімді
     rec.interimResults = true
@@ -325,7 +337,11 @@ function Assistant({ enabled }: { enabled: boolean }) {
         ask(finalText)
       }
     }
-    rec.onerror = () => setListening(false)
+    rec.onerror = (e: any) => {
+      setListening(false)
+      if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed')
+        setMsgs((m) => [...m, { role: 'assistant', content: '⚠ Микрофонға рұқсат жоқ. iPhone: Баптаулар → Safari → Микрофон → «Рұқсат ету», және Баптаулар → Жалпы → Пернетақта → «Диктовка» қосулы болсын.' }])
+    }
     recRef.current = rec
     setListening(true)
     rec.start()
@@ -336,7 +352,7 @@ function Assistant({ enabled }: { enabled: boolean }) {
       title="Менеджермен сөйлесу"
       icon={<Sparkles size={14} />}
       action={
-        <button onClick={() => { setVoice(!voice); if (voice) window.speechSynthesis?.cancel() }} className="flex items-center gap-1 font-mono text-xs" style={{ color: voice ? C.glow : C.muted }}>
+        <button onClick={() => { if (!voice) unlockSpeech(); else window.speechSynthesis?.cancel(); setVoice(!voice) }} className="flex items-center gap-1 font-mono text-xs" style={{ color: voice ? C.glow : C.muted }}>
           {voice ? <Volume2 size={14} /> : <VolumeX size={14} />} {voice ? 'Дауыс қосулы' : 'Дауыссыз'}
         </button>
       }
