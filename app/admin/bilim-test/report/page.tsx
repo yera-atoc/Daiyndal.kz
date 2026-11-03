@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import ReportPages from '@/components/bilim/ReportPages'
+import ReportPages, { type ReportNote } from '@/components/bilim/ReportPages'
 import type { HistPoint } from '@/lib/bilimTestForecast'
 import PrintStyles from '@/components/bilim/PrintStyles'
 import { personalizeFor } from '@/lib/bilimShuffle'
@@ -24,12 +24,21 @@ function Reports() {
   const examId = sp.get('exam') ?? ''
   const only = sp.get('student')
   const [data, setData] = useState<Resp | null>(null)
+  const [notes, setNotes] = useState<(ReportNote & { student_id: string })[]>([])
 
   useEffect(() => {
     fetch(`/api/bilim-test/admin?group=${encodeURIComponent(groupId)}&exam=${encodeURIComponent(examId)}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then(setData)
   }, [groupId, examId])
+  useEffect(() => {
+    const id = data?.exam?.id
+    if (!id) return
+    fetch(`/api/bilim-test/notes?exam=${encodeURIComponent(id)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => setNotes(j.notes ?? []))
+      .catch(() => setNotes([]))
+  }, [data?.exam?.id])
 
   const t = data?.exam ? (only ? `${only} — ${data.exam.title}` : `Білім тексеру — ${data.group?.name} — ${data.exam.title}`) : 'Білім тексеру'
   useEffect(() => {
@@ -68,6 +77,7 @@ function Reports() {
             subs={mine.subs}
             prev={data.previous ? { id: data.previous.id, month: data.previous.month, title: data.previous.title, row: data.previous.scores[n] } : null}
             rank={rk.place[n] ? { place: rk.place[n], of: rk.of } : null}
+            notes={notes.filter((x) => x.student_id === data.students.find((s) => s.full_name === n)?.id)}
           />
           )
         })}

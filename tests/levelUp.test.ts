@@ -1,3 +1,5 @@
+import { vi } from 'vitest'
+vi.mock('@/lib/supabaseAdmin', () => ({ supabaseAdmin: {} }))
 import { describe, expect, it } from 'vitest'
 import { buildLevelUp, isNishGroup, levelOf, rankOf, targetOf } from '@/lib/levelUp'
 import { NIS_TIPS } from '@/lib/nisTips'
@@ -51,5 +53,31 @@ describe('levelUp', () => {
   })
   it('null without results', () => {
     expect(buildLevelUp({ months: [], topics: [], daily: [], streak: 0, today: '2026-11-04' })).toBeNull()
+  })
+})
+
+import { rankBoard } from '@/lib/levelUp'
+import { cleanNote, NOTE_MAX } from '@/lib/teacherNotes'
+
+describe('rankBoard', () => {
+  it('sorts, ties share a place, skips missing', () => {
+    const b = rankBoard([
+      { name: 'А', me: false, total: 900 },
+      { name: 'Б', me: true, total: 1200 },
+      { name: 'В', me: false, total: 900 },
+      { name: 'Г', me: false, total: null },
+    ])
+    expect(b.map((r) => r.name)).toEqual(['Б', 'А', 'В'])
+    expect(b.map((r) => r.place)).toEqual([1, 2, 2])
+    expect(b[0]).toMatchObject({ rank: 'B', level: 25, me: true })
+    expect(b[1].rank).toBe('D')
+  })
+})
+
+describe('cleanNote', () => {
+  it('trims and caps', () => {
+    expect(cleanNote('  a\n\n\n\nb ')).toBe('a\n\nb')
+    expect(cleanNote('x'.repeat(2000))).toHaveLength(NOTE_MAX)
+    expect(cleanNote(null)).toBe('')
   })
 })

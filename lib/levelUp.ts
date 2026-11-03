@@ -183,3 +183,18 @@ export function buildLevelUp(input: LevelUpInput): LevelUp | null {
     tip,
   }
 }
+
+export type BoardRow = { place: number; name: string; me: boolean; total: number; level: number; rank: string }
+
+/** Топтың ранг рейтингі: бір айдың жалпы баллы бойынша (тең балл — тең орын) */
+export function rankBoard(rows: { name: string; me: boolean; total: number | null | undefined }[]): BoardRow[] {
+  const list = rows.filter((r): r is { name: string; me: boolean; total: number } => typeof r.total === 'number').sort((a, b) => b.total - a.total)
+  return list.map((r) => ({
+    place: 1 + list.filter((x) => x.total > r.total).length,
+    name: r.name,
+    me: r.me,
+    total: r.total,
+    level: levelOf(r.total).level,
+    rank: rankOf(r.total).id,
+  }))
+}

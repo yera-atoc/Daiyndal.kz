@@ -1,5 +1,6 @@
 'use client'
 
+import NotesTab from '@/components/teacher/NotesTab'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -42,7 +43,7 @@ type StudentRow = {
 }
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-type Tab = 'overview' | 'journal' | 'schedule' | 'students' | 'results' | 'materials' | 'tests' | 'profile'
+type Tab = 'overview' | 'journal' | 'schedule' | 'students' | 'notes' | 'results' | 'materials' | 'tests' | 'profile'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -106,6 +107,7 @@ export default function TeacherDashboard() {
     ['journal', 'Сабақ журналы'],
     ['schedule', 'Менің кестем'],
     ['students', 'Оқушылар'],
+    ['notes', 'Оқушыға пікір'],
     ...(isEnglishSubject(me?.subject) ? ([['results', 'Нәтижелер']] as [Tab, string][]) : []),
     ['materials', 'Материалдар'],
     ['tests', 'Тесттер'],
@@ -167,6 +169,7 @@ export default function TeacherDashboard() {
         {tab === 'journal' && <TeacherJournal />}
         {tab === 'schedule' && <ScheduleTab slots={slots} students={students} />}
         {tab === 'students' && <StudentsTab students={students} onRatingChanged={loadAll} />}
+        {tab === 'notes' && <NotesTab />}
         {tab === 'results' && <EnglishResults />}
         {(tab === 'materials' || tab === 'tests') && isEnglishSubject(me?.subject) && <EnglishHub tab={tab} />}
         {tab === 'materials' && <MaterialsTab materials={materials} reload={loadAll} />}

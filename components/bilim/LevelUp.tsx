@@ -1,7 +1,7 @@
 'use client'
 // НИШ «Менің деңгейім»: деңгей, ранг, пән статтары, өсім нүктелері, квесттер, лайфхак және толық дайындық жоспары.
 import { useEffect, useState } from 'react'
-import type { LevelUp as LU } from '@/lib/levelUp'
+import type { BoardRow, LevelUp as LU } from '@/lib/levelUp'
 import { NIS_TACTICS, NIS_TIPS, NIS_WEEK } from '@/lib/nisTips'
 
 const bar = (pct: number) =>
@@ -15,6 +15,45 @@ function Delta({ v, unit = '' }: { v: number | null; unit?: string }) {
   return <span className={`text-xs font-semibold ${cls}`}>{v > 0 ? `▲ +${v}` : v < 0 ? `▼ −${Math.abs(v)}` : '0'}{unit}</span>
 }
 
+const RANK_CLS: Record<string, string> = {
+  S: 'bg-violet-600 text-white',
+  A: 'bg-rose-500 text-white',
+  B: 'bg-amber-500 text-white',
+  C: 'bg-blue-600 text-white',
+  D: 'bg-emerald-600 text-white',
+  E: 'bg-slate-400 text-white',
+}
+
+function Board({ rows }: { rows: BoardRow[] }) {
+  const [all, setAll] = useState(false)
+  if (rows.length < 2) return null
+  const meIdx = rows.findIndex((r) => r.me)
+  const shown = all ? rows : rows.filter((r, i) => i < 5 || r.me)
+  return (
+    <Card>
+      <Label>Ранг рейтингі · топ ішінде</Label>
+      <div className="space-y-1">
+        {shown.map((r, i) => (
+          <div key={r.name + i}>
+            {!all && i > 0 && rows.indexOf(r) - rows.indexOf(shown[i - 1]) > 1 && <div className="py-0.5 text-center text-xs text-slate-300">⋯</div>}
+            <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${r.me ? 'bg-blue-50 font-semibold' : ''}`}>
+              <span className="w-6 text-right tabular-nums text-slate-500">{r.place}</span>
+              <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ${RANK_CLS[r.rank]}`}>{r.rank}</span>
+              <span className="min-w-0 flex-1 truncate">{r.name}{r.me ? ' (сен)' : ''}</span>
+              <span className="shrink-0 text-xs text-slate-500">Lv {r.level}</span>
+              <span className="w-12 shrink-0 text-right tabular-nums">{r.total}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      {rows.length > shown.length || all ? (
+        <button onClick={() => setAll(!all)} className="mt-2 w-full text-xs font-semibold text-blue-600">{all ? 'Қысқарту' : `Барлығы (${rows.length})`}</button>
+      ) : null}
+      {meIdx > 0 && <p className="mt-2 text-xs text-slate-500">Алдыңдағы оқушыдан {rows[meIdx - 1].total - rows[meIdx].total} балл артта.</p>}
+    </Card>
+  )
+}
+
 const Card = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
   <div className={`rounded-2xl border border-slate-200 bg-white p-4 ${className}`}>{children}</div>
 )
@@ -26,6 +65,7 @@ export function LevelUpTab({ name }: { name: string }) {
   const [data, setData] = useState<LU | null | undefined>(undefined)
   const [err, setErr] = useState('')
   const [plan, setPlan] = useState(false)
+  const [board, setBoard] = useState<BoardRow[]>([])
 
   useEffect(() => {
     fetch('/api/bilim-test/levelup', { cache: 'no-store' })
@@ -33,6 +73,7 @@ export function LevelUpTab({ name }: { name: string }) {
         const j = await r.json()
         if (!r.ok) throw new Error(j.error || 'Қате')
         setData(j.data)
+        setBoard(j.board ?? [])
       })
       .catch((e) => setErr(e.message))
   }, [])
@@ -115,6 +156,8 @@ export function LevelUpTab({ name }: { name: string }) {
           ))}
         </div>
       </Card>
+
+      <Board rows={board} />
 
       {data.growth.length > 0 && (
         <Card>

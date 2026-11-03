@@ -5,10 +5,11 @@ import { useSearchParams } from 'next/navigation'
 import ReportPages from '@/components/bilim/ReportPages'
 import PrintStyles from '@/components/bilim/PrintStyles'
 import type { StudentResult } from '@/lib/bilimTestResults'
+import type { ReportNote } from '@/components/bilim/ReportPages'
 
 function Report() {
   const examId = useSearchParams().get('exam') ?? ''
-  const [data, setData] = useState<StudentResult | null>(null)
+  const [data, setData] = useState<(StudentResult & { notes?: ReportNote[] }) | null>(null)
   const [err, setErr] = useState('')
 
   useEffect(() => {
@@ -34,7 +35,7 @@ function Report() {
       {!data && !err && <p className="p-10 text-center text-slate-400">Жүктелуде…</p>}
       {data && (
         <div className="bt-pages space-y-8 py-6">
-          <ReportPages history={data.history} exam={data.exam} student={data.student} subs={data.subs} prev={data.prev} rank={data.rank} groupName={data.groupName} />
+          <ReportPages history={data.history} exam={data.exam} student={data.student} subs={data.subs} prev={data.prev} rank={data.rank} groupName={data.groupName} notes={data.notes} />
         </div>
       )}
     </>

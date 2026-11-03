@@ -15,7 +15,8 @@ import { buildForecast, type HistPoint } from '@/lib/bilimTestForecast'
 
 const BLUE = '#2563EB'
 
-export type ReportPagesInput = ReportInput & { history: HistPoint[] }
+export type ReportNote = { teacher_name: string; subject: string | null; text: string }
+export type ReportPagesInput = ReportInput & { history: HistPoint[]; notes?: ReportNote[] }
 
 function today() {
   const d = new Date()
@@ -237,6 +238,28 @@ export default function ReportPages(props: ReportPagesInput) {
         <div className="pt-[6mm]" />
         <Foot student={student} page={3} />
       </section>
+
+      {/* ── 4-бет: мұғалімдердің пікірі (ата-анаға) ── */}
+      {props.notes && props.notes.length > 0 && (
+        <section className="bt-sheet mx-auto flex flex-col bg-white text-[#111] shadow-xl">
+          <Head kicker="Мұғалім пікірі" sub={`${student} · ${exam.title}`} />
+          <h1 className="mt-[6mm] text-[24pt] font-extrabold leading-none tracking-tight">Мұғалімдердің пікірі</h1>
+          <p className="mt-[2.5mm] text-[10pt] text-slate-500">Құрметті ата-ана! Балаңыздың сабақтағы жұмысы туралы мұғалімдердің жеке пікірі.</p>
+          <div className="mt-[6mm] space-y-[4mm]">
+            {props.notes.map((n, i) => (
+              <div key={i} className="rounded-[3mm] border border-slate-200 px-[5mm] py-[4mm]">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-[11pt] font-bold">{n.teacher_name}</span>
+                  {n.subject && <span className="text-[9pt] font-semibold uppercase tracking-[.08em]" style={{ color: BLUE }}>{n.subject}</span>}
+                </div>
+                <p className="mt-[2mm] whitespace-pre-line text-[10.5pt] leading-relaxed">{n.text}</p>
+              </div>
+            ))}
+          </div>
+          <div className="pt-[6mm]" />
+          <Foot student={student} page={4} />
+        </section>
+      )}
     </>
   )
 }
