@@ -18,6 +18,8 @@ import {
   Inbox,
   Trophy,
   Sparkles,
+  Upload,
+  MessageCircle,
 } from 'lucide-react'
 import { BRAND, dmy, type CrmData } from '@/components/crm/core'
 import Overview from '@/components/crm/Overview'
@@ -28,14 +30,18 @@ import LessonJournal from '@/components/crm/LessonJournal'
 import Leads from '@/components/crm/Leads'
 import Achievements from '@/components/crm/Achievements'
 import Jarvis from '@/components/crm/Jarvis'
+import Import from '@/components/crm/Import'
+import Parents from '@/components/crm/Parents'
 
-type View = 'jarvis' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
+type View = 'jarvis' | 'import' | 'parents' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
 
 const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'jarvis', label: 'Beles Manager', icon: Sparkles },
   { id: 'overview', label: 'Шолу', icon: LayoutDashboard },
   { id: 'leads', label: 'Өтінімдер', icon: Inbox },
   { id: 'students', label: 'Оқушылар', icon: Users },
+  { id: 'parents', label: 'Ата-аналарға хабар', icon: MessageCircle },
+  { id: 'import', label: 'Оқушыларды енгізу', icon: Upload },
   { id: 'payments', label: 'Төлемдер', icon: Wallet },
   { id: 'lessons', label: 'Сабақ журналы', icon: BookOpenCheck },
   { id: 'attendance', label: 'Қатысу', icon: CalendarCheck },
@@ -169,6 +175,8 @@ function Crm() {
           />
         )}
         {view === 'jarvis' && <Jarvis />}
+        {view === 'import' && <Import teachers={data.teachers} reload={load} flash={flash} />}
+        {view === 'parents' && <Parents flash={flash} />}
         {view === 'students' && <Students data={data} reload={load} flash={flash} openId={openId} setOpenId={setOpenId} payId={payId} setPayId={setPayId} />}
         {view === 'payments' && <Payments data={data} reload={load} flash={flash} onStudent={openStudent} />}
         {view === 'attendance' && <Attendance key={attGroup ?? ''} data={data} reload={load} flash={flash} initialGroup={attGroup} />}
