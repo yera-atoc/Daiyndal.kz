@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   if (!(await currentAdmin())) return NextResponse.json({ error: 'Рұқсат жоқ' }, { status: 401 })
   const [audit, errors, teachers] = await Promise.all([
-    supabaseAdmin.from('audit_log').select('id, at, actor, action, ip, detail').order('at', { ascending: false }).limit(300),
+    supabaseAdmin.from('audit_log').select('id, at, actor, action, ip, detail').not('action', 'like', 'proctor:%').order('at', { ascending: false }).limit(300),
     supabaseAdmin.from('error_log').select('id, at, source, message, url, ip').order('at', { ascending: false }).limit(100),
     supabaseAdmin.from('teachers').select('id, name'),
   ])

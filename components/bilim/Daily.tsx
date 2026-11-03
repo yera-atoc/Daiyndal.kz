@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { LETTERS } from '@/lib/bilimTest'
 import { fileSrc } from '@/lib/fileUrl'
+import { useProctor } from '@/components/useProctor'
 
 type DailyData = {
   day: string
@@ -62,6 +63,7 @@ export function DailyRunner({ data, onBack, onDone }: { data: DailyData; onBack:
   })
   const [sending, setSending] = useState(false)
   const [err, setErr] = useState('')
+  const pr = useProctor({ kind: 'daily', ref: data.day, title: `Күннің сұрақтары · ${data.day}`, questions: data.questions.length }, !data.result)
   useEffect(() => {
     try {
       localStorage.setItem(k, JSON.stringify(ans))
@@ -88,6 +90,7 @@ export function DailyRunner({ data, onBack, onDone }: { data: DailyData; onBack:
       try {
         localStorage.removeItem(k)
       } catch {}
+      pr.report()
       onDone(j)
       window.scrollTo({ top: 0 })
     } catch (e: any) {
@@ -99,6 +102,7 @@ export function DailyRunner({ data, onBack, onDone }: { data: DailyData; onBack:
 
   return (
     <>
+      {!r && pr.ui}
       <button onClick={onBack} className="-ml-2 rounded-lg px-2 py-1 text-sm text-blue-600 active:bg-blue-50">← Кабинет</button>
       <div className="mt-1 flex items-end justify-between gap-3">
         <div>
@@ -161,7 +165,7 @@ export function DailyRunner({ data, onBack, onDone }: { data: DailyData; onBack:
                     ? l === key ? 'border-emerald-500 bg-emerald-50' : l === a ? 'border-red-500 bg-red-50' : 'border-slate-200 opacity-60'
                     : a === l ? 'border-blue-600 bg-blue-50' : 'border-slate-200 active:border-blue-300'
                   return (
-                    <button key={l} disabled={!!r} onClick={() => setAns((p) => { const n = [...p]; n[i] = n[i] === l ? '' : l; return n })} className={`flex items-center gap-3 rounded-xl border-2 px-3 py-2.5 text-left transition ${tone}`}>
+                    <button key={l} disabled={!!r} onClick={() => { pr.mark(i); setAns((p) => { const n = [...p]; n[i] = n[i] === l ? '' : l; return n }) }} className={`flex items-center gap-3 rounded-xl border-2 px-3 py-2.5 text-left transition ${tone}`}>
                       <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold ${r && l === key ? 'bg-emerald-500 text-white' : r && l === a ? 'bg-red-500 text-white' : !r && a === l ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{l}</span>
                       <span className="text-[15px]">{o}</span>
                     </button>
