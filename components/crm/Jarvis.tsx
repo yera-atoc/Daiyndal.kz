@@ -281,6 +281,20 @@ function Assistant({ enabled }: { enabled: boolean }) {
   const [busy, setBusy] = useState(false)
   const [voice, setVoice] = useState(false)
   const [listening, setListening] = useState(false)
+  // Сөзді тану тілі: қазақша (Chrome/Android жақсы таниды) не орысша (iPhone-да сенімдірек)
+  const [lang, setLang] = useState<'kk-KZ' | 'ru-RU'>('kk-KZ')
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem('beles-mic-lang')
+      if (v === 'ru-RU' || v === 'kk-KZ') setLang(v)
+    } catch {}
+  }, [])
+  const switchLang = (v: 'kk-KZ' | 'ru-RU') => {
+    setLang(v)
+    try {
+      localStorage.setItem('beles-mic-lang', v)
+    } catch {}
+  }
   const recRef = useRef<any>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const canListen = typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
@@ -318,7 +332,7 @@ function Assistant({ enabled }: { enabled: boolean }) {
     if (!SR) return
     unlockSpeech()
     const rec = new SR()
-    rec.lang = 'ru-RU' // қазақ тілін браузерлердің көбі әлі танымайды; орысша сөйлеу ең сенімді
+    rec.lang = lang
     rec.interimResults = true
     rec.continuous = false
     let finalText = ''
@@ -339,6 +353,11 @@ function Assistant({ enabled }: { enabled: boolean }) {
     }
     rec.onerror = (e: any) => {
       setListening(false)
+      if (e?.error === 'language-not-supported' && lang === 'kk-KZ') {
+        switchLang('ru-RU')
+        setMsgs((m) => [...m, { role: 'assistant', content: 'Бұл браузер қазақша сөзді танымайды, сондықтан тану тілін орысшаға ауыстырдым. Орысша айтсаңыз да, қазақша жауап беремін. (Android-тағы Chrome қазақша жақсы таниды.)' }])
+        return
+      }
       if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed')
         setMsgs((m) => [...m, { role: 'assistant', content: '⚠ Микрофонға рұқсат жоқ. iPhone: Баптаулар → Safari → Микрофон → «Рұқсат ету», және Баптаулар → Жалпы → Пернетақта → «Диктовка» қосулы болсын.' }])
     }
@@ -387,6 +406,16 @@ function Assistant({ enabled }: { enabled: boolean }) {
             ))}
           </div>
 
+          {canListen && (
+            <div className="mt-3 flex items-center gap-2 font-mono text-[11px]" style={{ color: C.muted }}>
+              Микрофон тілі:
+              {(['kk-KZ', 'ru-RU'] as const).map((l) => (
+                <button key={l} type="button" onClick={() => switchLang(l)} className="rounded-full border px-2.5 py-0.5" style={{ borderColor: lang === l ? C.glow : C.line, color: lang === l ? C.glow : C.muted }}>
+                  {l === 'kk-KZ' ? 'Қазақша' : 'Орысша'}
+                </button>
+              ))}
+            </div>
+          )}
           <form onSubmit={(e) => { e.preventDefault(); ask(text) }} className="mt-3 flex items-center gap-2">
             {canListen && (
               <button
