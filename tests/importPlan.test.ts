@@ -90,3 +90,9 @@ describe('parent messages', () => {
     expect(waUrl('', 'hi')).toBeNull()
   })
 })
+
+describe('teacher hints', () => {
+  it('"Айдын" hint finds "Айдын ағай"', () => {
+    expect(guessTeacher('Айдын', [{ id: 'a', name: 'Асан ағай' }, { id: 'b', name: 'Айдын ағай' }])).toBe('b')
+  })
+})
