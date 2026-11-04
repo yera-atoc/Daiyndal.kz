@@ -22,6 +22,7 @@ import {
   MessageCircle,
   Eye,
   BarChart3,
+  DoorOpen,
 } from 'lucide-react'
 import { BRAND, dmy, type CrmData } from '@/components/crm/core'
 import Overview from '@/components/crm/Overview'
@@ -31,13 +32,14 @@ import Journal from '@/components/crm/Journal'
 import LessonJournal from '@/components/crm/LessonJournal'
 import Leads from '@/components/crm/Leads'
 import Achievements from '@/components/crm/Achievements'
+import Rooms from '@/components/crm/Rooms'
 import Jarvis from '@/components/crm/Jarvis'
 import Import from '@/components/crm/Import'
 import Parents from '@/components/crm/Parents'
 import Proctor from '@/components/crm/Proctor'
 import TeacherOps from '@/components/crm/TeacherOps'
 
-type View = 'jarvis' | 'import' | 'parents' | 'proctor' | 'tops' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
+type View = 'jarvis' | 'import' | 'parents' | 'proctor' | 'tops' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'rooms' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
 
 const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'jarvis', label: 'Beles Manager', icon: Sparkles },
@@ -49,6 +51,7 @@ const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'lessons', label: 'Сабақ журналы', icon: BookOpenCheck },
   { id: 'attendance', label: 'Қатысу', icon: CalendarCheck },
   { id: 'schedule', label: 'Кесте', icon: CalendarDays },
+  { id: 'rooms', label: 'Кабинеттер', icon: DoorOpen },
   { id: 'groups', label: 'Топтар', icon: UsersRound },
   { id: 'teachers', label: 'Мұғалімдер', icon: GraduationCap },
   { id: 'tops', label: 'Мұғалім есебі', icon: BarChart3 },
@@ -189,6 +192,7 @@ function Crm() {
         {view === 'payments' && <Payments data={data} reload={load} flash={flash} onStudent={openStudent} />}
         {view === 'attendance' && <Attendance key={attGroup ?? ''} data={data} reload={load} flash={flash} initialGroup={attGroup} />}
         {view === 'schedule' && <Schedule data={data} reload={load} flash={flash} />}
+        {view === 'rooms' && <Rooms data={data} reload={load} flash={flash} />}
         {view === 'groups' && <Groups data={data} reload={load} flash={flash} onOpenGroup={(id) => { setAttGroup(id); go('attendance') }} />}
         {view === 'teachers' && <Teachers data={data} reload={load} flash={flash} />}
         {view === 'journal' && <Journal />}
