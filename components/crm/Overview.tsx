@@ -1,6 +1,7 @@
 'use client'
 
-import { MessageCircle } from 'lucide-react'
+import { useState } from 'react'
+import { Eye, EyeOff, MessageCircle } from 'lucide-react'
 import {
   BRAND,
   Badge,
@@ -33,6 +34,9 @@ export default function Overview({
   onAttendance: (groupId: string | null) => void
   go: (view: string) => void
 }) {
+  // Сандар әдепкіде жасырын — бөгде адамдар (ата-аналар) экранды көрмесін
+  const [hide, setHide] = useState(true)
+  const H = (v: string) => (hide ? '•••' : v)
   const { today, students, payments, attendance, schedule, groups, teachers } = data
   const active = students.filter((s) => (s.status ?? 'active') === 'active')
   const month = today.slice(0, 7)
@@ -87,16 +91,22 @@ export default function Overview({
 
   return (
     <div className="space-y-5">
+      <div className="flex justify-end">
+        <button onClick={() => setHide((h) => !h)} className="flex items-center gap-2 rounded-lg border bg-white px-3 py-1.5 text-xs font-semibold" style={{ borderColor: BRAND.line }}>
+          {hide ? <Eye size={15} /> : <EyeOff size={15} />}
+          {hide ? 'Сандарды көрсету' : 'Сандарды жасыру'}
+        </button>
+      </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Оқып жүрген оқушылар" value={`${active.length}`} sub={`${students.length - active.length} үзілісте не кеткен`} />
+        <Kpi label="Оқып жүрген оқушылар" value={H(`${active.length}`)} sub={`${H(`${students.length - active.length}`)} үзілісте не кеткен`} />
         <Kpi
           label={`${monthTitle(month)} түсімі`}
-          value={tg(thisRev)}
-          sub={<>өткен айда {tg(lastRev)}</>}
+          value={H(tg(thisRev))}
+          sub={<>өткен айда {H(tg(lastRev))}</>}
           tone={BRAND.blue}
         />
-        <Kpi label="Қарыз" value={tg(debt)} sub={`${overdue.length} оқушының төлемі кешікті`} tone={overdue.length ? BRAND.red : BRAND.text} />
-        <Kpi label="Қатысу, 30 күн" value={attRate !== null ? `${Math.round(attRate * 100)} %` : '—'} sub={attRate !== null ? `${att30.length} белгі` : 'Әзірге белгі жоқ'} />
+        <Kpi label="Қарыз" value={H(tg(debt))} sub={`${H(`${overdue.length}`)} оқушының төлемі кешікті`} tone={overdue.length ? BRAND.red : BRAND.text} />
+        <Kpi label="Қатысу, 30 күн" value={attRate !== null ? H(`${Math.round(attRate * 100)} %`) : '—'} sub={attRate !== null ? `${H(`${att30.length}`)} белгі` : 'Әзірге белгі жоқ'} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.25fr_1fr]">
@@ -116,7 +126,7 @@ export default function Overview({
                       <div className="truncate text-sm font-semibold">{s.full_name}</div>
                       <div className="text-xs" style={{ color: BRAND.muted }}>{gName(s.group_id)} · {p.sub}</div>
                     </button>
-                    <span className="text-sm font-semibold tabular-nums">{tg(s.payment_amount)}</span>
+                    <span className="text-sm font-semibold tabular-nums">{H(tg(s.payment_amount))}</span>
                     {wa && (
                       <a href={wa} target="_blank" rel="noopener noreferrer" aria-label={`${s.full_name}: WhatsApp`} className="rounded-lg border p-2" style={{ borderColor: BRAND.line, color: '#15803D' }}>
                         <MessageCircle size={16} />
@@ -194,8 +204,8 @@ export default function Overview({
             {rev.map((r) => (
               <div key={r.m} className="flex h-full flex-1 flex-col items-center gap-1.5">
                 <div className="flex w-full flex-1 flex-col items-center justify-end gap-1">
-                  <span className="text-[11px] font-semibold tabular-nums">{r.v ? `${Math.round(r.v / 1000)}к` : ''}</span>
-                  <div className="w-full max-w-[56px] rounded-t-md" style={{ height: `${Math.max(2, (r.v / revMax) * 85)}%`, background: r.m === month ? BRAND.blue : BRAND.ink }} />
+                  <span className="text-[11px] font-semibold tabular-nums">{r.v ? H(`${Math.round(r.v / 1000)}к`) : ''}</span>
+                  <div className="w-full max-w-[56px] rounded-t-md" style={{ height: hide ? '40%' : `${Math.max(2, (r.v / revMax) * 85)}%`, background: r.m === month ? BRAND.blue : BRAND.ink }} />
                 </div>
                 <span className="text-[11px]" style={{ color: BRAND.muted }}>{monthTitle(r.m).split(' ')[0].slice(0, 3)}</span>
               </div>

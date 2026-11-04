@@ -41,7 +41,6 @@ type View = 'jarvis' | 'import' | 'parents' | 'proctor' | 'tops' | 'overview' | 
 
 const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'jarvis', label: 'Beles Manager', icon: Sparkles },
-  { id: 'overview', label: 'Шолу', icon: LayoutDashboard },
   { id: 'leads', label: 'Өтінімдер', icon: Inbox },
   { id: 'students', label: 'Оқушылар', icon: Users },
   { id: 'parents', label: 'Ата-аналарға хабар', icon: MessageCircle },
@@ -56,12 +55,13 @@ const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'proctor', label: 'Тест бақылауы', icon: Eye },
   { id: 'journal', label: 'Әрекеттер', icon: ShieldCheck },
   { id: 'site', label: 'Жетістіктер', icon: Trophy },
+  { id: 'overview', label: 'Шолу', icon: LayoutDashboard },
 ]
 
 function Crm() {
   const sp = useSearchParams()
   const router = useRouter()
-  const view = (sp.get('view') as View) || 'overview'
+  const view = (sp.get('view') as View) || 'jarvis'
   const [data, setData] = useState<CrmData | null>(null)
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
@@ -85,7 +85,7 @@ function Crm() {
   if (!data) return <p className="p-10 text-center" style={{ color: BRAND.muted }}>Жүктелуде…</p>
   if (data.error) return <p className="p-10 text-center" style={{ color: BRAND.red }}>{data.error}</p>
 
-  const title = NAV.find((n) => n.id === view)?.label ?? 'Шолу'
+  const title = NAV.find((n) => n.id === view)?.label ?? 'Beles Manager'
   const openStudent = (id: string) => {
     if (view !== 'students') go('students')
     setOpenId(id)
@@ -99,7 +99,7 @@ function Crm() {
     <div className="min-h-screen md:grid md:grid-cols-[232px_1fr]" style={{ background: BRAND.paper, color: BRAND.text }}>
       <aside className="border-b bg-white md:sticky md:top-0 md:flex md:h-screen md:flex-col md:border-b-0 md:border-r" style={{ borderColor: BRAND.line }}>
         <div className="flex items-center justify-between px-5 py-4 md:block">
-          <a href="/admin" aria-label="Шолу"><img src="/beles-logo.png" alt="Beles education" className="h-9 w-auto" /></a>
+          <a href="/admin" aria-label="Басты бет"><img src="/beles-logo.png" alt="Beles education" className="h-9 w-auto" /></a>
           <div className="text-xs md:mt-3" style={{ color: BRAND.muted }}>Оқу орталығын басқару</div>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:block md:space-y-0.5" aria-label="Бөлімдер">
