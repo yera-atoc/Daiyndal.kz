@@ -244,6 +244,9 @@ function Admin() {
                 <a href={`/admin/bilim-test/report?group=${exam.group_id}&exam=${exam.id}`} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white" style={{ background: BRAND.blue }}>
                   Барлығының PDF есебі
                 </a>
+                <a href={`/admin/bilim-test/month?month=${exam.month}`} className="rounded-lg border px-3 py-1.5 text-sm font-semibold" style={{ borderColor: BRAND.blue, color: BRAND.blue }}>
+                  Айдың барлық топтары · PDF / Excel
+                </a>
                 <a href={`/admin/bilim-test/certificates?exam=${exam.id}`} className="rounded-lg border px-3 py-1.5 text-sm font-semibold" style={{ borderColor: BRAND.blue, color: BRAND.blue }}>
                   Мадақтамалар
                 </a>
