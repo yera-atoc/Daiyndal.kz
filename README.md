@@ -1,4 +1,4 @@
-# Beles
+# Beles 
 
 Платформа для подготовки к НИШ(НЗМ), БІЛ, РФМШ, ЕНТ(ҰБТ) (5–6 класс),
 несколько предметов. Next.js 14 (App Router) + TypeScript + Tailwind CSS +
@@ -90,7 +90,7 @@ git push -u origin main
 перейти на Supabase Auth (email/password или magic link для каждого
 администратора).
 
-## Дальнейшие шаги
+## Дальнейшие шаги 
 
 1. Связать `/tests` с реальными таблицами в Supabase вместо `lib/tests.ts`
 2. Страница `/tests/[id]` — прохождение теста с подсчётом результата
