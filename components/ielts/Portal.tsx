@@ -10,6 +10,9 @@ import { UbtPlanView, UbtTrend } from '@/components/ielts/UbtGrowth'
 import { SubjectCard } from '@/components/ielts/SubjectView'
 import type { MySubject } from '@/lib/subjectTests'
 import Questions, { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
+import AiTrainer from '@/components/ielts/AiTrainer'
+import AiFeedback, { TASK_NAMES } from '@/components/ielts/AiFeedback'
+import type { AiResult } from '@/lib/aiGrade'
 import { CEFR, SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, isCorrect, sectionItems, type Exam, type Scores, type Section } from '@/lib/ielts'
 
 // ── Әр емтиханның өз беті: /ubt, /ielts, /toefl ─────────────────────────────
@@ -46,6 +49,7 @@ export default function Portal({ exam }: { exam: Exam }) {
   const router = useRouter()
   const path = usePathname()
   const aid = useSearchParams().get('a')
+  const aiOpen = useSearchParams().get('ai') === '1' && exam !== 'ubt'
 
   const [me, setMe] = useState<Me | null | undefined>(undefined)
   const [view, setView] = useState<AttemptView | null>(null)
@@ -133,6 +137,14 @@ export default function Portal({ exam }: { exam: Exam }) {
     )
   }
 
+  if (aiOpen)
+    return (
+      <Shell exam={exam} me={me} onLogout={logout}>
+        <button onClick={() => router.push(path)} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold" style={{ color: BLUE }}>← Кабинет</button>
+        <AiTrainer exam={exam as 'ielts' | 'toefl'} accent={E.accent} />
+      </Shell>
+    )
+
   const tests = me.tests.filter((t) => (t.exam ?? 'ielts') === exam)
   const others = ORDER.filter((x) => x !== exam && me.tests.some((t) => (t.exam ?? 'ielts') === x))
   const done = tests.flatMap((t) => t.attempts.filter((a) => a.status !== 'in_progress'))
@@ -154,6 +166,17 @@ export default function Portal({ exam }: { exam: Exam }) {
       </section>
 
       {err && <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>}
+
+      {exam !== 'ubt' && (
+        <button onClick={() => router.push(`${path}?ai=1`)} className="mt-4 flex w-full items-center gap-4 rounded-3xl bg-white p-5 text-left ring-1 ring-[#E3E7F0] transition hover:ring-[#0B0F19]">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-xl text-white" style={{ background: E.accent === INK ? '#2B6BF3' : E.accent }}>AI</span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[16px] font-semibold">ИИ-тренажёр: Writing және Speaking</span>
+            <span className="block text-sm" style={{ color: MUTED }}>Эссе жаз немесе дауыспен жауап бер — {exam === 'ielts' ? 'band' : '1–6'} бағасы, қателер және кеңес 1 минутта</span>
+          </span>
+          <span className="text-xl" style={{ color: MUTED }}>→</span>
+        </button>
+      )}
 
       {exam === 'ubt' && (() => {
         // Менің өсуім: сынақтан сынаққа балл және келесі сынаққа жоспар
@@ -528,6 +551,8 @@ function Review({ v }: { v: AttemptView }) {
         </div>
       </div>
 
+      {(order.includes('writing') || order.includes('speaking')) && <AiAttempt v={v} />}
+
       {a.published && (a.feedback?.general || a.feedback?.writing || a.feedback?.speaking) && (
         <section className="mt-5 rounded-2xl border bg-white p-5" style={{ borderColor: LINE }}>
           <h2 className="font-bold">Мұғалімнің пікірі</h2>
@@ -600,6 +625,57 @@ function Review({ v }: { v: AttemptView }) {
       })}
       {!a.published && <p className="mt-6 rounded-2xl bg-white p-5 text-sm" style={{ color: MUTED }}>Дұрыс жауаптар мен толық талдау мұғалім нәтижені жариялағанда ашылады.</p>}
     </>
+  )
+}
+
+// Mock тапсырудың ИИ алдын ала бағасы (Writing/Speaking): аяқталған соң бір рет сұралып, сақталады
+function AiAttempt({ v }: { v: AttemptView }) {
+  const initial = ((v.attempt.scores ?? {}) as any).ai as { writing?: Record<string, AiResult>; speaking?: Record<string, AiResult>; error?: string } | undefined
+  const [ai, setAi] = useState(initial)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [open, setOpen] = useState<string | null>(null)
+  const run = useCallback(async () => {
+    setBusy(true)
+    setErr('')
+    try {
+      const r = await fetch('/api/ielts/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'attempt', id: v.attempt.id }) })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error)
+      setAi(j.ai)
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }, [v.attempt.id])
+  useEffect(() => {
+    if (!initial && v.attempt.status !== 'in_progress') run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const items = [...Object.entries(ai?.writing ?? {}), ...Object.entries(ai?.speaking ?? {})]
+  return (
+    <section className="mt-5 rounded-2xl border bg-white p-5" style={{ borderColor: LINE }}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-bold">ИИ алдын ала бағасы · Writing / Speaking</h2>
+        {!v.attempt.published && <span className="text-xs" style={{ color: MUTED }}>Ресми бағаны мұғалім қояды</span>}
+      </div>
+      {busy && <p className="mt-3 text-sm" style={{ color: MUTED }}>ИИ жауаптарыңды тексеріп жатыр… (30–60 секунд)</p>}
+      {err && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{err}</p>}
+      {!busy && ai && !items.length && <p className="mt-3 text-sm" style={{ color: MUTED }}>Бағалайтын жауап табылмады (Speaking мәтіні танылмаған болса — мұғалім жазбаны тыңдап бағалайды).</p>}
+      <div className="mt-3 space-y-2">
+        {items.map(([k, r]) => (
+          <div key={k} className="rounded-xl border" style={{ borderColor: LINE }}>
+            <button onClick={() => setOpen(open === k ? null : k)} className="flex w-full items-center gap-3 p-3 text-left">
+              <span className="grid h-10 w-12 shrink-0 place-items-center rounded-lg text-sm font-bold text-white" style={{ background: INK }}>{r.band.toFixed(1)}</span>
+              <span className="flex-1 text-sm font-semibold">{TASK_NAMES[r.task] ?? r.task}{r.kind === 'speaking' ? ` · ${k.replace(/^p(\d)q(\d+)$/, (_, p, q) => `${p}-бөлім, ${Number(q) + 1}-сұрақ`)}` : ''}</span>
+              <span style={{ color: MUTED }}>{open === k ? '▴' : '▾'}</span>
+            </button>
+            {open === k && <div className="border-t p-4" style={{ borderColor: LINE }}><AiFeedback r={r} /></div>}
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 

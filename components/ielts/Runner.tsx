@@ -1,5 +1,6 @@
 'use client'
 
+import { startSpeech, type SpeechCtl } from '@/lib/speechRec'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import {
@@ -501,6 +502,8 @@ function Recorder({ attemptId, stepKey, text, cue, audio, limit, prep, onSaved }
   const [err, setErr] = useState('')
   const rec = useRef<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
+  const speech = useRef<SpeechCtl | null>(null)
+  const startedAt = useRef(0)
 
   useEffect(() => {
     if (phase !== 'prep' && phase !== 'rec') return
@@ -524,6 +527,9 @@ function Recorder({ attemptId, stepKey, text, cue, audio, limit, prep, onSaved }
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop())
         setPhase('upload')
+        const seconds = Math.round((Date.now() - startedAt.current) / 1000)
+        const transcript = (await speech.current?.stop().catch(() => '')) ?? ''
+        speech.current = null
         try {
           const mime = mr.mimeType || 'audio/webm'
           const ext = mime.includes('mp4') ? 'mp4' : mime.includes('ogg') ? 'ogg' : 'webm'
@@ -531,7 +537,7 @@ function Recorder({ attemptId, stepKey, text, cue, audio, limit, prep, onSaved }
           const info = await call({ action: 'speaking-url', id: attemptId, key: stepKey, ext })
           const { error } = await supabase.storage.from(info.bucket ?? 'materials').uploadToSignedUrl(info.path, info.token, blob, { contentType: mime })
           if (error) throw new Error(error.message)
-          await call({ action: 'speaking-save', id: attemptId, key: stepKey, url: info.publicUrl })
+          await call({ action: 'speaking-save', id: attemptId, key: stepKey, url: info.publicUrl, transcript, seconds })
           onSaved(info.publicUrl)
         } catch (e: any) {
           setErr(`Жазба сақталмады: ${e.message}. Қайта жазып көріңіз.`)
@@ -540,6 +546,9 @@ function Recorder({ attemptId, stepKey, text, cue, audio, limit, prep, onSaved }
       }
       rec.current = mr
       mr.start()
+      startedAt.current = Date.now()
+      // ИИ-бағалауға мәтін: тек компьютерде (телефонда тану микрофонды жазбадан «тартып алуы» мүмкін — жазба маңыздырақ)
+      speech.current = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ? null : startSpeech()
       setCount(limit)
       setPhase('rec')
     } catch {

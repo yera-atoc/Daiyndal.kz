@@ -30,7 +30,7 @@ async function anthropic(o: Opts): Promise<string> {
     messages: o.messages,
   }
   const call = (b: Record<string, unknown>) =>
-    fetch('https://api.anthropic.com/v1/messages', {
+    fetch(`${process.env.ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com'}/v1/messages`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify(b),

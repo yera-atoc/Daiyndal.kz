@@ -6,6 +6,8 @@ import { UbtResult } from '@/components/ielts/Runner'
 import { UBT_COMBOS, comboName } from '@/lib/ubt'
 import { ubtExcel, ubtPrint, type UbtRow } from '@/components/ielts/ubtExport'
 import { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
+import AiFeedback, { TASK_NAMES } from '@/components/ielts/AiFeedback'
+import type { AiResult } from '@/lib/aiGrade'
 import { SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, speakingBand, writingBand, overallBand, toeflOverall, toeflSpeakingBand, toeflWritingBand, wordCount, type Attempt, type Exam, type IeltsTest, type Scores } from '@/lib/ielts'
 import { fileSrc } from '@/lib/fileUrl'
 
@@ -424,6 +426,8 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
   const [fb, setFb] = useState({ writing: '', speaking: '', general: '' })
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const [ai, setAi] = useState<{ writing?: Record<string, AiResult>; speaking?: Record<string, AiResult>; error?: string } | null>(null)
+  const [aiBusy, setAiBusy] = useState(false)
 
   useEffect(() => {
     fetch(`/api/ielts/teacher?attempt=${id}`, { cache: 'no-store' }).then(async (r) => {
@@ -437,6 +441,7 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
       const sc = j.attempt.scores ?? {}
       setTv(s({ email: sc.writing?.email, discussion: sc.writing?.discussion, repeat: sc.speaking?.repeat, interview: sc.speaking?.interview }))
       setFb({ writing: '', speaking: '', general: '', ...j.attempt.feedback })
+      setAi(j.attempt.scores?.ai ?? null)
     })
   }, [id])
 
@@ -507,6 +512,73 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
     }
   }
 
+  const runAi = async (force: boolean) => {
+    setAiBusy(true)
+    setMsg('')
+    try {
+      const r = await fetch('/api/ielts/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'attempt', id: a.id, force }) })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error)
+      setAi(j.ai)
+    } catch (e: any) {
+      setMsg(e.message)
+    } finally {
+      setAiBusy(false)
+    }
+  }
+  const str = (n: number | undefined) => (typeof n === 'number' ? String(n) : '')
+  // ИИ бағасын таңдау өрістеріне қою (мұғалім кейін өзгерте алады)
+  const applyAi = (what: 'writing' | 'speaking') => {
+    if (!ai) return
+    if (what === 'writing') {
+      const t1 = ai.writing?.task1, t2 = ai.writing?.task2
+      if (toefl) setTv((v) => ({ ...v, ...(t1 ? { email: str(t1.band) } : {}), ...(t2 ? { discussion: str(t2.band) } : {}) }))
+      else {
+        if (t1) setW1(Object.fromEntries(Object.entries(t1.scores).map(([k, v]) => [k, str(v)])))
+        if (t2) setW2(Object.fromEntries(Object.entries(t2.scores).map(([k, v]) => [k, str(v)])))
+      }
+      const fbText = [t1, t2].filter(Boolean).map((r) => `${TASK_NAMES[r!.task]}: ${r!.summary}${r!.improve.length ? '\n– ' + r!.improve.join('\n– ') : ''}`).join('\n\n')
+      if (fbText && !fb.writing) setFb((f) => ({ ...f, writing: fbText }))
+    } else {
+      const list = Object.values(ai.speaking ?? {})
+      if (!list.length) return
+      const avgOf = (rs: AiResult[], k: string) => {
+        const v = rs.map((r) => r.scores[k]).filter((x): x is number => typeof x === 'number')
+        return v.length ? Math.round((v.reduce((x, y) => x + y, 0) / v.length) * 2) / 2 : undefined
+      }
+      if (toefl) {
+        const rep = list.filter((r) => r.task === 'repeat'), int = list.filter((r) => r.task === 'interview')
+        setTv((v) => ({ ...v, ...(rep.length ? { repeat: str(avgOf(rep, 'score')) } : {}), ...(int.length ? { interview: str(avgOf(int, 'score')) } : {}) }))
+      } else setSp(Object.fromEntries(['fc', 'lr', 'gra', 'p'].map((k) => [k, str(avgOf(list, k))])))
+      const tips = Array.from(new Set(list.flatMap((r) => r.improve))).slice(0, 5)
+      if (tips.length && !fb.speaking) setFb((f) => ({ ...f, speaking: '– ' + tips.join('\n– ') }))
+    }
+    setMsg('ИИ бағасы қойылды ✓ Тексеріп, «Сақтау» басыңыз')
+  }
+  const aiPanel = (what: 'writing' | 'speaking') => {
+    const list = Object.entries((what === 'writing' ? ai?.writing : ai?.speaking) ?? {})
+    return (
+      <div className="mt-3 rounded-xl border border-dashed p-3" style={{ borderColor: '#93C5FD', background: '#F8FBFF' }}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold">ИИ алдын ала бағасы</span>
+          {list.length > 0 && <span className="text-sm" style={{ color: MUTED }}>{list.map(([k, r]) => `${what === 'writing' ? TASK_NAMES[r.task] : k.replace(/^p(\d)q(\d+)$/, (_, p, q) => `${p}.${Number(q) + 1}`)}: ${r.band}`).join(' · ')}</span>}
+          <span className="ml-auto flex gap-2">
+            {list.length > 0 && <button onClick={() => applyAi(what)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white" style={{ background: BLUE }}>ИИ бағасын қою</button>}
+            <button disabled={aiBusy} onClick={() => runAi(!!ai)} className="rounded-lg border bg-white px-3 py-1.5 text-xs font-semibold" style={{ borderColor: LINE }}>{aiBusy ? 'Тексеруде…' : ai ? 'Қайта бағалау' : 'ИИ-мен бағалау'}</button>
+          </span>
+        </div>
+        {ai?.error && <p className="mt-1 text-xs text-amber-700">{ai.error}</p>}
+        {list.length > 0 && (
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs" style={{ color: BLUE }}>Толық пікір</summary>
+            <div className="mt-3 space-y-5">{list.map(([k, r]) => <AiFeedback key={k} r={r} />)}</div>
+          </details>
+        )}
+        {ai && !list.length && <p className="mt-1 text-xs" style={{ color: MUTED }}>{what === 'speaking' ? 'Мәтін танылмаған жазбалар бағаланбады (телефоннан тапсырса, GEMINI_API_KEY болғанда мәтінге айналдырылады).' : 'Бағалайтын мәтін жоқ.'}</p>}
+      </div>
+    )
+  }
+
   const speakingKeys = (c.speaking?.parts ?? []).flatMap((p, pi) =>
     !toefl && pi === 1 ? [{ key: 'p2q0', q: p.cueCard || p.questions[0] || 'Cue card', part: p.title }] : p.questions.map((q, qi) => ({ key: `p${pi + 1}q${qi}`, q, part: p.title }))
   )
@@ -568,6 +640,7 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             )
           })}
+          {aiPanel('writing')}
           <textarea value={fb.writing} onChange={(e) => setFb({ ...fb, writing: e.target.value })} rows={3} placeholder="Writing бойынша пікір: не жақсы, нені түзету керек" className={inp + ' mt-4'} />
         </section>
       )}
@@ -582,6 +655,7 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
                   <div className="text-xs" style={{ color: MUTED }}>{s.part}</div>
                   <div className="whitespace-pre-wrap text-sm font-medium">{s.q}</div>
                   {a.speaking?.[s.key] ? <audio src={fileSrc(a.speaking[s.key])} controls preload="none" className="mt-2 w-full" /> : <div className="mt-1 text-xs text-amber-700">Жазба жоқ</div>}
+                  {a.speaking?.[`${s.key}t`] && <p className="mt-1.5 rounded bg-slate-50 p-2 text-xs italic" style={{ color: MUTED }}>«{a.speaking[`${s.key}t`]}»</p>}
                 </div>
               ))}
             </div>
@@ -591,6 +665,7 @@ function Grade({ id, onBack }: { id: string; onBack: () => void }) {
               <BandInputs rows={SPEAKING_CRITERIA} vals={sp} set={setSp} />
             )}
           </div>
+          {aiPanel('speaking')}
           <textarea value={fb.speaking} onChange={(e) => setFb({ ...fb, speaking: e.target.value })} rows={3} placeholder="Speaking бойынша пікір" className={inp + ' mt-4'} />
         </section>
       )}

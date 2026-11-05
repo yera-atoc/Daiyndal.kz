@@ -33,7 +33,8 @@ function view(a: Attempt, t: Awaited<ReturnType<typeof getTest>>) {
       speaking: a.speaking,
       published: a.published,
       // ҰБТ балы бірден көрінеді (бәрі автоматты); дұрыс жауаптар — мұғалім жариялағанда
-      scores: a.published || ubt ? a.scores : { listening: a.scores?.listening, reading: a.scores?.reading },
+      // ИИ алдын ала бағасы (scores.ai) — жарияланбаса да оқушыға көрінеді
+      scores: a.published || ubt ? a.scores : { listening: a.scores?.listening, reading: a.scores?.reading, ...((a.scores as any)?.ai ? { ai: (a.scores as any).ai } : {}) },
       feedback: a.published ? a.feedback : {},
     },
     test: { id: t!.id, title: t!.title, exam: t!.exam ?? 'ielts', variant: t!.variant, mode: t!.mode, content: ubt ? { ubt: ubtForStudent(ubt, a.state.combo, review) } : review ? t!.content : stripAnswers(t!.content) },
@@ -144,7 +145,13 @@ export async function POST(req: NextRequest) {
       const key = String(b.key ?? '').replace(/[^a-z0-9]/gi, '').slice(0, 10)
       const u = String(b.url ?? '')
       if (!u.includes(`/ielts/speaking/${a.id}/`)) return bad('Жазба дұрыс емес')
-      const { error } = await sb.from('ielts_attempts').update({ speaking: { ...a.speaking, [key]: u } }).eq('id', a.id)
+      // Браузер танған мәтін (ИИ-бағалау үшін) және сөйлеу ұзақтығы
+      const extra: Record<string, string> = {}
+      const tr = String(b.transcript ?? '').trim().slice(0, 6000)
+      if (tr) extra[`${key}t`] = tr
+      const secs = Math.round(Number(b.seconds) || 0)
+      if (secs > 0) extra[`${key}s`] = String(Math.min(600, secs))
+      const { error } = await sb.from('ielts_attempts').update({ speaking: { ...a.speaking, [key]: u, ...extra } }).eq('id', a.id)
       if (error) return bad(error.message, 500)
       return NextResponse.json({ ok: true })
     }
