@@ -11,7 +11,7 @@ type Lesson = { classId: string; name: string; teacher: string; teacherId: strin
 type Debt = { id: string; name: string; group: string | null; phone: string | null; amount: number | null; deadline: string | null; days: number }
 type Watch = { id: string; name: string; phone: string | null; absStreak: number; hwStreak: number; att: number | null; hw: number | null }
 type Pay = { id: string; name: string; amount: number | null; date: string; note: string | null; byTeacher: boolean }
-type Data = { today: string; lessons: Lesson[]; debts: Debt[]; soon: number; watch: Watch[]; payments: Pay[]; paidToday: number; leads: number }
+type Data = { today: string; lessons: Lesson[]; debts: Debt[]; soon: number; watch: Watch[]; payments: Pay[]; paidToday: number; leads: number; schedule?: { missingToday: number; create: number; update: number } }
 
 const wa = (phone: string | null, text: string) => {
   const p = waPhone(phone)
@@ -25,6 +25,24 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
   const [pay, setPay] = useState<Debt | null>(null)
   const [lessonsOpen, setLessonsOpen] = useState(false)
   const [toast, setToast] = useState('')
+  const [syncing, setSyncing] = useState(false)
+  const [oldOpen, setOldOpen] = useState(false)
+  const flash = (m: string) => {
+    setToast(m)
+    setTimeout(() => setToast(''), 3500)
+  }
+  const sync = async () => {
+    setSyncing(true)
+    try {
+      const r = await lessonPost('/api/admin/today', { action: 'syncSchedule' })
+      flash(`Журналға қосылды: ${r.create} жаңа топ${r.update ? `, ${r.update} топқа күн` : ''}${r.students ? `, ${r.students} оқушы` : ''}`)
+      load()
+    } catch (e: any) {
+      flash(e.message)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const load = useCallback(async () => {
     setErr('')
@@ -48,7 +66,22 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
 
   const notDone = d.lessons.filter((l) => !l.done)
   const teacherPays = d.payments.filter((p) => p.byTeacher)
-  const allGood = !notDone.length && !d.debts.length && !d.watch.length && !d.leads
+  const sch = d.schedule
+  const needSync = !!sch && (sch.create > 0 || sch.update > 0)
+  const allGood = !notDone.length && !d.debts.length && !d.watch.length && !d.leads && !needSync
+  // Қарыздар: жуырда өткендер — бірінші (әрекет керек), ұзақ қарыздар — жиналып тұрады
+  const week = d.debts.filter((x) => x.days >= -7)
+  const month = d.debts.filter((x) => x.days < -7 && x.days >= -31)
+  const old = d.debts.filter((x) => x.days < -31)
+  const debtRow = (s: Debt) => {
+    const link = wa(s.phone, parentText('pay', s.name, { amount: s.amount, days: s.days }))
+    return (
+      <Row key={s.id} title={s.name} sub={[s.group, s.amount ? tg(s.amount) : null, s.days === 0 ? 'бүгін' : `${Math.abs(s.days)} күн кешікті`, s.deadline ? `(${dmy(s.deadline)})` : null].filter(Boolean).join(' · ')} bad={s.days < -31}>
+        {link && <A href={link} light>Еске салу</A>}
+        <button onClick={() => setPay(s)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-white" style={{ background: '#15803D' }}>Төледі</button>
+      </Row>
+    )
+  }
 
   return (
     <div className="space-y-5">
@@ -61,6 +94,19 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
       </div>
 
       {allGood && <div className="rounded-2xl bg-emerald-50 p-5 text-center text-sm font-semibold text-emerald-800">Бәрі тәртіпте — бүгін назар аударатын ештеңе жоқ ✓</div>}
+
+      {needSync && (
+        <section className="rounded-2xl border p-4" style={{ borderColor: '#BFDBFE', background: '#EFF6FF' }}>
+          <h2 className="text-[15px] font-semibold">Кестедегі сабақтар журналда жоқ</h2>
+          <p className="mt-1 text-sm" style={{ color: BRAND.muted }}>
+            {sch!.missingToday > 0 ? `Бүгін ${sch!.missingToday} сабақ мұғалімнің «Бүгін» бетіне шықпай тұр. ` : ''}
+            Кестеден {sch!.create > 0 ? `${sch!.create} топ құрылады` : ''}{sch!.create > 0 && sch!.update > 0 ? ', ' : ''}{sch!.update > 0 ? `${sch!.update} топқа сабақ күні қосылады` : ''} — оқушылары CRM тобынан өзі қосылады.
+          </p>
+          <button onClick={sync} disabled={syncing} className="mt-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: BRAND.blue }}>
+            {syncing ? 'Қосылуда…' : 'Кестеден журналға қосу'}
+          </button>
+        </section>
+      )}
 
       {notDone.length > 0 && (
         <Block title="Журнал толтырылмаған сабақтар" note="Мұғалімге WhatsApp арқылы бір басумен еске салыңыз">
@@ -76,17 +122,21 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
       )}
 
       {d.debts.length > 0 && (
-        <Block title={`Төлемі өткен оқушылар · ${d.debts.length}`} note="«Төледі» — бір басу; «Еске салу» — ата-анаға дайын хабарлама">
-          {d.debts.slice(0, 30).map((s) => {
-            const link = wa(s.phone, parentText('pay', s.name, { amount: s.amount, days: s.days }))
-            return (
-              <Row key={s.id} title={s.name} sub={[s.group, s.amount ? tg(s.amount) : null, s.days === 0 ? 'бүгін' : `${Math.abs(s.days)} күн кешікті`].filter(Boolean).join(' · ')} bad={s.days <= -7}>
-                {link && <A href={link} light>Еске салу</A>}
-                <button onClick={() => setPay(s)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-white" style={{ background: '#15803D' }}>Төледі</button>
-              </Row>
-            )
-          })}
-          {d.debts.length > 30 && <button onClick={() => go('payments')} className="w-full py-2 text-sm font-semibold" style={{ color: BRAND.blue }}>Барлығы ({d.debts.length}) →</button>}
+        <Block title={`Төлемі өткен оқушылар · ${d.debts.length}`} note="Жуырда өткендері жоғарыда. «Төледі» — бір басу; «Еске салу» — ата-анаға дайын хабарлама">
+          {week.length > 0 && <Sub label={`Осы аптада · ${week.length}`} />}
+          {week.map(debtRow)}
+          {month.length > 0 && <Sub label={`1–4 апта бұрын · ${month.length}`} />}
+          {month.map(debtRow)}
+          {old.length > 0 && (
+            <>
+              <button onClick={() => setOldOpen(!oldOpen)} className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm font-semibold" style={{ background: '#FEF2F2', color: '#B91C1C' }}>
+                <span>1 айдан көп · {old.length}</span>
+                <span>{oldOpen ? 'Жасыру ▴' : 'Көрсету ▾'}</span>
+              </button>
+              {oldOpen && old.map(debtRow)}
+              {!oldOpen && <p className="px-4 py-2 text-xs" style={{ color: BRAND.muted }}>Ескі төлем күні жаңартылмаған болуы мүмкін — «Төлемдер» бетінде тексеріңіз.</p>}
+            </>
+          )}
         </Block>
       )}
 
@@ -118,8 +168,7 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
           onClose={() => setPay(null)}
           onDone={(m) => {
             setPay(null)
-            setToast(m)
-            setTimeout(() => setToast(''), 3000)
+            flash(m)
             load()
           }}
         />
@@ -127,6 +176,10 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
       {toast && <div className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-lg" style={{ background: BRAND.ink }}>{toast}</div>}
     </div>
   )
+}
+
+function Sub({ label }: { label: string }) {
+  return <div className="px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ background: BRAND.paper, color: BRAND.muted }}>{label}</div>
 }
 
 function Tile({ label, value, hint, tone, onClick }: { label: string; value: string; hint: string; tone: 'ok' | 'warn' | 'bad'; onClick: () => void }) {

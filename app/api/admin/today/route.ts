@@ -5,6 +5,8 @@ import { db, journalWho } from '@/lib/journalServer'
 import { recordPaymentFor, todayItems } from '@/lib/lessonServer'
 import { progressOf, type HwMark } from '@/lib/lesson'
 import { paymentStatus } from '@/lib/payments'
+import { planScheduleSync } from '@/lib/scheduleSync'
+import { weekdayOf } from '@/lib/journal'
 import { logServerError } from '@/lib/serverLog'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +14,41 @@ export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status })
+
+/** Кесте мен журнал топтарын салыстыру (sync = true болса — жетіспейтінін жазады) */
+async function scheduleSync(sync: boolean) {
+  const sb = await db()
+  const [slots, classes, groups] = await Promise.all([
+    sb.from('schedule_slots').select('teacher_id, group_id, day_of_week, title'),
+    sb.from('teacher_classes').select('id, teacher_id, name, group_id, days, active'),
+    sb.from('student_groups').select('id, name'),
+  ])
+  if (slots.error || classes.error) return { missingToday: 0, create: 0, update: 0 }
+  const plan = planScheduleSync(slots.data ?? [], (classes.data ?? []).map((c: any) => ({ ...c, days: c.days ?? [], active: c.active !== false })), groups.data ?? [], weekdayOf(todayAlmaty()))
+  if (!sync) return { missingToday: plan.missingToday, create: plan.create.length, update: plan.addDays.length }
+  for (const u of plan.addDays) await sb.from('teacher_classes').update({ days: u.days, active: true }).eq('id', u.id)
+  let students = 0
+  if (plan.create.length) {
+    const { data: teachers } = await sb.from('teachers').select('id, subject')
+    const subj = new Map((teachers ?? []).map((t: any) => [t.id, t.subject ?? null]))
+    const { data: made, error } = await sb
+      .from('teacher_classes')
+      .insert(plan.create.map((c) => ({ teacher_id: c.teacher_id, name: c.name, subject: subj.get(c.teacher_id) ?? null, group_id: c.group_id, days: c.days, active: true })))
+      .select('id, group_id')
+    if (error) throw new Error(error.message)
+    const gids = Array.from(new Set((made ?? []).map((m: any) => m.group_id).filter(Boolean)))
+    if (gids.length) {
+      const { data: st } = await sb.from('students').select('id, group_id').in('group_id', gids).neq('status', 'left')
+      const rows = (made ?? []).flatMap((m: any) => (st ?? []).filter((x: any) => m.group_id && x.group_id === m.group_id).map((x: any) => ({ class_id: m.id, student_id: x.id })))
+      if (rows.length) {
+        const { error: e2 } = await sb.from('teacher_class_students').upsert(rows)
+        if (e2) throw new Error(e2.message)
+      }
+      students = rows.length
+    }
+  }
+  return { missingToday: 0, create: plan.create.length, update: plan.addDays.length, students }
+}
 
 // GET — әкімшінің «Бүгін» беті: тек әрекет керек нәрселер
 export async function GET() {
@@ -21,7 +58,7 @@ export async function GET() {
     const sb = await db()
     const today = todayAlmaty()
     const from = addDays(today, -28)
-    const [lessons, teachers, studs, groups, pays, att, hw, leads] = await Promise.all([
+    const [lessons, teachers, studs, groups, pays, att, hw, leads, sched] = await Promise.all([
       todayItems(who, today),
       sb.from('teachers').select('id, name, phone').then((r) => (r.error ? sb.from('teachers').select('id, name') : r)),
       sb.from('students').select('id, full_name, phone, parent_phone, status, payment_deadline, payment_amount, group_id').neq('status', 'left'),
@@ -30,6 +67,7 @@ export async function GET() {
       sb.from('class_attendance').select('student_id, class_id, date, status').gte('date', from),
       sb.from('class_homework').select('student_id, date, mark').gte('date', from),
       sb.from('site_leads').select('id', { count: 'exact', head: true }).eq('status', 'new'),
+      scheduleSync(false),
     ])
     const tPhone = new Map((teachers.data ?? []).map((t: any) => [t.id, t.phone ?? null]))
     const gName = new Map((groups.data ?? []).map((g: any) => [g.id, g.name]))
@@ -82,6 +120,7 @@ export async function GET() {
         payments: recent.slice(0, 40),
         paidToday: recent.filter((p) => p.date === today).reduce((a, p) => a + (p.amount ?? 0), 0),
         leads: leads.count ?? 0,
+        schedule: sched,
       },
       { headers: { 'Cache-Control': 'no-store' } }
     )
@@ -92,11 +131,13 @@ export async function GET() {
 }
 
 // POST { action:'pay', studentId, amount, method } — әкімші төлемді бір басумен жазады
+//      { action:'syncSchedule' } — кестедегі сабақтарды журнал топтарына қосу (жоғын құру, күнін толтыру)
 export async function POST(req: NextRequest) {
   const admin = await currentAdmin()
   if (!admin) return bad('Рұқсат жоқ', 401)
   try {
     const b = await req.json().catch(() => null)
+    if (b?.action === 'syncSchedule') return NextResponse.json({ ok: true, ...(await scheduleSync(true)) })
     if (b?.action !== 'pay') return bad('Белгісіз әрекет')
     return NextResponse.json(await recordPaymentFor(String(b.studentId ?? ''), admin.actor, 'әкімші', b))
   } catch (e: any) {
