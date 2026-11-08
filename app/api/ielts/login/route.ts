@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, setStudent } from '@/lib/ieltsServer'
+import { setStudentSession } from '@/lib/bilimTestAuth'
 import { clientIp, lockedMessage, throttleCheck, throttleFail } from '@/lib/security'
 
 // PIN тексеру: 5 рет қате енгізсе — 10 минутқа бұғатталады
@@ -26,6 +27,9 @@ export async function POST(req: NextRequest) {
     }
     await sb.from('students').update({ ielts_pin_fails: 0, ielts_locked_until: null }).eq('id', id)
     await setStudent(id)
+    // Бір PIN — барлық кабинет: Білім тексеру сессиясы да ашылады (оқушы байланған болса)
+    const { data: link } = await sb.from('students').select('bt_student_id').eq('id', id).maybeSingle()
+    if ((link as any)?.bt_student_id) await setStudentSession((link as any).bt_student_id)
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })

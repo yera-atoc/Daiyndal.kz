@@ -2,6 +2,7 @@
 import { addDays, isLessonDay, todayAlmaty, weekdayOf, type AttStatus, type JClass } from './journal'
 import { db, listClasses, syncCrmAttendance, type Who } from './journalServer'
 import { nextDeadlineAfter, paymentStatus } from './payments'
+import { signRefs } from './privateFiles'
 import { nextPlanItem, progressOf, type HwMark, type LessonView, type PlanItem, type QuizQ, type TodayItem } from './lesson'
 
 const hm = (t: string | null | undefined) => (t ? t.slice(0, 5) : null)
@@ -86,6 +87,16 @@ export async function lessonView(c: JClass, date: string, teacherName: string): 
     sb.from('schedule_slots').select('teacher_id, group_id, day_of_week, start_time, end_time, title').eq('day_of_week', weekdayOf(date)),
   ])
   for (const r of [att, hw, used, quizzes]) if (r.error) throw new Error(r.error.message)
+  // Өткен сабақтың үй тапсырмасына оқушылар жіберген дәптер суреттері
+  const hwFiles: Record<string, string[]> = {}
+  if (prev.data?.date) {
+    const { data: fl } = await sb.from('class_homework_files').select('student_id, ref').eq('class_id', c.id).eq('lesson_date', prev.data.date).order('created_at')
+    const urls = await signRefs((fl ?? []).map((f) => f.ref), 3 * 3600)
+    ;(fl ?? []).forEach((f, i) => {
+      if (!urls[i]) return
+      ;(hwFiles[f.student_id] ??= []).push(urls[i])
+    })
+  }
   const qIds = (quizzes.data ?? []).map((q) => q.id)
   const { data: qa } = qIds.length ? await sb.from('class_quiz_answers').select('quiz_id, student_id, score, total').in('quiz_id', qIds) : { data: [] as any[] }
   const usedIds = (used.data ?? []).filter((u) => u.date !== date).map((u) => u.plan_id)
@@ -128,6 +139,7 @@ export async function lessonView(c: JClass, date: string, teacherName: string): 
         }
       : null,
     canPay: true,
+    hwFiles,
   }
 }
 

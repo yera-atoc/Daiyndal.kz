@@ -3,6 +3,8 @@ import { checkPin, listGroups, listStudents } from '@/lib/bilimTestStore'
 import { setStudentSession } from '@/lib/bilimTestAuth'
 import { clientIp, lockedMessage, throttleCheck, throttleFail } from '@/lib/security'
 import { loginCandidates } from '@/lib/loginMatch'
+import { setStudent } from '@/lib/ieltsServer'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 // Кіру: логин (өз аты-жөні, әкімшіде көрсетілгендей) + мұғалім берген 4 таңбалы PIN.
 // Тізім браузерге жіберілмейді — басқа оқушылар мен топтар көрінбейді.
@@ -25,6 +27,9 @@ export async function POST(req: NextRequest) {
       const res = await checkPin(s.id, pin)
       if (res === 'ok') {
         await setStudentSession(s.id)
+        // Бір PIN — барлық кабинет: CRM оқушысымен байланған болса, жалпы кабинет те ашылады
+        const { data: crm } = await supabaseAdmin.from('students').select('id').eq('bt_student_id', s.id).limit(1).maybeSingle()
+        if (crm?.id) await setStudent(crm.id)
         return NextResponse.json({ ok: true })
       }
       if (res === 'locked') locked = true

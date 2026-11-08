@@ -30,6 +30,15 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams
     const d = sp.get('date') ?? ''
     const date = ISO.test(d) ? d : todayAlmaty()
+    // Мұғалімге өз тобының PIN-дері (сыныптағы планшетпен кіру үшін)
+    const pinsFor = sp.get('pins')
+    if (pinsFor) {
+      const c = await getClass(pinsFor)
+      if (!c || !canSee(who, c)) return bad('Топ табылмады', 404)
+      const { data } = await (await db()).from('teacher_class_students').select('students(id, full_name, ielts_pin, status)').eq('class_id', c.id)
+      const list = (data ?? []).map((m: any) => m.students).filter((s: any) => s && s.status !== 'left').map((s: any) => ({ id: s.id, name: String(s.full_name).replace(/[)\s]+$/, ''), pin: s.ielts_pin ?? null }))
+      return NextResponse.json({ students: list.sort((a: any, b: any) => a.name.localeCompare(b.name, 'kk')) })
+    }
     const quizId = sp.get('quiz')
     if (quizId) {
       const { data: q } = await (await db()).from('class_quizzes').select('id, class_id, date, topic, questions, open').eq('id', quizId).maybeSingle()

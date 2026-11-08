@@ -22,6 +22,8 @@ export default function LessonScreen({ classId, date, onBack, onPlan }: { classI
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ text: string; tone?: 'ok' | 'err' }>({ text: '' })
   const [pay, setPay] = useState<LessonStudent | null>(null)
+  const [photos, setPhotos] = useState<{ name: string; urls: string[] } | null>(null)
+  const [pins, setPins] = useState<{ name: string; pin: string | null }[] | null>(null)
   const [quizBusy, setQuizBusy] = useState(false)
   const [defaulted, setDefaulted] = useState(false)
 
@@ -161,7 +163,21 @@ export default function LessonScreen({ classId, date, onBack, onPlan }: { classI
       <section className="mt-4 rounded-2xl border bg-white" style={{ borderColor: LINE }}>
         <div className="border-b p-4" style={{ borderColor: LINE }}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-[15px] font-semibold">2. Оқушылар</h2>
+            <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+              2. Оқушылар
+              <button
+                onClick={async () => {
+                  const r = await fetch(`/api/lesson?pins=${classId}`, { cache: 'no-store' })
+                  const j = await r.json().catch(() => ({}))
+                  if (r.ok) setPins(j.students)
+                  else flash(j.error || 'Жүктелмеді', 'err')
+                }}
+                className="rounded-lg px-2 py-0.5 text-xs font-semibold"
+                style={{ background: SOFT, color: BLUE }}
+              >
+                PIN-дер
+              </button>
+            </h2>
             <div className="flex gap-1.5 text-xs font-semibold">
               <span className="rounded-full px-2 py-0.5" style={{ background: STATUS.present.bg, color: STATUS.present.fg }}>Келді {counts.present + counts.late}</span>
               {counts.absent > 0 && <span className="rounded-full px-2 py-0.5" style={{ background: STATUS.absent.bg, color: STATUS.absent.fg }}>Келмеді {counts.absent}</span>}
@@ -203,6 +219,11 @@ export default function LessonScreen({ classId, date, onBack, onPlan }: { classI
                     </button>
                   )}
                   {q && <span className="rounded-lg px-2 py-1 text-xs font-bold tabular-nums" style={{ background: SOFT }}>{q.score}/{q.total}</span>}
+                  {(v.hwFiles?.[s.id]?.length ?? 0) > 0 && (
+                    <button onClick={() => setPhotos({ name: s.full_name, urls: v.hwFiles[s.id] })} className="h-9 rounded-xl px-2.5 text-xs font-bold" style={{ background: '#E0E7FF', color: '#4338CA' }} title="Үй тапсырмасының суреті">
+                      📷 {v.hwFiles[s.id].length}
+                    </button>
+                  )}
                   {v.prev?.homework && (
                     <div className="flex overflow-hidden rounded-xl border" style={{ borderColor: LINE }}>
                       {(['done', 'partial', 'none'] as HwMark[]).map((m) => {
@@ -275,6 +296,29 @@ export default function LessonScreen({ classId, date, onBack, onPlan }: { classI
         </div>
       </div>
 
+      {photos && (
+        <Sheet title={`Үй тапсырмасы · ${photos.name}`} onClose={() => setPhotos(null)}>
+          <div className="grid gap-3">
+            {photos.urls.map((u, i) => (
+              <a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="Дәптер суреті" className="w-full rounded-2xl border" style={{ borderColor: LINE }} /></a>
+            ))}
+          </div>
+          <p className="mt-3 text-center text-xs" style={{ color: MUTED }}>Тексеріп болған соң ✓ / ½ / ✕ белгісін қойыңыз.</p>
+        </Sheet>
+      )}
+      {pins && (
+        <Sheet title="Оқушылардың PIN-дері" onClose={() => setPins(null)}>
+          <p className="text-sm" style={{ color: MUTED }}>Планшетте: «Менің кабинетім» → топ → аты → PIN. PIN жоқ болса — әкімші «Кабинетке кіру карточкалары» бетінде жасайды.</p>
+          <ul className="mt-3 divide-y rounded-2xl border" style={{ borderColor: LINE }}>
+            {pins.map((p, i) => (
+              <li key={i} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                <span>{p.name}</span>
+                <b className="font-mono tracking-widest">{p.pin ?? '—'}</b>
+              </li>
+            ))}
+          </ul>
+        </Sheet>
+      )}
       {pay && <PaySheet s={pay} classId={classId} date={date} onClose={() => setPay(null)} onDone={(m) => { setPay(null); flash(m); load() }} />}
       <Toast text={toast.text} tone={toast.tone} />
     </div>

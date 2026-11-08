@@ -21,6 +21,8 @@ export type LessonView = {
   next: PlanItem | null
   quiz: { id: string; topic: string; open: boolean; total: number; results: { student_id: string; score: number; total: number }[] } | null
   canPay: boolean
+  /** Өткен үй тапсырмасының суреттері: оқушы id → уақытша сілтемелер */
+  hwFiles: Record<string, string[]>
 }
 
 export type TodayItem = {

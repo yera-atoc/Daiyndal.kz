@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BookOpen, ClipboardCheck, Globe2, GraduationCap, Headphones, ShieldCheck, type LucideIcon } from 'lucide-react'
+import { BookOpen, ClipboardCheck, Globe2, GraduationCap, Headphones, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react'
 import AuthShell from '@/components/site/AuthShell'
 import InstallApp from '@/components/pwa/InstallApp'
 
@@ -8,6 +8,7 @@ export const metadata = { title: 'Кабинетке кіру — Beles educatio
 type Item = { href: string; title: string; text: string; icon: LucideIcon; tint: string }
 
 const STUDENTS: Item[] = [
+  { href: '/me', title: 'Менің кабинетім', text: 'Бүгінгі сабақ, үй тапсырмасы, тесттер — бір PIN-мен', icon: UserRound, tint: '#0F9D6B' },
   { href: '/bilim-test', title: 'Білім тексеру', text: 'Ай сайынғы сынақ және ата-анаға PDF есеп', icon: ClipboardCheck, tint: '#2B6BF3' },
   { href: '/ubt', title: 'ҰБТ сынағы', text: '140 балдық сынақ, нәтиже бірден шығады', icon: GraduationCap, tint: '#5B4CF0' },
   { href: '/ielts', title: 'IELTS mock', text: 'Төрт бөлім, емтихандағыдай таймермен', icon: Headphones, tint: '#E5383B' },

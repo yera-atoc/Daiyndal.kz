@@ -162,6 +162,17 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
         </Block>
       )}
 
+      <div className="grid gap-2 sm:grid-cols-2">
+        <a href="/admin/pins" className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
+          <b className="block">Кабинетке кіру карточкалары</b>
+          <span style={{ color: BRAND.muted }}>Топ бойынша PIN жасау және басып шығару — оқушы «Менің кабинетіме» бір PIN-мен кіреді</span>
+        </a>
+        <a href="/admin/bilim-test/month" className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
+          <b className="block">Айлық Білім тексеру есебі</b>
+          <span style={{ color: BRAND.muted }}>Барлық топ · PDF және Excel</span>
+        </a>
+      </div>
+
       {pay && (
         <AdminPay
           s={pay}
