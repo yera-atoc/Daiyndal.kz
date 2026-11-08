@@ -17,7 +17,8 @@ export default function PlanEditor({ classId, onBack }: { classId: string | null
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<{ text: string; tone?: 'ok' | 'err' }>({ text: '' })
-  const [sheet, setSheet] = useState<'paste' | 'ai' | 'copy' | null>(null)
+  const [sheet, setSheet] = useState<'paste' | 'ai' | 'copy' | 'tpl' | null>(null)
+  const [meta, setMeta] = useState<{ perWeek: number; suggest: { id: string; title: string } | null; templates: { id: string; title: string }[] }>({ perWeek: 2, suggest: null, templates: [] })
 
   const flash = (text: string, tone: 'ok' | 'err' = 'ok') => {
     setToast({ text, tone })
@@ -37,6 +38,7 @@ export default function PlanEditor({ classId, onBack }: { classId: string | null
     const j = await r.json().catch(() => ({}))
     if (!r.ok) return setErr(j.error || 'Жүктелмеді')
     setName(j.class.name)
+    setMeta({ perWeek: j.perWeek ?? 2, suggest: j.suggest ?? null, templates: j.templates ?? [] })
     setRows(j.items)
     setDirty(false)
   }, [cid])
@@ -110,7 +112,14 @@ export default function PlanEditor({ classId, onBack }: { classId: string | null
       <h1 className="font-display text-2xl font-semibold tracking-tight">КТП · {name}</h1>
       <p className="mt-0.5 text-sm" style={{ color: MUTED }}>{rows ? `${rows.length} сабақ · өтілгені ${rows.filter((r) => r.date).length}` : ''}</p>
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
+      <button onClick={() => setSheet('tpl')} className="mt-4 flex w-full items-center gap-3 rounded-2xl p-4 text-left text-white" style={{ background: BLUE }}>
+        <span className="min-w-0 flex-1">
+          <b className="block">Дайын КТП үлгісін қою</b>
+          <span className="block truncate text-xs opacity-90">{meta.suggest ? `Ұсыныс: ${meta.suggest.title}` : 'Пән мен сынып бойынша'} · аптасына {meta.perWeek} сабақ · айлық Білім тексеру апталарымен</span>
+        </span>
+        <span className="text-xl">›</span>
+      </button>
+      <div className="mt-2 grid grid-cols-3 gap-2">
         <button onClick={() => setSheet('paste')} className="rounded-2xl border bg-white p-3 text-left text-sm" style={{ borderColor: LINE }}>
           <b className="block">Мәтіннен қою</b>
           <span className="text-xs" style={{ color: MUTED }}>Word / Excel-ден көшіріп</span>
@@ -127,12 +136,18 @@ export default function PlanEditor({ classId, onBack }: { classId: string | null
 
       {err && <p className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{err}</p>}
       {!rows && !err && <p className="py-12 text-center text-sm" style={{ color: MUTED }}>Жүктелуде…</p>}
-      {rows && !rows.length && <p className="mt-5 rounded-2xl border border-dashed bg-white p-8 text-center text-sm" style={{ borderColor: LINE, color: MUTED }}>КТП әлі бос. Жоғарыдағы үш тәсілдің бірін таңдаңыз.</p>}
+      {rows && !rows.length && <p className="mt-5 rounded-2xl border border-dashed bg-white p-8 text-center text-sm" style={{ borderColor: LINE, color: MUTED }}>КТП әлі бос. «Дайын КТП үлгісін қою» батырмасын басыңыз — кейін кез келген сабақты өзгерте аласыз.</p>}
 
       {rows && rows.length > 0 && (
         <ol className="mt-4 overflow-hidden rounded-2xl border bg-white" style={{ borderColor: LINE }}>
           {rows.map((r, i) => (
-            <li key={r.id ?? `n${i}`} className="flex gap-2 p-3" style={{ borderTop: i ? `1px solid ${LINE}` : undefined, background: r.date ? '#F6FEF9' : undefined }}>
+            <li key={r.id ?? `n${i}`} style={{ borderTop: i ? `1px solid ${LINE}` : undefined }}>
+              {i % meta.perWeek === 0 && (
+                <div className="px-3 pb-1 pt-2.5 text-[11px] font-bold uppercase tracking-wide" style={{ background: SOFT, color: /Білім тексеру/.test(rows.slice(i, i + meta.perWeek).map((x) => x.topic).join(' ')) ? '#B45309' : MUTED }}>
+                  {Math.floor(i / meta.perWeek) + 1}-апта{/Білім тексеру/.test(rows.slice(i, i + meta.perWeek).map((x) => x.topic).join(' ')) ? ' · Білім тексеру' : ''}
+                </div>
+              )}
+            <div className="flex gap-2 p-3" style={{ background: r.date ? '#F6FEF9' : undefined }}>
               <div className="w-8 shrink-0 pt-2 text-center text-sm font-bold tabular-nums" style={{ color: MUTED }}>{i + 1}</div>
               <div className="min-w-0 flex-1 space-y-1.5">
                 <input value={r.topic} onChange={(e) => edit(i, { topic: e.target.value })} className="w-full rounded-lg border px-2.5 py-1.5 text-sm font-medium" style={{ borderColor: LINE }} />
@@ -144,6 +159,7 @@ export default function PlanEditor({ classId, onBack }: { classId: string | null
                 <button onClick={() => move(i, 1)} className="h-7 w-7 rounded-lg text-xs" style={{ background: SOFT }} aria-label="Төмен">▼</button>
                 <button onClick={() => { setRows(rows.filter((_, j) => j !== i)); setDirty(true) }} className="h-7 w-7 rounded-lg text-xs text-red-600" style={{ background: '#FEF2F2' }} aria-label="Өшіру">✕</button>
               </div>
+            </div>
             </li>
           ))}
         </ol>
@@ -165,6 +181,7 @@ export default function PlanEditor({ classId, onBack }: { classId: string | null
 
       {sheet === 'paste' && <PasteSheet onClose={() => setSheet(null)} onPut={put} />}
       {sheet === 'ai' && <AiSheet classId={cid} onClose={() => setSheet(null)} onPut={put} />}
+      {sheet === 'tpl' && <TemplateSheet classId={cid} meta={meta} onClose={() => setSheet(null)} onPut={put} />}
       {sheet === 'copy' && <CopySheet classId={cid} classes={(classes ?? []).filter((c) => c.id !== cid && c.count > 0)} onClose={() => setSheet(null)} onPut={put} />}
       <Toast text={toast.text} tone={toast.tone} />
     </div>
@@ -256,6 +273,37 @@ function AiSheet({ classId, onClose, onPut }: { classId: string; onClose: () => 
       {!items && <button onClick={go} disabled={busy} className="mt-3 w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ background: BLUE }}>{busy ? 'ИИ құрастырып жатыр… (20–50 сек)' : 'Құрастыру'}</button>}
       {items && <Preview items={items} onPut={onPut} />}
       <p className="mt-3 text-xs" style={{ color: MUTED }}>ИИ жоспары — бастама. Сақтамас бұрын тексеріп, керегін түзетіңіз.</p>
+    </Sheet>
+  )
+}
+
+function TemplateSheet({ classId, meta, onClose, onPut }: { classId: string; meta: { perWeek: number; suggest: { id: string; title: string } | null; templates: { id: string; title: string }[] }; onClose: () => void; onPut: (items: Row[], mode: 'replace' | 'append') => void }) {
+  const [tid, setTid] = useState(meta.suggest?.id ?? meta.templates[0]?.id ?? '')
+  const [items, setItems] = useState<Row[] | null>(null)
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const show = async () => {
+    setBusy(true)
+    setErr('')
+    try {
+      setItems((await lessonPost('/api/lesson/plan', { action: 'template', classId, templateId: tid })).items)
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Sheet title="Дайын КТП үлгісі" onClose={onClose}>
+      <p className="text-sm" style={{ color: MUTED }}>Қарашадан Мамырға дейін, апта бойынша. Топтың сабақ күндеріне қарай аптасына {meta.perWeek} сабақ. Әр айдың соңғы аптасында — қайталау және Білім тексеру сынағы.</p>
+      <select value={tid} onChange={(e) => { setTid(e.target.value); setItems(null) }} className="mt-3 w-full rounded-xl border bg-white px-3 py-2.5 text-sm" style={{ borderColor: LINE }}>
+        {meta.templates.map((t) => (
+          <option key={t.id} value={t.id}>{t.title}{t.id === meta.suggest?.id ? ' — ұсынылады' : ''}</option>
+        ))}
+      </select>
+      {err && <p className="mt-2 rounded-xl bg-red-50 p-3 text-sm text-red-700">{err}</p>}
+      {!items && <button onClick={show} disabled={busy || !tid} className="mt-3 w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ background: BLUE }}>{busy ? 'Дайындалуда…' : 'Қарау'}</button>}
+      {items && <Preview items={items} onPut={onPut} />}
     </Sheet>
   )
 }

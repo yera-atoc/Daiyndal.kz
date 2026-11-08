@@ -9,6 +9,7 @@ import { planScheduleSync } from '@/lib/scheduleSync'
 import { weekdayOf } from '@/lib/journal'
 import { logServerError } from '@/lib/serverLog'
 import { planBtLink } from '@/lib/btLink'
+import { buildPlan, pickTemplate } from '@/lib/ktp'
 import { todayAlmatyISO } from '@/lib/payments'
 
 export const dynamic = 'force-dynamic'
@@ -50,6 +51,30 @@ async function scheduleSync(sync: boolean) {
     }
   }
   return { missingToday: 0, create: plan.create.length, update: plan.addDays.length, students }
+}
+
+/** КТП-сы жоқ топтарға үлгі КТП қою: run = false — тек санайды */
+async function ktpAll(run: boolean) {
+  const sb = await db()
+  const { data: cls, error } = await sb.from('teacher_classes').select('id, name, subject, days, active').eq('active', true)
+  if (error) return { without: 0, matched: 0, done: 0 }
+  const { data: plan, error: pe } = await sb.from('class_plan').select('class_id')
+  if (pe) return { without: 0, matched: 0, done: 0, error: 'migration' }
+  const has = new Set((plan ?? []).map((p) => p.class_id))
+  const todo = (cls ?? []).filter((c: any) => !has.has(c.id)).map((c: any) => ({ c, t: pickTemplate(c.subject, c.name) }))
+  const matched = todo.filter((x) => x.t)
+  if (!run) return { without: todo.length, matched: matched.length, done: 0 }
+  let done = 0
+  for (const { c, t } of matched) {
+    const items = buildPlan(t!, (c.days ?? []).length || 2, todayAlmaty())
+    const rows = items.map((x, i) => ({ class_id: c.id, position: i, topic: x.topic, homework: x.homework }))
+    for (let i = 0; i < rows.length; i += 200) {
+      const r = await sb.from('class_plan').insert(rows.slice(i, i + 200))
+      if (r.error) throw new Error(r.error.message)
+    }
+    done++
+  }
+  return { without: todo.length, matched: matched.length, done }
 }
 
 /** Білім тексеру оқушыларын CRM-ге қосу: run = false — тек санайды, true — жазады */
@@ -102,7 +127,7 @@ export async function GET() {
     const sb = await db()
     const today = todayAlmaty()
     const from = addDays(today, -28)
-    const [lessons, teachers, studs, groups, pays, att, hw, leads, sched, bt] = await Promise.all([
+    const [lessons, teachers, studs, groups, pays, att, hw, leads, sched, bt, ktp] = await Promise.all([
       todayItems(who, today),
       sb.from('teachers').select('id, name, phone').then((r) => (r.error ? sb.from('teachers').select('id, name') : r)),
       sb.from('students').select('id, full_name, phone, parent_phone, status, payment_deadline, payment_amount, group_id').neq('status', 'left'),
@@ -113,6 +138,7 @@ export async function GET() {
       sb.from('site_leads').select('id', { count: 'exact', head: true }).eq('status', 'new'),
       scheduleSync(false),
       btToCrm(false).catch(() => null),
+      ktpAll(false).catch(() => null),
     ])
     const tPhone = new Map((teachers.data ?? []).map((t: any) => [t.id, t.phone ?? null]))
     const gName = new Map((groups.data ?? []).map((g: any) => [g.id, g.name]))
@@ -167,6 +193,7 @@ export async function GET() {
         leads: leads.count ?? 0,
         schedule: sched,
         btLink: bt,
+        ktp,
       },
       { headers: { 'Cache-Control': 'no-store' } }
     )
@@ -184,6 +211,7 @@ export async function POST(req: NextRequest) {
   if (!admin) return bad('Рұқсат жоқ', 401)
   try {
     const b = await req.json().catch(() => null)
+    if (b?.action === 'ktpAll') return NextResponse.json({ ok: true, ...(await ktpAll(true)) })
     if (b?.action === 'btToCrm') return NextResponse.json({ ok: true, ...(await btToCrm(true)) })
     if (b?.action === 'syncSchedule') return NextResponse.json({ ok: true, ...(await scheduleSync(true)) })
     if (b?.action !== 'pay') return bad('Белгісіз әрекет')

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { canSee, db, getClass, journalWho, listClasses } from '@/lib/journalServer'
 import { getPlan } from '@/lib/lessonServer'
 import { parsePlan } from '@/lib/lesson'
+import { TEMPLATES, buildPlan, pickTemplate, templateById } from '@/lib/ktp'
+import { todayAlmaty } from '@/lib/journal'
 import { askLLM, friendlyError, provider } from '@/lib/llm'
 import { throttleCheck, throttleFail } from '@/lib/security'
 import { logServerError } from '@/lib/serverLog'
@@ -25,7 +27,14 @@ export async function GET(req: NextRequest) {
       if (!c || !canSee(who, c)) return bad('Топ табылмады', 404)
       const { data: used } = await (await db()).from('class_lessons').select('plan_id, date').eq('class_id', c.id).not('plan_id', 'is', null)
       const dates = new Map((used ?? []).map((u) => [u.plan_id, u.date]))
-      return NextResponse.json({ class: c, items: (await getPlan(c.id)).map((p) => ({ ...p, date: dates.get(p.id) ?? null })) })
+      const sug = pickTemplate(c.subject, c.name)
+      return NextResponse.json({
+        class: c,
+        items: (await getPlan(c.id)).map((p) => ({ ...p, date: dates.get(p.id) ?? null })),
+        perWeek: c.days.length || 2,
+        suggest: sug ? { id: sug.id, title: sug.title } : null,
+        templates: TEMPLATES.map((t) => ({ id: t.id, title: t.title })),
+      })
     }
     const classes = (await listClasses(who)).filter((c) => c.active)
     const ids = classes.map((c) => c.id)
@@ -51,6 +60,13 @@ export async function POST(req: NextRequest) {
     const c = await getClass(String(b?.classId ?? ''))
     if (!c || !canSee(who, c)) return bad('Топ табылмады', 404)
     const sb = await db()
+
+    // Үлгі КТП: топтың аптасына сабақ санына бейімделеді (сақтамайды — алдын ала қарау)
+    if (b.action === 'template') {
+      const t = templateById(String(b.templateId ?? '')) ?? pickTemplate(c.subject, c.name)
+      if (!t) return bad('Лайық үлгі табылмады — тізімнен таңдаңыз')
+      return NextResponse.json({ template: { id: t.id, title: t.title }, items: buildPlan(t, c.days.length || 2, todayAlmaty()).map((x) => ({ topic: x.topic, homework: x.homework })) })
+    }
 
     if (b.action === 'copy') {
       const from = await getClass(String(b.fromClassId ?? ''))

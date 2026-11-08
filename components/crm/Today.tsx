@@ -11,7 +11,7 @@ type Lesson = { classId: string; name: string; teacher: string; teacherId: strin
 type Debt = { id: string; name: string; group: string | null; phone: string | null; amount: number | null; deadline: string | null; days: number }
 type Watch = { id: string; name: string; phone: string | null; absStreak: number; hwStreak: number; att: number | null; hw: number | null }
 type Pay = { id: string; name: string; amount: number | null; date: string; note: string | null; byTeacher: boolean }
-type Data = { today: string; lessons: Lesson[]; debts: Debt[]; soon: number; watch: Watch[]; payments: Pay[]; paidToday: number; leads: number; schedule?: { missingToday: number; create: number; update: number }; btLink?: { link: number; create: number; newGroups: number; ambiguous: string[]; error?: string } | null }
+type Data = { today: string; lessons: Lesson[]; debts: Debt[]; soon: number; watch: Watch[]; payments: Pay[]; paidToday: number; leads: number; schedule?: { missingToday: number; create: number; update: number }; btLink?: { link: number; create: number; newGroups: number; ambiguous: string[]; error?: string } | null; ktp?: { without: number; matched: number; error?: string } | null }
 
 const wa = (phone: string | null, text: string) => {
   const p = waPhone(phone)
@@ -30,6 +30,19 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
   const flash = (m: string) => {
     setToast(m)
     setTimeout(() => setToast(''), 3500)
+  }
+  const [ktpBusy, setKtpBusy] = useState(false)
+  const ktpRun = async () => {
+    setKtpBusy(true)
+    try {
+      const r = await lessonPost('/api/admin/today', { action: 'ktpAll' })
+      flash(`${r.done} топқа үлгі КТП қойылды`)
+      load()
+    } catch (e: any) {
+      flash(e.message)
+    } finally {
+      setKtpBusy(false)
+    }
   }
   const [btBusy, setBtBusy] = useState(false)
   const btSync = async () => {
@@ -123,6 +136,19 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
         </section>
       )}
 
+      {d.ktp && !d.ktp.error && d.ktp.matched > 0 && (
+        <section className="rounded-2xl border p-4" style={{ borderColor: '#DDD6FE', background: '#F5F3FF' }}>
+          <h2 className="text-[15px] font-semibold">{d.ktp.without} топта КТП жоқ</h2>
+          <p className="mt-1 text-sm" style={{ color: BRAND.muted }}>
+            {d.ktp.matched} топқа пәні мен сыныбына қарай дайын үлгі қойылады: Қарашадан Мамырға дейін, апта бойынша, әр айдың соңында Білім тексеру. Мұғалім кейін кез келген сабақты өзгерте алады.
+            {d.ktp.without > d.ktp.matched ? ` ${d.ktp.without - d.ktp.matched} топқа лайық үлгі табылмады — мұғалім КТП бетінде өзі таңдайды.` : ''}
+          </p>
+          <button onClick={ktpRun} disabled={ktpBusy} className="mt-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: '#6D28D9' }}>
+            {ktpBusy ? 'Қойылуда…' : 'Барлық топқа үлгі КТП қою'}
+          </button>
+        </section>
+      )}
+
       {needSync && (
         <section className="rounded-2xl border p-4" style={{ borderColor: '#BFDBFE', background: '#EFF6FF' }}>
           <h2 className="text-[15px] font-semibold">Кестедегі сабақтар журналда жоқ</h2>
@@ -194,6 +220,10 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
         <a href="/admin/pins" className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
           <b className="block">Кабинетке кіру карточкалары</b>
           <span style={{ color: BRAND.muted }}>Топ бойынша PIN жасау және басып шығару — оқушы «Менің кабинетіме» бір PIN-мен кіреді</span>
+        </a>
+        <a href="/admin/ktp" className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
+          <b className="block">КТП үлгілері</b>
+          <span style={{ color: BRAND.muted }}>Барлық пән бойынша апталық жоспар · басып шығару / PDF</span>
         </a>
         <a href="/admin/bilim-test/month" className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
           <b className="block">Айлық Білім тексеру есебі</b>
