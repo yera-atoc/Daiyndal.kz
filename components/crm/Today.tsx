@@ -11,7 +11,7 @@ type Lesson = { classId: string; name: string; teacher: string; teacherId: strin
 type Debt = { id: string; name: string; group: string | null; phone: string | null; amount: number | null; deadline: string | null; days: number }
 type Watch = { id: string; name: string; phone: string | null; absStreak: number; hwStreak: number; att: number | null; hw: number | null }
 type Pay = { id: string; name: string; amount: number | null; date: string; note: string | null; byTeacher: boolean }
-type Data = { today: string; lessons: Lesson[]; debts: Debt[]; soon: number; watch: Watch[]; payments: Pay[]; paidToday: number; leads: number; schedule?: { missingToday: number; create: number; update: number } }
+type Data = { today: string; lessons: Lesson[]; debts: Debt[]; soon: number; watch: Watch[]; payments: Pay[]; paidToday: number; leads: number; schedule?: { missingToday: number; create: number; update: number }; btLink?: { link: number; create: number; newGroups: number; ambiguous: string[]; error?: string } | null }
 
 const wa = (phone: string | null, text: string) => {
   const p = waPhone(phone)
@@ -30,6 +30,19 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
   const flash = (m: string) => {
     setToast(m)
     setTimeout(() => setToast(''), 3500)
+  }
+  const [btBusy, setBtBusy] = useState(false)
+  const btSync = async () => {
+    setBtBusy(true)
+    try {
+      const r = await lessonPost('/api/admin/today', { action: 'btToCrm' })
+      flash(`CRM-ге қосылды: ${r.create} жаңа оқушы${r.link ? `, ${r.link} бұрынғы жазбаға байланды` : ''}${r.newGroups ? `, ${r.newGroups} топ` : ''}`)
+      load()
+    } catch (e: any) {
+      flash(e.message)
+    } finally {
+      setBtBusy(false)
+    }
   }
   const sync = async () => {
     setSyncing(true)
@@ -94,6 +107,21 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
       </div>
 
       {allGood && <div className="rounded-2xl bg-emerald-50 p-5 text-center text-sm font-semibold text-emerald-800">Бәрі тәртіпте — бүгін назар аударатын ештеңе жоқ ✓</div>}
+
+      {d.btLink && !d.btLink.error && (d.btLink.create > 0 || d.btLink.link > 0) && (
+        <section className="rounded-2xl border p-4" style={{ borderColor: '#BBF7D0', background: '#F0FDF4' }}>
+          <h2 className="text-[15px] font-semibold">Білім тексеруде {d.btLink.create + d.btLink.link} оқушы CRM-мен байланбаған</h2>
+          <p className="mt-1 text-sm" style={{ color: BRAND.muted }}>
+            {d.btLink.create > 0 && `${d.btLink.create} жаңа оқушы қосылады${d.btLink.newGroups ? ` (${d.btLink.newGroups} жаңа топ)` : ''}. `}
+            {d.btLink.link > 0 && `${d.btLink.link} оқушы CRM-дегі аттасымен байланады (қайталанбайды). `}
+            Тест нәтижелері өзгермейді. Телефон мен төлемді кейін «Оқушылар» бетінде толтырасыз — жаңаларының ескертпесінде «Білім тексеруден қосылды» деп тұрады.
+          </p>
+          {d.btLink.ambiguous.length > 0 && <p className="mt-1 text-xs" style={{ color: '#B45309' }}>Аттас бірнеше оқушы бар, қолмен тексеріңіз: {d.btLink.ambiguous.join(', ')}</p>}
+          <button onClick={btSync} disabled={btBusy} className="mt-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: '#15803D' }}>
+            {btBusy ? 'Қосылуда…' : 'CRM-ге қосу'}
+          </button>
+        </section>
+      )}
 
       {needSync && (
         <section className="rounded-2xl border p-4" style={{ borderColor: '#BFDBFE', background: '#EFF6FF' }}>

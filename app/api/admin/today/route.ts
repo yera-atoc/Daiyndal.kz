@@ -8,6 +8,8 @@ import { paymentStatus } from '@/lib/payments'
 import { planScheduleSync } from '@/lib/scheduleSync'
 import { weekdayOf } from '@/lib/journal'
 import { logServerError } from '@/lib/serverLog'
+import { planBtLink } from '@/lib/btLink'
+import { todayAlmatyISO } from '@/lib/payments'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -50,6 +52,48 @@ async function scheduleSync(sync: boolean) {
   return { missingToday: 0, create: plan.create.length, update: plan.addDays.length, students }
 }
 
+/** Білім тексеру оқушыларын CRM-ге қосу: run = false — тек санайды, true — жазады */
+async function btToCrm(run: boolean) {
+  const sb = await db()
+  const [bts, btg, crm, cg] = await Promise.all([
+    sb.from('bt_students').select('id, full_name, group_id'),
+    sb.from('bt_groups').select('id, name'),
+    sb.from('students').select('id, full_name, group_id, bt_student_id'),
+    sb.from('student_groups').select('id, name, bt_group_id, monthly_fee'),
+  ])
+  if (bts.error || crm.error || cg.error) return { link: 0, create: 0, newGroups: 0, ambiguous: [] as string[], error: (crm.error ?? cg.error ?? bts.error)!.message }
+  const plan = planBtLink(bts.data ?? [], btg.data ?? [], (crm.data ?? []) as any, (cg.data ?? []) as any)
+  const summary = { link: plan.link.length, create: plan.create.length, newGroups: plan.newGroups.length, ambiguous: plan.ambiguous.slice(0, 20) }
+  if (!run) return summary
+  // 1) Жоқ топтарды құру (Білім тексеру тобының атымен, байланыспен)
+  const groups = [...((cg.data ?? []) as any[])]
+  for (const g of plan.newGroups) {
+    const { data, error } = await sb.from('student_groups').insert({ name: g.name, bt_group_id: g.btGroupId }).select('id, name, bt_group_id, monthly_fee').single()
+    if (error) throw new Error(error.message)
+    groups.push(data)
+  }
+  const btName = new Map(((btg.data ?? []) as any[]).map((g) => [g.id, g.name]))
+  const groupFor = (btGroupId: string) => groups.find((g) => g.bt_group_id === btGroupId) ?? groups.find((g) => String(g.name).toLowerCase().trim() === String(btName.get(btGroupId) ?? '').toLowerCase().trim()) ?? null
+  // 2) Аттас CRM оқушыларын байланыстыру (жаңа жазба ашылмайды)
+  for (const l of plan.link) await sb.from('students').update({ bt_student_id: l.btId }).eq('id', l.crmId).is('bt_student_id', null)
+  // 3) Жаңа оқушылар: аты, тобы, күйі; телефон мен төлемді әкімші кейін толтырады
+  const today = todayAlmatyISO()
+  const rows = plan.create.map((c) => {
+    const g = groupFor(c.btGroupId)
+    return { full_name: c.full_name, group_id: g?.id ?? null, status: 'active', start_date: today, payment_amount: g?.monthly_fee ?? null, bt_student_id: c.btId, comment: 'Білім тексеруден қосылды — телефон мен төлемді толтыру керек' }
+  })
+  for (let i = 0; i < rows.length; i += 100) {
+    const { error } = await sb.from('students').insert(rows.slice(i, i + 100))
+    if (error) throw new Error(error.message)
+  }
+  // Байланған CRM топтарын Білім тексеру тобымен белгілеу (CRM ↔ Білім тексеру синхрондауы үшін)
+  for (const g of groups) if (!g.bt_group_id) {
+    const bt = ((btg.data ?? []) as any[]).find((x) => String(x.name).toLowerCase().trim() === String(g.name).toLowerCase().trim())
+    if (bt) await sb.from('student_groups').update({ bt_group_id: bt.id }).eq('id', g.id)
+  }
+  return summary
+}
+
 // GET — әкімшінің «Бүгін» беті: тек әрекет керек нәрселер
 export async function GET() {
   const who = await journalWho()
@@ -58,7 +102,7 @@ export async function GET() {
     const sb = await db()
     const today = todayAlmaty()
     const from = addDays(today, -28)
-    const [lessons, teachers, studs, groups, pays, att, hw, leads, sched] = await Promise.all([
+    const [lessons, teachers, studs, groups, pays, att, hw, leads, sched, bt] = await Promise.all([
       todayItems(who, today),
       sb.from('teachers').select('id, name, phone').then((r) => (r.error ? sb.from('teachers').select('id, name') : r)),
       sb.from('students').select('id, full_name, phone, parent_phone, status, payment_deadline, payment_amount, group_id').neq('status', 'left'),
@@ -68,6 +112,7 @@ export async function GET() {
       sb.from('class_homework').select('student_id, date, mark').gte('date', from),
       sb.from('site_leads').select('id', { count: 'exact', head: true }).eq('status', 'new'),
       scheduleSync(false),
+      btToCrm(false).catch(() => null),
     ])
     const tPhone = new Map((teachers.data ?? []).map((t: any) => [t.id, t.phone ?? null]))
     const gName = new Map((groups.data ?? []).map((g: any) => [g.id, g.name]))
@@ -121,6 +166,7 @@ export async function GET() {
         paidToday: recent.filter((p) => p.date === today).reduce((a, p) => a + (p.amount ?? 0), 0),
         leads: leads.count ?? 0,
         schedule: sched,
+        btLink: bt,
       },
       { headers: { 'Cache-Control': 'no-store' } }
     )
@@ -131,12 +177,14 @@ export async function GET() {
 }
 
 // POST { action:'pay', studentId, amount, method } — әкімші төлемді бір басумен жазады
+//      { action:'btToCrm' } — Білім тексерудегі барлық оқушыны CRM-ге қосу (аттасы бар болса — байланыстыру)
 //      { action:'syncSchedule' } — кестедегі сабақтарды журнал топтарына қосу (жоғын құру, күнін толтыру)
 export async function POST(req: NextRequest) {
   const admin = await currentAdmin()
   if (!admin) return bad('Рұқсат жоқ', 401)
   try {
     const b = await req.json().catch(() => null)
+    if (b?.action === 'btToCrm') return NextResponse.json({ ok: true, ...(await btToCrm(true)) })
     if (b?.action === 'syncSchedule') return NextResponse.json({ ok: true, ...(await scheduleSync(true)) })
     if (b?.action !== 'pay') return bad('Белгісіз әрекет')
     return NextResponse.json(await recordPaymentFor(String(b.studentId ?? ''), admin.actor, 'әкімші', b))
