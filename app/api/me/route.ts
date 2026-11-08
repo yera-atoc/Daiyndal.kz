@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/ieltsServer'
-import { cabinet, loginList } from '@/lib/cabinetServer'
+import { btCabinet, cabinet, searchStudents } from '@/lib/cabinetServer'
+import { currentStudent as currentBt } from '@/lib/bilimTestAuth'
 import { db } from '@/lib/journalServer'
 import { ISO, addDays, todayAlmaty } from '@/lib/journal'
 import { privateUploadUrl } from '@/lib/privateFiles'
@@ -13,12 +14,18 @@ export const fetchCache = 'force-no-store'
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status })
 const MIGRATE = 'Алдымен 20261110_01_student_cabinet.sql миграциясын іске қосыңыз'
 
-// GET ?list=1 — кіру тізімі (топ → аттар, PIN жоқ); GET — кірген оқушының кабинеті
+// GET ?q=ат — кіруге іздеу (ең кемі 2 әріп; толық тізім жіберілмейді); GET — кірген оқушының кабинеті
 export async function GET(req: NextRequest) {
   try {
-    if (req.nextUrl.searchParams.get('list')) return NextResponse.json({ groups: await loginList() }, { headers: { 'Cache-Control': 'no-store' } })
+    const q = req.nextUrl.searchParams.get('q')
+    if (q !== null) return NextResponse.json({ hits: await searchStudents(q.slice(0, 60)) }, { headers: { 'Cache-Control': 'no-store' } })
     const me = await currentStudent()
-    if (!me) return bad('Кіру керек', 401)
+    if (!me) {
+      // CRM-ге қосылмаған, тек Білім тексерудегі оқушы
+      const bt = await currentBt()
+      if (bt) return NextResponse.json(await btCabinet(bt as any), { headers: { 'Cache-Control': 'no-store' } })
+      return bad('Кіру керек', 401)
+    }
     const c = await cabinet(me.id)
     if (!c) return bad('Оқушы табылмады', 404)
     return NextResponse.json(c, { headers: { 'Cache-Control': 'no-store' } })

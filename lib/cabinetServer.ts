@@ -16,25 +16,49 @@ export type Cabinet = {
   homework: CabHomework[]
   classes: CabClass[]
   exams: { bilim: boolean; ubt: boolean; ielts: boolean; toefl: boolean }
+  /** CRM-ге әлі қосылмаған, тек Білім тексерудегі оқушы */
+  btOnly?: boolean
 }
 
 const hm = (t: string | null | undefined) => (t ? t.slice(0, 5) : null)
 
-/** Кіру тізімі: топ → оқушылар (аттары жасырылған, PIN жіберілмейді) */
-export async function loginList() {
+export type LoginHit = { kind: 'crm' | 'bt'; id: string; name: string; group: string; hasPin: boolean }
+
+const normName = (x: string) => x.toLowerCase().replace(/ё/g, 'е').replace(/[)(.,]/g, ' ').replace(/\s+/g, ' ').trim()
+
+/**
+ * Кіруге іздеу: ең кемі 2 әріп. Барлық оқушы шығады — CRM-дегілер (кез келген күйдегі) және CRM-ге әлі
+ * қосылмаған Білім тексеру оқушылары. Толық тізім ешқашан жіберілмейді, аттары жасырылады, PIN жіберілмейді.
+ */
+export async function searchStudents(q: string): Promise<LoginHit[]> {
+  const t = normName(q)
+  if (t.length < 2) return []
   const sb = await db()
-  const [st, gr] = await Promise.all([
-    sb.from('students').select('id, full_name, group_id, ielts_pin, status').neq('status', 'left').order('full_name'),
-    sb.from('student_groups').select('id, name').order('name'),
+  const [st, gr, bts, btg] = await Promise.all([
+    sb.from('students').select('id, full_name, group_id').order('full_name'),
+    sb.from('student_groups').select('id, name'),
+    sb.from('bt_students').select('id, full_name, group_id, pin'),
+    sb.from('bt_groups').select('id, name'),
   ])
-  const pins = await pinsOf((st.data ?? []).map((s: any) => s.id))
-  const rows = maskNames((st.data ?? []).map((s: any) => ({ id: s.id, name: String(s.full_name).replace(/[)\s]+$/, ''), group: s.group_id ?? '', hasPin: !!(pins.get(s.id)?.pin || pins.get(s.id)?.bt) })))
-  const groups = (gr.data ?? [])
-    .map((g: any) => ({ id: g.id, name: g.name, students: rows.filter((r) => r.group === g.id).map(({ id, name, hasPin }) => ({ id, name, hasPin })) }))
-    .filter((g) => g.students.length)
-  const other = rows.filter((r) => !r.group || !groups.some((g) => g.id === r.group))
-  if (other.length) groups.push({ id: 'other', name: 'Басқа оқушылар', students: other.map(({ id, name, hasPin }) => ({ id, name, hasPin })) })
-  return groups
+  let linkRows: any = await sb.from('students').select('bt_student_id').not('bt_student_id', 'is', null)
+  if (linkRows.error) linkRows = { data: [] }
+  const linked = new Set((linkRows.data ?? []).map((r: any) => r.bt_student_id))
+  const gName = new Map((gr.data ?? []).map((g: any) => [g.id, g.name]))
+  const bgName = new Map((btg.data ?? []).map((g: any) => [g.id, g.name]))
+  const words = t.split(' ')
+  const match = (full: string) => {
+    const n = normName(full)
+    return words.every((w) => n.split(' ').some((part) => part.startsWith(w)) || n.includes(w))
+  }
+  const crm = (st.data ?? []).filter((s: any) => match(String(s.full_name)))
+  const pins = await pinsOf(crm.map((s: any) => s.id))
+  const hits: LoginHit[] = [
+    ...crm.map((s: any) => ({ kind: 'crm' as const, id: s.id, name: String(s.full_name).replace(/[)\s]+$/, ''), group: gName.get(s.group_id) ?? '', hasPin: !!(pins.get(s.id)?.pin || pins.get(s.id)?.bt) })),
+    ...(bts.data ?? [])
+      .filter((b: any) => !linked.has(b.id) && match(String(b.full_name)))
+      .map((b: any) => ({ kind: 'bt' as const, id: b.id, name: String(b.full_name).replace(/[)\s]+$/, ''), group: bgName.get(b.group_id) ? `Білім тексеру · ${bgName.get(b.group_id)}` : 'Білім тексеру', hasPin: !!b.pin })),
+  ]
+  return maskNames(hits).slice(0, 25)
 }
 
 function slotFor(slots: any[], c: any, dow: number) {
@@ -169,4 +193,19 @@ export async function pinsOf(ids: string[]): Promise<Map<string, { pin: string |
   }
   for (const r of rows) out.set(r.id, { pin: r.ielts_pin ?? null, bt: (r.bt_student_id && bt.get(r.bt_student_id)) || null })
   return out
+}
+
+/** Тек Білім тексерудегі оқушының кабинеті (CRM-ге қосылмаған): нәтижелері Білім тексеруде сақтаулы */
+export async function btCabinet(bt: { id: string; full_name: string; group_id: string }): Promise<Cabinet> {
+  const sb = await db()
+  const { data: g } = await sb.from('bt_groups').select('name').eq('id', bt.group_id).maybeSingle()
+  return {
+    student: { id: bt.id, full_name: String(bt.full_name).replace(/[)\s]+$/, ''), grade: null, group: g?.name ?? null },
+    today: todayAlmaty(),
+    lessons: [],
+    homework: [],
+    classes: [],
+    exams: { bilim: true, ubt: false, ielts: false, toefl: false },
+    btOnly: true,
+  }
 }

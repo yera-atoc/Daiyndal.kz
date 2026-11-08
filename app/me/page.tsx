@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { Cabinet, CabHomework } from '@/lib/cabinetServer'
 import { DAY_FULL, dayMonth, weekdayOf } from '@/lib/journal'
@@ -13,7 +13,6 @@ const BLUE = '#2B6BF3'
 const MUTED = '#687085'
 const LINE = '#E3E7F0'
 const PAPER = '#F5F7FB'
-const GROUP_KEY = 'beles_me_group'
 const TABLET_KEY = 'beles_me_tablet'
 const IDLE_MIN = 10
 
@@ -78,14 +77,13 @@ export default function MePage() {
   return <Home c={me} onLogout={logout} reload={load} />
 }
 
-// ── Кіру: топ → аты → PIN ────────────────────────────────────────────
-type LGroup = { id: string; name: string; students: { id: string; name: string; hasPin: boolean }[] }
+// ── Кіру: атын іздеу → PIN ───────────────────────────────────────────
+type Hit = { kind: 'crm' | 'bt'; id: string; name: string; group: string; hasPin: boolean }
 
 function Login({ onDone, note }: { onDone: () => void; note?: string }) {
-  const [groups, setGroups] = useState<LGroup[] | null>(null)
-  const [gid, setGid] = useState<string | null>(null)
   const [q, setQ] = useState('')
-  const [sel, setSel] = useState<{ id: string; name: string; hasPin: boolean } | null>(null)
+  const [hits, setHits] = useState<Hit[] | null>(null)
+  const [sel, setSel] = useState<Hit | null>(null)
   const [pin, setPin] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -93,35 +91,32 @@ function Login({ onDone, note }: { onDone: () => void; note?: string }) {
 
   useEffect(() => {
     setTablet(store.get(TABLET_KEY) === '1')
-    fetch('/api/me?list=1', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((j) => {
-        setGroups(j.groups ?? [])
-        const last = store.get(GROUP_KEY)
-        if (last && (j.groups ?? []).some((g: LGroup) => g.id === last)) setGid(last)
-      })
-      .catch(() => setGroups([]))
   }, [])
-
-  const group = groups?.find((g) => g.id === gid) ?? null
-  const found = useMemo(() => {
-    const t = q.trim().toLowerCase()
-    if (!t || !groups) return []
-    return groups.flatMap((g) => g.students.filter((s) => s.name.toLowerCase().includes(t)).map((s) => ({ ...s, group: g.name }))).slice(0, 30)
-  }, [q, groups])
+  // Атын жаза бастағанда ғана іздейміз (толық тізім көрсетілмейді)
+  useEffect(() => {
+    const t = q.trim()
+    if (t.length < 2) return setHits(null)
+    const h = setTimeout(async () => {
+      const r = await fetch(`/api/me?q=${encodeURIComponent(t)}`, { cache: 'no-store' })
+      const j = await r.json().catch(() => ({}))
+      setHits(j.hits ?? [])
+    }, 250)
+    return () => clearTimeout(h)
+  }, [q])
 
   const submit = async (code: string) => {
     if (!sel || code.length !== 4) return
     setBusy(true)
     setErr('')
     try {
-      const r = await fetch('/api/ielts/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: sel.id, pin: code }) })
+      const url = sel.kind === 'bt' ? '/api/me/login' : '/api/ielts/login'
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: sel.id, pin: code }) })
       if (!r.ok) {
         setErr((await r.json().catch(() => ({}))).error || 'PIN қате')
         setPin('')
         return
       }
-      if (gid) store.set(GROUP_KEY, gid)
+      setQ('')
       onDone()
     } finally {
       setBusy(false)
@@ -140,7 +135,7 @@ function Login({ onDone, note }: { onDone: () => void; note?: string }) {
         <Link href="/" aria-label="Басты бет"><img src="/beles-logo.png" alt="Beles" className="h-7 w-auto" /></Link>
         <Link href="/login" className="text-sm font-medium" style={{ color: MUTED }}>Басқа кабинет</Link>
       </header>
-      <main className="mx-auto max-w-3xl px-4 pb-10">
+      <main className="mx-auto max-w-xl px-4 pb-10">
         <h1 className="font-display mt-2 text-2xl font-semibold sm:text-3xl">Менің кабинетім</h1>
         <p className="mt-1 text-sm" style={{ color: MUTED }}>Бір PIN — сабақтар, үй тапсырмасы, тесттер және нәтижелер бір жерде.</p>
         {note && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{note}</p>}
@@ -149,9 +144,10 @@ function Login({ onDone, note }: { onDone: () => void; note?: string }) {
           <section className="mx-auto mt-6 max-w-sm rounded-3xl border bg-white p-6 text-center" style={{ borderColor: LINE }}>
             <button onClick={() => { setSel(null); setPin(''); setErr('') }} className="text-sm font-semibold" style={{ color: BLUE }}>← Басқа оқушы</button>
             <div className="mt-3 text-xl font-semibold">{sel.name}</div>
+            {sel.group && <div className="text-xs" style={{ color: MUTED }}>{sel.group}</div>}
             {sel.hasPin ? (
               <>
-                <p className="mt-1 text-sm" style={{ color: MUTED }}>4 таңбалы PIN-ді тер</p>
+                <p className="mt-2 text-sm" style={{ color: MUTED }}>4 таңбалы PIN-ді тер (Білім тексеру PIN-і де жарайды)</p>
                 <div className="mt-4 flex justify-center gap-3">
                   {[0, 1, 2, 3].map((i) => (
                     <span key={i} className="grid h-14 w-12 place-items-center rounded-2xl border text-2xl font-bold" style={{ borderColor: pin.length === i ? BLUE : LINE }}>{pin[i] ? '•' : ''}</span>
@@ -174,46 +170,25 @@ function Login({ onDone, note }: { onDone: () => void; note?: string }) {
           </section>
         ) : (
           <>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Атыңды іздеу…" className="mt-5 w-full rounded-2xl border bg-white px-4 py-3.5 text-base outline-none focus:border-[#2B6BF3]" style={{ borderColor: LINE }} />
-            {q.trim() ? (
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {found.map((s) => (
-                  <button key={s.id} onClick={() => setSel(s)} className="flex items-center justify-between rounded-2xl border bg-white px-4 py-3.5 text-left" style={{ borderColor: LINE }}>
-                    <span className="font-medium">{s.name}</span>
-                    <span className="text-xs" style={{ color: MUTED }}>{s.group}</span>
+            <label className="mt-6 block text-sm font-semibold">Атың немесе тегің</label>
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Мысалы: Айтбек" className="mt-2 w-full rounded-2xl border bg-white px-4 py-4 text-lg outline-none focus:border-[#2B6BF3]" style={{ borderColor: LINE }} />
+            {q.trim().length < 2 ? (
+              <p className="mt-3 text-sm" style={{ color: MUTED }}>Атыңның алғашқы әріптерін жаз — тізімнен өзіңді таңда.</p>
+            ) : hits === null ? (
+              <p className="mt-3 text-sm" style={{ color: MUTED }}>Іздеуде…</p>
+            ) : hits.length ? (
+              <div className="mt-3 grid gap-2">
+                {hits.map((s) => (
+                  <button key={`${s.kind}${s.id}`} onClick={() => { setSel(s); setErr('') }} className="block w-full min-w-0 rounded-2xl border bg-white px-4 py-3.5 text-left active:scale-[.99]" style={{ borderColor: LINE }}>
+                    <span className="block text-[16px] font-semibold">{s.name}</span>
+                    {s.group && <span className="mt-0.5 block truncate text-xs" style={{ color: MUTED }}>{s.group}</span>}
                   </button>
                 ))}
-                {!found.length && <p className="py-6 text-center text-sm sm:col-span-2" style={{ color: MUTED }}>Табылмады</p>}
               </div>
-            ) : group ? (
-              <>
-                <div className="mt-4 flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">{group.name}</h2>
-                  <button onClick={() => { setGid(null); store.set(GROUP_KEY, null) }} className="text-sm font-semibold" style={{ color: BLUE }}>Басқа топ</button>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {group.students.map((s) => (
-                    <button key={s.id} onClick={() => setSel(s)} className="rounded-2xl border bg-white px-3 py-5 text-center text-[15px] font-semibold active:scale-[.98]" style={{ borderColor: LINE }}>
-                      {s.name}
-                    </button>
-                  ))}
-                </div>
-              </>
             ) : (
-              <>
-                <h2 className="mt-5 text-sm font-semibold" style={{ color: MUTED }}>Тобыңды таңда</h2>
-                {groups === null && <p className="py-8 text-center text-sm" style={{ color: MUTED }}>Жүктелуде…</p>}
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {groups?.map((g) => (
-                    <button key={g.id} onClick={() => setGid(g.id)} className="rounded-2xl border bg-white px-3 py-4 text-left" style={{ borderColor: LINE }}>
-                      <span className="block font-semibold">{g.name}</span>
-                      <span className="text-xs" style={{ color: MUTED }}>{g.students.length} оқушы</span>
-                    </button>
-                  ))}
-                </div>
-              </>
+              <p className="mt-3 rounded-2xl bg-white p-4 text-sm" style={{ color: MUTED }}>Табылмады. Атыңды басқаша жазып көр немесе мұғалімге айт.</p>
             )}
-            <label className="mt-6 flex items-center gap-2 text-sm" style={{ color: MUTED }}>
+            <label className="mt-8 flex items-center gap-2 text-sm" style={{ color: MUTED }}>
               <input type="checkbox" checked={tablet} onChange={(e) => { setTablet(e.target.checked); store.set(TABLET_KEY, e.target.checked ? '1' : null) }} className="h-4 w-4" />
               Бұл — сыныптағы ортақ планшет ({IDLE_MIN} минут әрекетсіз тұрса, өзі шығады)
             </label>
@@ -253,6 +228,12 @@ function Home({ c, onLogout, reload }: { c: Cabinet; onLogout: () => void; reloa
           </p>
         </section>
 
+        {c.btOnly && (
+          <section className="mt-4 rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: LINE }}>
+            Сенің Білім тексеру нәтижелерің мен тапсырған сынақтарың сақтаулы — төмендегі «Білім тексеру» бөлімінде. Сабақ кестесі мен үй тапсырмасы әкімші сені тобыңа қосқанда осы жерде шығады.
+          </section>
+        )}
+
         {/* Бүгінгі сабақтар */}
         {c.lessons.length > 0 && (
           <section className="mt-5">
@@ -275,13 +256,13 @@ function Home({ c, onLogout, reload }: { c: Cabinet; onLogout: () => void; reloa
         )}
 
         {/* Үй тапсырмасы */}
-        <section className="mt-5">
+        {!c.btOnly && <section className="mt-5">
           <h2 className="font-display mb-2 text-lg font-semibold">Үй тапсырмасы</h2>
           {!c.homework.length && <p className="rounded-2xl border border-dashed bg-white p-6 text-center text-sm" style={{ borderColor: LINE, color: MUTED }}>Әзірге үй тапсырмасы жоқ.</p>}
           <div className="grid gap-3">
             {c.homework.map((h) => <HomeworkCard key={h.classId} h={h} reload={reload} />)}
           </div>
-        </section>
+        </section>}
 
         {/* Сабақ тесттері (мұғалім тақырып бойынша ашқан) */}
         <LessonQuizzes accent={BLUE} />
