@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/requireAdmin'
 import { db, randomPin } from '@/lib/ieltsServer'
+import { pinsOf } from '@/lib/cabinetServer'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,11 +17,16 @@ export async function GET() {
     sb.from('student_groups').select('id, name').order('name'),
   ])
   if (st.error) return bad(st.error.message, 500)
-  const students = (st.data ?? []).map((s: any) => ({ id: s.id, name: String(s.full_name).replace(/[)\s]+$/, ''), group: s.group_id ?? null, pin: s.ielts_pin ?? null }))
+  const pins = await pinsOf((st.data ?? []).map((s: any) => s.id))
+  const students = (st.data ?? []).map((s: any) => {
+    const p = pins.get(s.id)
+    return { id: s.id, name: String(s.full_name).replace(/[)\s]+$/, ''), group: s.group_id ?? null, pin: p?.pin ?? p?.bt ?? null, bt: p?.pin && p.bt && p.bt !== p.pin ? p.bt : null }
+  })
   return NextResponse.json({ groups: gr.data ?? [], students })
 }
 
-// POST { groupId | 'all' } — PIN-і жоқ оқушыларға PIN беру (бар PIN өзгермейді)
+// POST { groupId | 'all' } — PIN-і жоқ оқушыларға PIN беру (бар PIN өзгермейді).
+// Білім тексеруде PIN-і бар болса — сол PIN беріледі (бала жаңа сан жаттамайды).
 export async function POST(req: NextRequest) {
   if (!(await isAdmin())) return bad('Рұқсат жоқ', 401)
   const b = await req.json().catch(() => null)
@@ -29,6 +35,7 @@ export async function POST(req: NextRequest) {
   if (b?.groupId && b.groupId !== 'all') q = b.groupId === 'none' ? q.is('group_id', null) : q.eq('group_id', String(b.groupId))
   const { data, error } = await q
   if (error) return bad(error.message, 500)
-  for (const s of data ?? []) await sb.from('students').update({ ielts_pin: randomPin() }).eq('id', s.id)
+  const pins = await pinsOf((data ?? []).map((s) => s.id))
+  for (const s of data ?? []) await sb.from('students').update({ ielts_pin: pins.get(s.id)?.bt ?? randomPin() }).eq('id', s.id)
   return NextResponse.json({ ok: true, made: (data ?? []).length })
 }

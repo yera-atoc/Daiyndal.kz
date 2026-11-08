@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-type S = { id: string; name: string; group: string | null; pin: string | null }
+type S = { id: string; name: string; group: string | null; pin: string | null; bt: string | null }
 type G = { id: string; name: string }
 
 /** Кабинетке кіру карточкалары: топ бойынша PIN жасау және A4-ке басып шығару (10 карточка/бет) */
@@ -59,7 +59,7 @@ export default function PinsPage() {
           <button onClick={() => window.print()} className="rounded-xl bg-[#0E1424] px-4 py-2.5 text-sm font-semibold text-white">Басып шығару / PDF ({shown.filter((s) => s.pin).length})</button>
           {msg && <span className="text-sm text-[#15803D]">{msg}</span>}
         </div>
-        <p className="mt-2 text-xs text-[#687085]">Бар PIN өзгермейді. PIN — жеке ақпарат: карточканы оқушының өзіне немесе ата-анасына беріңіз.</p>
+        <p className="mt-2 text-xs text-[#687085]">Бар PIN өзгермейді. Білім тексеру PIN-і бар оқушыға сол PIN беріледі, ол бұрынғыдай жұмыс істей береді. PIN — жеке ақпарат: карточканы оқушының өзіне немесе ата-анасына беріңіз.</p>
       </div>
       {!students && <p className="np py-10 text-center text-sm text-[#687085]">Жүктелуде…</p>}
       <div className="mt-5 grid grid-cols-2 gap-[4mm] print:mt-0">
@@ -74,6 +74,7 @@ export default function PinsPage() {
               <div>
                 <div className="text-[9px] uppercase text-[#687085]">PIN</div>
                 <div className="font-mono text-[28px] font-bold tracking-[.3em]">{s.pin}</div>
+                {s.bt && <div className="text-[9px] text-[#687085]">Білім тексеру PIN-і ({s.bt}) де жарайды</div>}
               </div>
               <div className="text-right text-[10px] leading-snug text-[#687085]">
                 <b className="text-[#0E1424]">{host}/me</b>

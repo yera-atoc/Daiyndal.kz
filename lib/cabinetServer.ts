@@ -27,7 +27,8 @@ export async function loginList() {
     sb.from('students').select('id, full_name, group_id, ielts_pin, status').neq('status', 'left').order('full_name'),
     sb.from('student_groups').select('id, name').order('name'),
   ])
-  const rows = maskNames((st.data ?? []).map((s: any) => ({ id: s.id, name: String(s.full_name).replace(/[)\s]+$/, ''), group: s.group_id ?? '', hasPin: !!s.ielts_pin })))
+  const pins = await pinsOf((st.data ?? []).map((s: any) => s.id))
+  const rows = maskNames((st.data ?? []).map((s: any) => ({ id: s.id, name: String(s.full_name).replace(/[)\s]+$/, ''), group: s.group_id ?? '', hasPin: !!(pins.get(s.id)?.pin || pins.get(s.id)?.bt) })))
   const groups = (gr.data ?? [])
     .map((g: any) => ({ id: g.id, name: g.name, students: rows.filter((r) => r.group === g.id).map(({ id, name, hasPin }) => ({ id, name, hasPin })) }))
     .filter((g) => g.students.length)
@@ -143,4 +144,29 @@ export async function cabinet(studentId: string): Promise<Cabinet | null> {
     classes: classRows,
     exams: { bilim: !!(s as any).bt_student_id, ubt: ex.has('ubt') || !!(subj.data ?? []).length, ielts: ex.has('ielts'), toefl: ex.has('toefl') },
   }
+}
+
+/**
+ * Оқушылардың PIN-дері: кабинет PIN-і (students.ielts_pin) және Білім тексерудегі PIN (bt_students.pin).
+ * Бала қайсысын білсе де кіре алады. bt_student_id бағаны жоқ базада — тек кабинет PIN-і.
+ */
+export async function pinsOf(ids: string[]): Promise<Map<string, { pin: string | null; bt: string | null }>> {
+  const sb = await db()
+  const out = new Map<string, { pin: string | null; bt: string | null }>()
+  if (!ids.length) return out
+  let rows: any[] = []
+  for (let i = 0; i < ids.length; i += 300) {
+    const part = ids.slice(i, i + 300)
+    let r: any = await sb.from('students').select('id, ielts_pin, bt_student_id').in('id', part)
+    if (r.error) r = await sb.from('students').select('id, ielts_pin').in('id', part)
+    rows = rows.concat(r.data ?? [])
+  }
+  const btIds = Array.from(new Set(rows.map((r) => r.bt_student_id).filter(Boolean)))
+  const bt = new Map<string, string | null>()
+  for (let i = 0; i < btIds.length; i += 300) {
+    const { data } = await sb.from('bt_students').select('id, pin').in('id', btIds.slice(i, i + 300))
+    for (const b of data ?? []) bt.set(b.id, b.pin ?? null)
+  }
+  for (const r of rows) out.set(r.id, { pin: r.ielts_pin ?? null, bt: (r.bt_student_id && bt.get(r.bt_student_id)) || null })
+  return out
 }

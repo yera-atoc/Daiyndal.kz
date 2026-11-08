@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ISO, addDays, todayAlmaty } from '@/lib/journal'
 import { canSee, db, getClass, journalWho } from '@/lib/journalServer'
 import { lessonView, recordPayment, saveLesson, todayItems } from '@/lib/lessonServer'
+import { pinsOf } from '@/lib/cabinetServer'
 import { askLLM, friendlyError, provider } from '@/lib/llm'
 import { parseQuestions } from '@/lib/aiTest'
 import { throttleCheck, throttleFail } from '@/lib/security'
@@ -36,7 +37,9 @@ export async function GET(req: NextRequest) {
       const c = await getClass(pinsFor)
       if (!c || !canSee(who, c)) return bad('Топ табылмады', 404)
       const { data } = await (await db()).from('teacher_class_students').select('students(id, full_name, ielts_pin, status)').eq('class_id', c.id)
-      const list = (data ?? []).map((m: any) => m.students).filter((s: any) => s && s.status !== 'left').map((s: any) => ({ id: s.id, name: String(s.full_name).replace(/[)\s]+$/, ''), pin: s.ielts_pin ?? null }))
+      const rows = (data ?? []).map((m: any) => m.students).filter((s: any) => s && s.status !== 'left')
+      const pins = await pinsOf(rows.map((s: any) => s.id))
+      const list = rows.map((s: any) => ({ id: s.id, name: String(s.full_name).replace(/[)\s]+$/, ''), pin: pins.get(s.id)?.pin ?? pins.get(s.id)?.bt ?? null }))
       return NextResponse.json({ students: list.sort((a: any, b: any) => a.name.localeCompare(b.name, 'kk')) })
     }
     const quizId = sp.get('quiz')
