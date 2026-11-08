@@ -1,0 +1,206 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import { parentText } from '@/lib/lesson'
+import { waPhone } from '@/lib/payments'
+import { BRAND, dmy, tg } from './core'
+import Today from '@/components/lesson/Today'
+import { Sheet, lessonPost } from '@/components/lesson/ui'
+
+type Lesson = { classId: string; name: string; teacher: string; teacherId: string; phone: string | null; time: string | null; students: number; marked: number; done: boolean; topic: string | null }
+type Debt = { id: string; name: string; group: string | null; phone: string | null; amount: number | null; deadline: string | null; days: number }
+type Watch = { id: string; name: string; phone: string | null; absStreak: number; hwStreak: number; att: number | null; hw: number | null }
+type Pay = { id: string; name: string; amount: number | null; date: string; note: string | null; byTeacher: boolean }
+type Data = { today: string; lessons: Lesson[]; debts: Debt[]; soon: number; watch: Watch[]; payments: Pay[]; paidToday: number; leads: number }
+
+const wa = (phone: string | null, text: string) => {
+  const p = waPhone(phone)
+  return p ? `https://wa.me/${p}?text=${encodeURIComponent(text)}` : null
+}
+
+/** Әкімшінің басты беті: тек назар керек нәрселер, әрқайсысына бір батырма */
+export default function AdminToday({ go }: { go: (view: string) => void }) {
+  const [d, setD] = useState<Data | null>(null)
+  const [err, setErr] = useState('')
+  const [pay, setPay] = useState<Debt | null>(null)
+  const [lessonsOpen, setLessonsOpen] = useState(false)
+  const [toast, setToast] = useState('')
+
+  const load = useCallback(async () => {
+    setErr('')
+    const r = await fetch('/api/admin/today', { cache: 'no-store' })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) return setErr(j.error || 'Жүктелмеді')
+    setD(j)
+  }, [])
+  useEffect(() => {
+    load()
+  }, [load])
+
+  if (lessonsOpen)
+    return (
+      <div className="-mt-6">
+        <Today admin onExit={() => { setLessonsOpen(false); load() }} />
+      </div>
+    )
+  if (err) return <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{err}</p>
+  if (!d) return <p className="py-16 text-center text-sm" style={{ color: BRAND.muted }}>Жүктелуде…</p>
+
+  const notDone = d.lessons.filter((l) => !l.done)
+  const teacherPays = d.payments.filter((p) => p.byTeacher)
+  const allGood = !notDone.length && !d.debts.length && !d.watch.length && !d.leads
+
+  return (
+    <div className="space-y-5">
+      {/* Сандар — әрқайсысы өз бөліміне апарады */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Tile label="Бүгінгі сабақ" value={`${d.lessons.length - notDone.length}/${d.lessons.length}`} hint="журнал толтырылды" tone={notDone.length ? 'warn' : 'ok'} onClick={() => setLessonsOpen(true)} />
+        <Tile label="Қарыз" value={String(d.debts.length)} hint={d.soon ? `тағы ${d.soon} — 3 күнде` : 'төлем күні өткен'} tone={d.debts.length ? 'bad' : 'ok'} onClick={() => go('payments')} />
+        <Tile label="Бүгін түсті" value={tg(d.paidToday)} hint={`${d.payments.filter((p) => p.date === d.today).length} төлем`} tone="ok" onClick={() => go('payments')} />
+        <Tile label="Жаңа өтінім" value={String(d.leads)} hint="сайттан" tone={d.leads ? 'warn' : 'ok'} onClick={() => go('leads')} />
+      </div>
+
+      {allGood && <div className="rounded-2xl bg-emerald-50 p-5 text-center text-sm font-semibold text-emerald-800">Бәрі тәртіпте — бүгін назар аударатын ештеңе жоқ ✓</div>}
+
+      {notDone.length > 0 && (
+        <Block title="Журнал толтырылмаған сабақтар" note="Мұғалімге WhatsApp арқылы бір басумен еске салыңыз">
+          {notDone.map((l) => {
+            const link = wa(l.phone, `Сәлеметсіз бе! Бүгінгі «${l.name}» сабағының журналын толтырыңызшы: Бүгін → сабақ → «Сабақты сақтау». Рақмет! — Beles`)
+            return (
+              <Row key={l.classId} title={l.name} sub={[l.time, l.teacher, l.marked ? `қатысу ${l.marked}/${l.students}` : 'белгі жоқ', l.topic ? null : 'тақырып жоқ'].filter(Boolean).join(' · ')}>
+                {link ? <A href={link}>WhatsApp</A> : <span className="text-xs" style={{ color: BRAND.muted }}>тел. жоқ</span>}
+              </Row>
+            )
+          })}
+        </Block>
+      )}
+
+      {d.debts.length > 0 && (
+        <Block title={`Төлемі өткен оқушылар · ${d.debts.length}`} note="«Төледі» — бір басу; «Еске салу» — ата-анаға дайын хабарлама">
+          {d.debts.slice(0, 30).map((s) => {
+            const link = wa(s.phone, parentText('pay', s.name, { amount: s.amount, days: s.days }))
+            return (
+              <Row key={s.id} title={s.name} sub={[s.group, s.amount ? tg(s.amount) : null, s.days === 0 ? 'бүгін' : `${Math.abs(s.days)} күн кешікті`].filter(Boolean).join(' · ')} bad={s.days <= -7}>
+                {link && <A href={link} light>Еске салу</A>}
+                <button onClick={() => setPay(s)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-white" style={{ background: '#15803D' }}>Төледі</button>
+              </Row>
+            )
+          })}
+          {d.debts.length > 30 && <button onClick={() => go('payments')} className="w-full py-2 text-sm font-semibold" style={{ color: BRAND.blue }}>Барлығы ({d.debts.length}) →</button>}
+        </Block>
+      )}
+
+      {d.watch.length > 0 && (
+        <Block title="Назар аударатын оқушылар" note="Қатарынан келмеген немесе үй тапсырмасын орындамай жүрген — ата-анаға хабар беріңіз">
+          {d.watch.map((s) => {
+            const kind = s.absStreak >= 2 ? 'absent' : 'homework'
+            const link = wa(s.phone, parentText(kind, s.name))
+            return (
+              <Row key={s.id} title={s.name} sub={[s.absStreak >= 2 ? `${s.absStreak} сабақ қатар келмеді` : null, s.hwStreak >= 3 ? `${s.hwStreak} ҮТ қатар орындамады` : null, s.att != null ? `қатысу ${s.att}%` : null].filter(Boolean).join(' · ')} bad={s.absStreak >= 3}>
+                {link ? <A href={link}>Ата-анаға</A> : <span className="text-xs" style={{ color: BRAND.muted }}>тел. жоқ</span>}
+              </Row>
+            )
+          })}
+        </Block>
+      )}
+
+      {teacherPays.length > 0 && (
+        <Block title="Мұғалімдер қабылдаған төлемдер (7 күн)" note="Кассамен салыстыру үшін">
+          {teacherPays.map((p) => (
+            <Row key={p.id} title={`${p.name} — ${tg(p.amount)}`} sub={[dmy(p.date), p.note].filter(Boolean).join(' · ')} />
+          ))}
+        </Block>
+      )}
+
+      {pay && (
+        <AdminPay
+          s={pay}
+          onClose={() => setPay(null)}
+          onDone={(m) => {
+            setPay(null)
+            setToast(m)
+            setTimeout(() => setToast(''), 3000)
+            load()
+          }}
+        />
+      )}
+      {toast && <div className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-lg" style={{ background: BRAND.ink }}>{toast}</div>}
+    </div>
+  )
+}
+
+function Tile({ label, value, hint, tone, onClick }: { label: string; value: string; hint: string; tone: 'ok' | 'warn' | 'bad'; onClick: () => void }) {
+  const c = tone === 'bad' ? '#B91C1C' : tone === 'warn' ? '#B45309' : BRAND.text
+  return (
+    <button onClick={onClick} className="rounded-2xl border bg-white p-4 text-left transition hover:shadow-sm" style={{ borderColor: BRAND.line }}>
+      <div className="text-xs font-medium" style={{ color: BRAND.muted }}>{label}</div>
+      <div className="mt-1 text-2xl font-bold tabular-nums" style={{ color: c }}>{value}</div>
+      <div className="mt-0.5 truncate text-xs" style={{ color: BRAND.muted }}>{hint}</div>
+    </button>
+  )
+}
+
+function Block({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+  return (
+    <section className="overflow-hidden rounded-2xl border bg-white" style={{ borderColor: BRAND.line }}>
+      <div className="border-b px-4 py-3" style={{ borderColor: BRAND.line }}>
+        <h2 className="text-[15px] font-semibold">{title}</h2>
+        {note && <p className="text-xs" style={{ color: BRAND.muted }}>{note}</p>}
+      </div>
+      <div className="divide-y" style={{ borderColor: BRAND.line }}>{children}</div>
+    </section>
+  )
+}
+
+function Row({ title, sub, bad, children }: { title: string; sub?: string; bad?: boolean; children?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-2.5" style={{ borderColor: BRAND.line }}>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium" style={{ color: bad ? '#B91C1C' : undefined }}>{title}</div>
+        {sub && <div className="truncate text-xs" style={{ color: BRAND.muted }}>{sub}</div>}
+      </div>
+      {children && <div className="flex shrink-0 items-center gap-1.5">{children}</div>}
+    </div>
+  )
+}
+
+function A({ href, children, light }: { href: string; children: React.ReactNode; light?: boolean }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="rounded-lg px-3 py-1.5 text-xs font-bold" style={{ background: light ? '#F0FDF4' : '#25D366', color: light ? '#15803D' : '#fff' }}>
+      {children}
+    </a>
+  )
+}
+
+function AdminPay({ s, onClose, onDone }: { s: Debt; onClose: () => void; onDone: (m: string) => void }) {
+  const [amount, setAmount] = useState(s.amount ? String(s.amount) : '')
+  const [method, setMethod] = useState<'kaspi' | 'cash' | 'transfer'>('kaspi')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const go = async () => {
+    setBusy(true)
+    setErr('')
+    try {
+      const r = await lessonPost('/api/admin/today', { action: 'pay', studentId: s.id, amount: Number(amount.replace(/\D/g, '')), method })
+      onDone(`${s.name}: ${tg(r.amount)} жазылды · келесі ${dmy(r.nextDeadline)}`)
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Sheet title="Төлем" onClose={onClose}>
+      <p className="font-medium">{s.name}</p>
+      <p className="text-sm" style={{ color: BRAND.muted }}>{s.group}</p>
+      <input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-4 w-full rounded-xl border px-3 py-3 text-lg font-semibold tabular-nums" style={{ borderColor: BRAND.line }} placeholder="Сомасы" />
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {([['kaspi', 'Kaspi'], ['cash', 'Қолма-қол'], ['transfer', 'Аударым']] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setMethod(k)} className="rounded-xl border py-2.5 text-sm font-semibold" style={{ borderColor: method === k ? BRAND.ink : BRAND.line, background: method === k ? BRAND.ink : '#fff', color: method === k ? '#fff' : BRAND.text }}>{l}</button>
+        ))}
+      </div>
+      {err && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{err}</p>}
+      <button onClick={go} disabled={busy} className="mt-4 w-full rounded-2xl py-3.5 font-semibold text-white disabled:opacity-60" style={{ background: '#15803D' }}>{busy ? 'Сақталуда…' : 'Төледі — сақтау'}</button>
+    </Sheet>
+  )
+}

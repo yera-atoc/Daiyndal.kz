@@ -23,6 +23,8 @@ import {
   Eye,
   BarChart3,
   DoorOpen,
+  Sun,
+  ChevronDown,
 } from 'lucide-react'
 import { BRAND, dmy, type CrmData } from '@/components/crm/core'
 import Overview from '@/components/crm/Overview'
@@ -38,19 +40,24 @@ import Import from '@/components/crm/Import'
 import Parents from '@/components/crm/Parents'
 import Proctor from '@/components/crm/Proctor'
 import TeacherOps from '@/components/crm/TeacherOps'
+import AdminToday from '@/components/crm/Today'
 
-type View = 'jarvis' | 'import' | 'parents' | 'proctor' | 'tops' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'rooms' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
+type View = 'today' | 'jarvis' | 'import' | 'parents' | 'proctor' | 'tops' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'rooms' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
 
-const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'jarvis', label: 'Beles Manager', icon: Sparkles },
-  { id: 'leads', label: 'Өтінімдер', icon: Inbox },
+// Күнделікті керегі — жоғарыда; сирек керегі — «Тағы» ішінде
+const MAIN: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'today', label: 'Бүгін', icon: Sun },
   { id: 'students', label: 'Оқушылар', icon: Users },
-  { id: 'parents', label: 'Ата-аналарға хабар', icon: MessageCircle },
-  { id: 'import', label: 'Оқушыларды енгізу', icon: Upload },
   { id: 'payments', label: 'Төлемдер', icon: Wallet },
   { id: 'lessons', label: 'Сабақ журналы', icon: BookOpenCheck },
-  { id: 'attendance', label: 'Қатысу', icon: CalendarCheck },
   { id: 'schedule', label: 'Кесте', icon: CalendarDays },
+  { id: 'jarvis', label: 'Beles Manager', icon: Sparkles },
+]
+const MORE: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'leads', label: 'Өтінімдер', icon: Inbox },
+  { id: 'parents', label: 'Ата-аналарға хабар', icon: MessageCircle },
+  { id: 'import', label: 'Оқушыларды енгізу', icon: Upload },
+  { id: 'attendance', label: 'Қатысу', icon: CalendarCheck },
   { id: 'rooms', label: 'Кабинеттер', icon: DoorOpen },
   { id: 'groups', label: 'Топтар', icon: UsersRound },
   { id: 'teachers', label: 'Мұғалімдер', icon: GraduationCap },
@@ -60,11 +67,13 @@ const NAV: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'site', label: 'Жетістіктер', icon: Trophy },
   { id: 'overview', label: 'Шолу', icon: LayoutDashboard },
 ]
+const NAV = [...MAIN, ...MORE]
 
 function Crm() {
   const sp = useSearchParams()
   const router = useRouter()
-  const view = (sp.get('view') as View) || 'jarvis'
+  const view = (sp.get('view') as View) || 'today'
+  const [more, setMore] = useState(false)
   const [data, setData] = useState<CrmData | null>(null)
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
@@ -88,7 +97,8 @@ function Crm() {
   if (!data) return <p className="p-10 text-center" style={{ color: BRAND.muted }}>Жүктелуде…</p>
   if (data.error) return <p className="p-10 text-center" style={{ color: BRAND.red }}>{data.error}</p>
 
-  const title = NAV.find((n) => n.id === view)?.label ?? 'Beles Manager'
+  const title = NAV.find((n) => n.id === view)?.label ?? 'Бүгін'
+  const moreOpen = more || MORE.some((n) => n.id === view)
   const openStudent = (id: string) => {
     if (view !== 'students') go('students')
     setOpenId(id)
@@ -106,7 +116,31 @@ function Crm() {
           <div className="text-xs md:mt-3" style={{ color: BRAND.muted }}>Оқу орталығын басқару</div>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:block md:space-y-0.5" aria-label="Бөлімдер">
-          {NAV.map(({ id, label, icon: Icon }) => {
+          {MAIN.map(({ id, label, icon: Icon }) => {
+            const active = view === id
+            return (
+              <button
+                key={id}
+                onClick={() => go(id)}
+                aria-current={active ? 'page' : undefined}
+                className="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium md:w-full"
+                style={{ background: active ? BRAND.ink : 'transparent', color: active ? '#fff' : BRAND.text }}
+              >
+                <Icon size={17} />
+                {label}
+              </button>
+            )
+          })}
+          <button
+            onClick={() => setMore(!moreOpen)}
+            className="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium md:w-full"
+            style={{ color: BRAND.muted }}
+            aria-expanded={moreOpen}
+          >
+            <ChevronDown size={17} style={{ transform: moreOpen ? 'rotate(180deg)' : undefined }} />
+            {moreOpen ? 'Жасыру' : 'Тағы'}
+          </button>
+          {moreOpen && MORE.map(({ id, label, icon: Icon }) => {
             const active = view === id
             return (
               <button
@@ -183,6 +217,7 @@ function Crm() {
             go={go}
           />
         )}
+        {view === 'today' && <AdminToday go={go} />}
         {view === 'jarvis' && <Jarvis />}
         {view === 'import' && <Import teachers={data.teachers} students={data.students} crmGroups={data.groups} reload={load} flash={flash} />}
         {view === 'parents' && <Parents flash={flash} />}

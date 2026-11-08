@@ -13,6 +13,7 @@ import Questions, { BLUE, INK, LINE, MUTED } from '@/components/ielts/Questions'
 import AiTrainer from '@/components/ielts/AiTrainer'
 import AiFeedback, { TASK_NAMES } from '@/components/ielts/AiFeedback'
 import type { AiResult } from '@/lib/aiGrade'
+import LessonQuizzes from '@/components/ielts/LessonQuizzes'
 import { CEFR, SECTION_NAME, SPEAKING_CRITERIA, WRITING_CRITERIA, isCorrect, sectionItems, type Exam, type Scores, type Section } from '@/lib/ielts'
 
 // ── Әр емтиханның өз беті: /ubt, /ielts, /toefl ─────────────────────────────
@@ -202,6 +203,8 @@ export default function Portal({ exam }: { exam: Exam }) {
           </section>
         )
       })()}
+
+      <LessonQuizzes accent={E.accent === INK ? '#2B6BF3' : E.accent} />
 
       {subjects.length > 0 && (
         <section className="mt-5">

@@ -12,6 +12,8 @@ import WeeklyTimetable from '@/components/WeeklyTimetable'
 import TeacherJournal from '@/components/journal/TeacherJournal'
 import EnglishResults from '@/components/teacher/EnglishResults'
 import OverviewTab from '@/components/teacher/OverviewTab'
+import Today from '@/components/lesson/Today'
+import PlanEditor from '@/components/lesson/PlanEditor'
 import { fileSrc } from '@/lib/fileUrl'
 
 const MATERIALS_BUCKET = 'materials'
@@ -43,7 +45,7 @@ type StudentRow = {
 }
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-type Tab = 'overview' | 'journal' | 'schedule' | 'students' | 'notes' | 'results' | 'materials' | 'tests' | 'profile'
+type Tab = 'today' | 'plan' | 'overview' | 'journal' | 'schedule' | 'students' | 'notes' | 'results' | 'materials' | 'tests' | 'profile'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -60,7 +62,8 @@ function initials(name: string) {
 
 export default function TeacherDashboard() {
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>('today')
+  const [more, setMore] = useState(false)
   const [me, setMe] = useState<Teacher | null>(null)
   const [materials, setMaterials] = useState<Material[]>([])
   const [tests, setTests] = useState<Test[]>([])
@@ -102,9 +105,14 @@ export default function TeacherDashboard() {
     )
   }
 
+  // Күнделікті жұмыс — алғашқы үшеуі; қалғаны «Тағы» ішінде
+  const main: [Tab, string][] = [
+    ['today', 'Бүгін'],
+    ['plan', 'КТП'],
+    ['overview', 'Прогресс'],
+  ]
   const tabs: [Tab, string][] = [
-    ['overview', 'Шолу'],
-    ['journal', 'Сабақ журналы'],
+    ['journal', 'Апталық журнал'],
     ['schedule', 'Менің кестем'],
     ['students', 'Оқушылар'],
     ['notes', 'Оқушыға пікір'],
@@ -117,7 +125,7 @@ export default function TeacherDashboard() {
   return (
     <main className="min-h-screen bg-[#F8F9FA] font-sans text-zinc-900">
       <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <Link href="/" className="flex flex-col group">
             <span className="text-xl font-black tracking-tight text-black leading-none group-hover:opacity-80 transition-opacity">
               BELES
@@ -148,22 +156,41 @@ export default function TeacherDashboard() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-6 py-8">
+      <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-8">
         <div className="flex flex-wrap gap-2">
-          {tabs.map(([key, label]) => (
+          {main.map(([key, label]) => (
             <button
               key={key}
-              onClick={() => setTab(key)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                tab === key
-                  ? 'bg-black text-white shadow-sm'
-                  : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-              }`}
+              onClick={() => { setTab(key); setMore(false) }}
+              className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tab === key ? 'bg-black text-white shadow-sm' : 'bg-white text-zinc-700 ring-1 ring-zinc-200 hover:ring-zinc-400'}`}
             >
               {label}
             </button>
           ))}
+          <button
+            onClick={() => setMore(!more)}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tabs.some(([k]) => k === tab) ? 'bg-black text-white' : 'bg-white text-zinc-700 ring-1 ring-zinc-200 hover:ring-zinc-400'}`}
+            aria-expanded={more}
+          >
+            {tabs.find(([k]) => k === tab)?.[1] ?? 'Тағы'} ▾
+          </button>
         </div>
+        {more && (
+          <div className="mt-2 flex flex-wrap gap-2 rounded-2xl bg-white p-2 ring-1 ring-zinc-200">
+            {tabs.map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => { setTab(key); setMore(false) }}
+                className={`rounded-lg px-3.5 py-2 text-sm font-medium transition ${tab === key ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === 'today' && <Today />}
+        {tab === 'plan' && <PlanEditor classId={null} onBack={() => setTab('today')} />}
 
         {tab === 'overview' && <OverviewTab />}
         {tab === 'journal' && <TeacherJournal />}
