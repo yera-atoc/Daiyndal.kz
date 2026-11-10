@@ -217,6 +217,10 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
       )}
 
       <div className="grid gap-2 sm:grid-cols-2">
+        <a href="/admin/assign" className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
+          <b className="block">Оқушыларды мұғалімдерге бөлу</b>
+          <span style={{ color: BRAND.muted }}>Пән мен сынып бойынша: әр мұғалім тек өз оқушыларын көреді</span>
+        </a>
         <a href="/admin/pins" className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
           <b className="block">Кабинетке кіру карточкалары</b>
           <span style={{ color: BRAND.muted }}>Топ бойынша PIN жасау және басып шығару — оқушы «Менің кабинетіме» бір PIN-мен кіреді</span>
