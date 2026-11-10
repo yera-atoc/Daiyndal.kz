@@ -1,7 +1,16 @@
 // КТП үлгілерін топқа бейімдеу: аптасына неше сабақ, айлық Білім тексеру апталары, қысқы қайталау.
-import { TEMPLATES, type KtpTemplate } from './templates'
+import { BASE_TEMPLATES, type KtpTemplate } from './templates'
+import { MATH_PHYS } from './gradesMathPhys'
+import { ENGLISH } from './gradesEnglish'
+import { KAZAKH, RUSSIAN } from './gradesKazRus'
+import { HISTORY } from './gradesHistory'
+import { gradeOfGroup, subjectsFromText } from '../assign'
 
-export { TEMPLATES }
+/** Барлық үлгі: сынып бойынша мектеп бағдарламасы + НЗМ/БИЛ/ҰБТ/IELTS дайындық курстары */
+export const TEMPLATES: KtpTemplate[] = [...MATH_PHYS, ...ENGLISH, ...KAZAKH, ...RUSSIAN, ...HISTORY, ...BASE_TEMPLATES]
+/** PDF/сүзгі үшін мұғалімдер реті */
+export const KTP_TEACHERS = ['Айдын', 'Жолтай', 'Ернар', 'Асан', 'Ақниет', 'Орыс тілі', 'Алуа']
+
 export type { KtpTemplate }
 
 export type KtpWeek = { a: string; b: string; hw: string | null }
@@ -99,31 +108,34 @@ export function buildPlan(t: KtpTemplate, perWeek: number, from: string): KtpIte
   return out
 }
 
-const gradeOf = (name: string) => {
-  const m = name.match(/(\d{1,2})\s*[- ]?\s*(сынып|класс|class|кл|grade)/i) ?? name.match(/(?:^|\D)(\d{1,2})(?:\D|$)/)
-  const g = m ? Number(m[1]) : NaN
-  return g >= 1 && g <= 11 ? g : null
-}
-
 /** Топқа ең лайық үлгі (пән + атаудағы сынып пен НЗМ/БИЛ/ҰБТ/IELTS белгілері) */
 export function pickTemplate(subject: string | null | undefined, name: string): KtpTemplate | null {
   const text = `${subject ?? ''} ${name}`.toLowerCase()
-  const g = gradeOf(name)
+  const g = gradeOfGroup(name)
+  const prep = /нзм|ниш|бил/.test(text)
+  const ubt = /ұбт|ubt|ент/.test(text)
   let best: { t: KtpTemplate; s: number } | null = null
   for (const t of TEMPLATES) {
     const subj = t.subject.toLowerCase()
     let s = 0
     // пәні сәйкес пе
-    const subjHit = text.includes(subj.slice(0, 5)) || t.keys.some((k) => text.includes(k))
-    if (!subjHit) continue
+    // Пән сәйкестігі: топтың пәні мен үлгінің пәні бір болуы керек (тарих ≠ қазақ тілі)
+    const cls = subjectsFromText(subject || name)
+    const tpl = t.id === 'nzmquant' ? ['math'] : subjectsFromText(t.subject)
+    if (cls.length && tpl.length) {
+      if (!tpl.some((x) => cls.includes(x as any))) continue
+    } else if (!(text.includes(subj.slice(0, 5)) || t.keys.some((k) => text.includes(k)))) continue
     s += 2
     for (const k of t.keys) if (text.includes(k)) s += k.length > 3 ? 2 : 1
     if (t.grades && g) s += g >= t.grades[0] && g <= t.grades[1] ? 4 : -3
     // ерекше бағыттар
-    if (/нзм|ниш|бил/.test(text) && /^nzm|kazakh|russian/.test(t.id)) s += 3
-    if (/ұбт|ubt|ент/.test(text) && t.id.startsWith('ubt')) s += 3
+    if (/нзм|ниш|бил/.test(text) && /^nzm|kazakh|russian/.test(t.id)) s += 5
+    if (/ұбт|ubt|ент/.test(text) && t.id.startsWith('ubt')) s += 5
     if (/ielts/.test(text) && t.id.includes('ielts')) s += 4
     if (/физика/.test(text) && t.id.includes('phys')) s += 3
+    // дайындық курстары — тек сол бағыттағы топтарға
+    if (['nzm5math', 'nzm6math', 'nzmquant', 'nzmscience', 'kazakh', 'russian'].includes(t.id) && !prep) s -= 4
+    if (t.id.startsWith('ubt') && !ubt) s -= 4
     if (!best || s > best.s) best = { t, s }
   }
   return best?.t ?? null

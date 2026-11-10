@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { TEMPLATES, buildPlan, calendar } from '@/lib/ktp'
+import { useEffect, useMemo, useState } from 'react'
+import { KTP_TEACHERS, TEMPLATES, buildPlan, calendar } from '@/lib/ktp'
 
 const MON = ['қаң', 'ақп', 'нау', 'сәу', 'мам', 'мау', 'шіл', 'там', 'қыр', 'қаз', 'қар', 'жел']
 const dm = (iso: string) => `${Number(iso.slice(8, 10))} ${MON[Number(iso.slice(5, 7)) - 1]}`
@@ -15,8 +15,15 @@ const START = '2026-11-09'
 /** КТП үлгілері: апта бойынша кесте (аптасына 2 сабақ), басып шығаруға / PDF-ке */
 export default function KtpPage() {
   const [sel, setSel] = useState<string>('all')
+  const [teacher, setTeacher] = useState<string>('')
+  useEffect(() => {
+    const t = new URLSearchParams(location.search).get('teacher')
+    if (t) setTeacher(t)
+  }, [])
   const cal = useMemo(() => calendar(START), [])
-  const shown = TEMPLATES.filter((t) => sel === 'all' || t.id === sel)
+  // Мұғалім бойынша: алдымен сынып бойынша мектеп бағдарламасы (3→11), кейін дайындық курстары
+  const ofTeacher = TEMPLATES.filter((t) => !teacher || (teacher === 'other' ? !t.teacher : (t.teacher ?? '').split(/,\s*/).includes(teacher))).sort((a, b) => (a.grades ? 0 : 1) - (b.grades ? 0 : 1) || (a.grades?.[0] ?? 99) - (b.grades?.[0] ?? 99))
+  const shown = ofTeacher.filter((t) => sel === 'all' || t.id === sel)
 
   return (
     <main className="mx-auto max-w-[200mm] p-5 text-[#0E1424] print:p-0">
@@ -26,7 +33,12 @@ export default function KtpPage() {
         <h1 className="mt-1 text-2xl font-semibold">КТП үлгілері · Қараша 2026 — Мамыр 2027</h1>
         <p className="mt-1 text-sm text-[#687085]">Аптасына 2 сабақ үшін көрсетілген. Топқа қойғанда сабақ күндеріне қарай өзі бейімделеді (1 сабақ — біріктіріледі, 3+ — практикум қосылады). Сары апта — айлық Білім тексеру.</p>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {[{ id: 'all', title: 'Барлығы' }, ...TEMPLATES].map((t) => (
+          {[['', 'Барлық мұғалім'], ...KTP_TEACHERS.map((t) => [t, t]), ['other', 'Басқа пәндер']].map(([id, label]) => (
+            <button key={id || 'allT'} onClick={() => { setTeacher(id); setSel('all') }} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${teacher === id ? 'bg-[#2B6BF3] text-white' : 'bg-white ring-1 ring-[#E3E7F0]'}`}>{label}</button>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {[{ id: 'all', title: 'Барлығы' }, ...ofTeacher].map((t) => (
             <button key={t.id} onClick={() => setSel(t.id)} className={`rounded-full px-3 py-1.5 text-xs ${sel === t.id ? 'bg-[#0E1424] text-white' : 'bg-white ring-1 ring-[#E3E7F0]'}`}>{t.title}</button>
           ))}
         </div>
@@ -40,7 +52,7 @@ export default function KtpPage() {
           <section key={t.id} className="tpl mt-6 print:mt-0">
             <div className="flex items-end justify-between border-b-2 border-[#0E1424] pb-1.5">
               <div>
-                <div className="text-[9px] font-bold tracking-[.2em] text-[#2B6BF3]">BELES EDUCATION · КТП</div>
+                <div className="text-[9px] font-bold tracking-[.2em] text-[#2B6BF3]">BELES EDUCATION · КТП{t.teacher ? ` · ${t.teacher}` : ''}</div>
                 <h2 className="text-lg font-bold">{t.title}</h2>
               </div>
               <div className="text-right text-[10px] text-[#687085]">{plan.length} сабақ · {weeks.length} апта</div>

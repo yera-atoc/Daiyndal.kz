@@ -10,13 +10,16 @@ export type KtpTemplate = {
   keys: string[]
   /** Сынып диапазоны (топ атауындағы санмен салыстырылады) */
   grades?: [number, number]
+  /** Қай мұғалімнің КТП-сы (PDF және сүзгі үшін) */
+  teacher?: string
   weeks: string
 }
 
-export const TEMPLATES: KtpTemplate[] = [
+export const BASE_TEMPLATES: KtpTemplate[] = [
   // ── МАТЕМАТИКА ───────────────────────────────────────────
   {
     id: 'math3',
+    teacher: 'Айдын',
     title: 'Математика · 3 сынып',
     subject: 'Математика',
     keys: ['математика', 'матем'],
@@ -45,6 +48,7 @@ export const TEMPLATES: KtpTemplate[] = [
   },
   {
     id: 'math4',
+    teacher: 'Айдын',
     title: 'Математика · 4 сынып (НЗМ/БИЛ-ге дайындық негізі)',
     subject: 'Математика',
     keys: ['математика', 'матем'],
@@ -73,6 +77,7 @@ export const TEMPLATES: KtpTemplate[] = [
   },
   {
     id: 'nzm5math',
+    teacher: 'Жолтай',
     title: 'НЗМ / БИЛ дайындық · 5 сынып · Математика',
     subject: 'Математика',
     keys: ['нзм', 'ниш', 'бил', 'математика', 'матем'],
@@ -101,6 +106,7 @@ export const TEMPLATES: KtpTemplate[] = [
   },
   {
     id: 'nzm6math',
+    teacher: 'Жолтай',
     title: 'НЗМ / БИЛ дайындық · 6 сынып · Математика-логика',
     subject: 'Математика',
     keys: ['нзм', 'ниш', 'бил', 'математика', 'логика'],
@@ -129,6 +135,7 @@ export const TEMPLATES: KtpTemplate[] = [
   },
   {
     id: 'nzmquant',
+    teacher: 'Жолтай',
     title: 'НЗМ дайындық · Сандық сипаттама',
     subject: 'Сандық сипаттама',
     keys: ['сандық', 'сипаттама', 'quant'],
@@ -155,63 +162,8 @@ export const TEMPLATES: KtpTemplate[] = [
 Қорытынды сынақ; Емтиханға стратегия :: жеке жоспар`,
   },
   {
-    id: 'math79',
-    title: 'Математика · 7–8 сынып (алгебра және геометрия)',
-    subject: 'Математика',
-    keys: ['математика', 'алгебра', 'матем'],
-    grades: [7, 8],
-    weeks: `Бірмүшелер мен көпмүшелер; Көпмүшелерді көбейту :: 15 мысал
-Қысқаша көбейту формулалары; Көбейткіштерге жіктеу :: 15 мысал
-Алгебралық бөлшектер: қысқарту; Алгебралық бөлшектермен амалдар :: 12 мысал
-Сызықтық функция және графигі; Сызықтық теңдеулер жүйесі :: 8 тапсырма
-Жүйені шешу: алмастыру, қосу тәсілі; Жүйе құрып есеп шығару :: 6 жүйе + 2 есеп
-Квадрат түбір, қасиеттері; Түбірлі өрнектерді түрлендіру :: 12 мысал
-Квадрат теңдеулер, дискриминант; Виет теоремасы :: 12 теңдеу
-Квадрат теңдеуге келтірілетін есептер; Бөлшек-рационал теңдеулер :: 8 тапсырма
-Геометрия: үшбұрыш теңдігінің белгілері; Тең бүйірлі үшбұрыш :: 6 есеп
-Параллель түзулер, бұрыштар; Үшбұрыш бұрыштарының қосындысы :: 6 есеп
-Төртбұрыштар: параллелограмм, ромб, тіктөртбұрыш; Трапеция :: 6 есеп
-Пифагор теоремасы; Тікбұрышты үшбұрыштағы тригонометрия :: 8 есеп
-Фигуралардың аудандары; Ұқсас үшбұрыштар :: 8 есеп
-Шеңбер: жанама, хорда, іштей сызылған бұрыш; Іштей/сырттай сызылған шеңбер :: 6 есеп
-Сызықтық теңсіздіктер, жүйелер; Квадрат теңсіздіктер (интервал әдісі) :: 10 тапсырма
-Квадраттық функция, парабола; Функцияның қасиеттері :: 6 график
-Статистика: жиілік, орта мән, дисперсия; Ықтималдық :: 6 есеп
-Мәтінді есептер (пайыз, қозғалыс, жұмыс); Логикалық-математикалық есептер :: 6 есеп
-Бөлім бойынша жиынтық тест; Талдау :: қатемен жұмыс
-Қайталау: алгебра; Қайталау: геометрия :: 30 сұрақтық тест
-Жылдық бақылау; Қатемен жұмыс, жазғы жоспар :: жазғы тапсырма`,
-  },
-  {
-    id: 'math910',
-    title: 'Математика · 9–10 сынып',
-    subject: 'Математика',
-    keys: ['математика', 'алгебра', 'матем'],
-    grades: [9, 10],
-    weeks: `Квадрат теңсіздіктер, интервал әдісі; Теңсіздіктер жүйесі :: 12 тапсырма
-Екі айнымалысы бар теңдеулер жүйесі; Жүйе құрып есеп шығару :: 8 жүйе
-Арифметикалық прогрессия; Геометриялық прогрессия :: 12 есеп
-Шексіз кемімелі геометриялық прогрессия; Прогрессияға мәтінді есептер :: 8 есеп
-Тригонометрия: радиан, бірлік шеңбер; Негізгі тригонометриялық тепе-теңдіктер :: 12 мысал
-Келтіру формулалары; Қосу формулалары :: 12 мысал
-Тригонометриялық теңдеулер; Тригонометриялық өрнектерді ықшамдау :: 10 тапсырма
-Функция: анықталу облысы, мәндер жиыны; Функция графигін түрлендіру :: 8 тапсырма
-Дәреже және түбір (n-ші дәреже); Иррационал теңдеулер :: 10 мысал
-Көрсеткіштік функция және теңдеулер; Логарифм, қасиеттері :: 12 мысал
-Логарифмдік теңдеулер мен теңсіздіктер; Аралас есептер :: 10 тапсырма
-Векторлар, координаталар әдісі; Шеңбер мен түзудің теңдеуі :: 8 есеп
-Үшбұрыштарды шешу: синустар, косинустар теоремасы; Аудан формулалары :: 8 есеп
-Комбинаторика, ықтималдық; Статистика :: 8 есеп
-Туынды: анықтамасы, ережелері; Туындының геометриялық мағынасы :: 12 мысал
-Функцияны зерттеу, ең үлкен/ең кіші мән; Оптимизация есептері :: 6 есеп
-Стереометрия: призма, пирамида; Аудан мен көлем :: 6 есеп
-ҰБТ форматындағы тақырыптық тест; Талдау :: қатемен жұмыс
-Мәтінді есептер (пайыз, қоспа, қозғалыс); Логикалық есептер :: 8 есеп
-Қайталау: алгебра және функция; Қайталау: геометрия :: 30 сұрақтық тест
-Жылдық бақылау; Қатемен жұмыс, ҰБТ-ға жоспар :: жазғы жоспар`,
-  },
-  {
     id: 'ubtmath',
+    teacher: 'Айдын',
     title: 'ҰБТ · Математика (бейіндік) · 11 сынып',
     subject: 'Математика',
     keys: ['ұбт', 'ubt', 'ент', 'математика', 'матем'],
@@ -240,6 +192,7 @@ export const TEMPLATES: KtpTemplate[] = [
   },
   {
     id: 'ubtmathlit',
+    teacher: 'Айдын',
     title: 'ҰБТ · Математикалық сауаттылық',
     subject: 'Математикалық сауаттылық',
     keys: ['сауаттылық', 'мат сауат', 'математикалық сауаттылық'],
@@ -268,35 +221,8 @@ export const TEMPLATES: KtpTemplate[] = [
 
   // ── ФИЗИКА ───────────────────────────────────────────────
   {
-    id: 'phys79',
-    title: 'Физика · 7–9 сынып',
-    subject: 'Физика',
-    keys: ['физика'],
-    grades: [7, 9],
-    weeks: `Механикалық қозғалыс, жылдамдық; Бірқалыпсыз қозғалыс, орташа жылдамдық :: 10 есеп
-Масса, тығыздық; Күш, ауырлық күші, салмақ :: 10 есеп
-Серпімділік күші, Гук заңы; Үйкеліс күші :: 8 есеп
-Қысым, қатты денелердің қысымы; Сұйық пен газ қысымы :: 8 есеп
-Паскаль заңы, гидравликалық машина; Атмосфералық қысым :: 8 есеп
-Архимед күші; Денелердің жүзу шарттары :: 8 есеп
-Механикалық жұмыс, қуат; Энергия, энергияның сақталу заңы :: 8 есеп
-Қарапайым механизмдер: рычаг, блок; ПӘК :: 6 есеп
-Жылу құбылыстары, ішкі энергия; Жылу мөлшері, меншікті жылу сыйымдылық :: 8 есеп
-Балқу, булану, конденсация; Отынның жану жылуы :: 8 есеп
-Электр заряды, электр өрісі; Ток күші, кернеу, кедергі :: 8 есеп
-Ом заңы; Тізбектей және параллель жалғау :: 10 есеп
-Электр тогының жұмысы мен қуаты; Джоуль-Ленц заңы :: 8 есеп
-Магнит өрісі, электромагнит; Электр қозғалтқыш :: 6 сұрақ
-Жарық, шағылу заңы; Сыну, линзалар :: 8 есеп
-Тербелістер мен толқындар; Дыбыс :: 6 есеп
-Кинематика: бірқалыпты үдемелі қозғалыс; Еркін түсу :: 10 есеп
-Ньютон заңдары; Импульс, сақталу заңы :: 10 есеп
-Бөлім бойынша тест; Талдау :: қатемен жұмыс
-Қайталау: механика; Қайталау: жылу және электр :: 30 сұрақ
-Жылдық бақылау; Қатемен жұмыс :: жазғы тапсырма`,
-  },
-  {
     id: 'ubtphys',
+    teacher: 'Асан',
     title: 'ҰБТ · Физика',
     subject: 'Физика',
     keys: ['физика', 'ұбт', 'ubt'],
@@ -354,6 +280,7 @@ export const TEMPLATES: KtpTemplate[] = [
   },
   {
     id: 'kazakh',
+    teacher: 'Ақниет',
     title: 'Қазақ тілі · НЗМ / БИЛ дайындық',
     subject: 'Қазақ тілі',
     keys: ['қазақ', 'казах'],
@@ -381,6 +308,7 @@ export const TEMPLATES: KtpTemplate[] = [
   },
   {
     id: 'russian',
+    teacher: 'Орыс тілі',
     title: 'Орыс тілі · НЗМ дайындық',
     subject: 'Орыс тілі',
     keys: ['орыс', 'русский'],
@@ -409,67 +337,11 @@ export const TEMPLATES: KtpTemplate[] = [
 
   // ── АҒЫЛШЫН ТІЛІ ─────────────────────────────────────────
   {
-    id: 'engA0',
-    title: 'English · Starter A0 (2–3 сынып)',
-    subject: 'Ағылшын тілі',
-    keys: ['english', 'ағылшын', 'английский', 'starter', 'a0'],
-    grades: [1, 3],
-    weeks: `Alphabet & sounds; Hello! Greetings, my name :: 10 words
-Numbers 1–20; Colours :: draw & label
-My family; This is my… / Possessives my, your :: family tree
-School things; Classroom commands :: 10 words
-Animals; Can / can't (abilities) :: 5 sentences
-Toys; Have got / has got :: 6 sentences
-Body & face; Clothes :: label picture
-Food I like; Like / don't like :: 6 sentences
-My house: rooms; Prepositions in, on, under :: draw my room
-Days of the week; Weather :: picture diary
-Months & seasons; Birthday party :: card
-Actions: run, jump, swim; Present Continuous (I'm running) :: 6 sentences
-Numbers 20–100; Telling the time (o'clock) :: clock worksheet
-Jobs; Where? In the town :: 8 words
-Phonics: short vowels; Reading simple words :: read 20 words
-Picture match & translation test; Review :: correction
-Story time: reading a short story; Questions about the story :: retell
-Sports & hobbies; Free time :: 6 sentences
-Review: vocabulary; Review: grammar (to be, have got, can) :: 20-question quiz
-Final test; Feedback & summer words :: summer word book
-Show & tell (speaking); Certificate day :: —`,
-  },
-  {
-    id: 'eng45',
-    title: 'English · 4–5 сынып (A1)',
-    subject: 'Ағылшын тілі',
-    keys: ['english', 'ағылшын', 'английский'],
-    grades: [4, 6],
-    weeks: `To be: am/is/are (+, −, ?); Personal pronouns & possessive adjectives :: 15 sentences
-Have got / has got; Plural nouns (regular & irregular) :: 15 sentences
-There is / there are; Prepositions of place :: describe my room (6 sentences)
-Present Simple: affirmative; Present Simple: negatives & questions :: 15 sentences
-Adverbs of frequency; Daily routine (vocabulary) :: my day (60 words)
-Present Continuous; Present Simple vs Continuous :: 15 sentences
-Can / can't; Imperatives :: 10 sentences
-Countable / uncountable; Some / any, much / many :: 15 sentences
-Reading: short texts (true / false); Reading: multiple choice :: 1 text + questions
-Past Simple: was / were; Past Simple: regular verbs :: 15 sentences
-Past Simple: irregular verbs; Questions in Past Simple :: verb list (20)
-Comparatives; Superlatives :: 12 sentences
-Going to (plans); Future: will :: 10 sentences
-Object pronouns; Possessive 's :: 12 sentences
-Words & grammar test (Білім тексеру format); Reading strategies :: correction
-Vocabulary: food, shopping; Dialogues: at the shop :: dialogue
-Vocabulary: travel, weather, nature; Describing pictures :: 6 sentences
-Writing: a postcard / an email; Writing: my best friend :: 80 words
-Review: tenses; Review: reading :: 30-question quiz
-Final test; Feedback :: summer reading
-Speaking day: presentations; Summary :: —`,
-  },
-  {
     id: 'engA2',
-    title: 'English · A1–A2 / 9 сынып',
+    teacher: 'Ернар',
+    title: 'English · A1–A2 деңгейлік топ',
     subject: 'Ағылшын тілі',
     keys: ['english', 'ағылшын', 'a1', 'a2', 'английский'],
-    grades: [7, 9],
     weeks: `Present Simple & Continuous (review); Stative verbs :: 20 sentences
 Past Simple vs Past Continuous; Used to :: 20 sentences
 Present Perfect (ever, never, just, already, yet); Present Perfect vs Past Simple :: 20 sentences
@@ -494,6 +366,7 @@ Speaking day; Summary :: —`,
   },
   {
     id: 'preielts',
+    teacher: 'Ернар',
     title: 'Pre-IELTS · 9–10 сынып (A2–B1)',
     subject: 'Ағылшын тілі',
     keys: ['pre-ielts', 'preielts', 'pre ielts', 'english', 'ағылшын'],
@@ -522,10 +395,10 @@ Final feedback; Summer study plan :: —`,
   },
   {
     id: 'ielts',
+    teacher: 'Ернар',
     title: 'IELTS · 11 сынып / B1–B2',
     subject: 'Ағылшын тілі',
-    keys: ['ielts', '11-english', 'english 11', 'english', 'ағылшын'],
-    grades: [11, 11],
+    keys: ['ielts', 'english', 'ағылшын'],
     weeks: `Reading: T/F/NG & Y/N/NG (advanced); Vocabulary: academic word list 1 :: 1 passage + 20 words
 Listening Section 3–4; Note completion :: 2 sections
 Writing Task 1: mixed charts; Overview & key features :: 1 task
@@ -552,6 +425,7 @@ Final feedback; Next steps (exam booking) :: —`,
   // ── ҰБТ: ТАРИХ, ОҚУ САУАТТЫЛЫҒЫ, ХИМИЯ, ИНФОРМАТИКА ───────
   {
     id: 'ubthistory',
+    teacher: 'Алуа',
     title: 'ҰБТ · Қазақстан тарихы',
     subject: 'Қазақстан тарихы',
     keys: ['тарих', 'история'],
