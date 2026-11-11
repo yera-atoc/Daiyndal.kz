@@ -253,6 +253,7 @@ export const BASE_TEMPLATES: KtpTemplate[] = [
   // ── ЖАРАТЫЛЫСТАНУ, ТІЛДЕР (НЗМ/БИЛ) ───────────────────────
   {
     id: 'nzmscience',
+    teacher: 'Диана',
     title: 'НЗМ дайындық · Жаратылыстану (5–6 сынып)',
     subject: 'Жаратылыстану',
     keys: ['жаратылыстану', 'science'],

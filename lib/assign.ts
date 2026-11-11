@@ -80,7 +80,7 @@ export function isAidynFifthGroup(names: string[]): boolean {
 }
 
 /** Мұғалімді аты немесе пәні бойынша табу */
-export function findTeacher(teachers: ATeacher[], key: 'ernar' | 'zholtai' | 'asan' | 'aidyn' | 'akniet' | 'alua' | 'russian'): ATeacher | null {
+export function findTeacher(teachers: ATeacher[], key: 'ernar' | 'zholtai' | 'asan' | 'aidyn' | 'akniet' | 'alua' | 'diana' | 'russian'): ATeacher | null {
   const byName = (re: RegExp) => teachers.find((t) => re.test(low(t.name))) ?? null
   switch (key) {
     case 'ernar':
@@ -95,6 +95,8 @@ export function findTeacher(teachers: ATeacher[], key: 'ernar' | 'zholtai' | 'as
       return byName(/ақниет|акниет|рамазанова/)
     case 'alua':
       return byName(/алуа/)
+    case 'diana':
+      return byName(/карабаева|диана/)
     case 'russian':
       return teachers.find((t) => /орыс|русск|russian/.test(low(t.subject))) ?? byName(/орыс тілі|русский/)
   }
@@ -108,6 +110,7 @@ export function ruleFor(subject: SubjKey, grade: number | null, names: string[],
   if (subject === 'kazakh') return f('akniet', 'Қазақ тілі → Ақниет Рамазанова')
   if (subject === 'russian') return f('russian', 'Орыс тілі → орыс тілі мұғалімі')
   if (subject === 'history') return f('alua', 'Қазақстан тарихы → Алуа')
+  if (subject === 'science') return f('diana', 'Жаратылыстану → Карабаева Диана')
   if (subject === 'math') {
     if (grade === 5 && isAidynFifthGroup(names)) return f('aidyn', '5 сынып (Бибі, Алима, Зере тобы) → Айдын')
     if (grade === 5 || grade === 6) return f('zholtai', 'Математика 5–6 сынып → Жолтай')

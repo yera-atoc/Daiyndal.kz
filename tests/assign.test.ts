@@ -9,6 +9,7 @@ const teachers = [
   { id: 'ak', name: 'Ақниет Рамазанова', subject: 'Қазақ тілі' },
   { id: 'al', name: 'Алуа', subject: 'Қазақстан тарихы' },
   { id: 'ru', name: 'Светлана', subject: 'Орыс тілі' },
+  { id: 'di', name: 'Карабаева Диана', subject: 'Жаратылыстану' },
 ]
 const bt = [
   { id: 'nzm', name: 'НЗМ дайындық тобы', subjects: ['math', 'quant', 'science', 'kazakh', 'russian', 'english'].map((id) => ({ id })) },
@@ -46,7 +47,7 @@ describe('planAssign', () => {
     expect(pick('g1', 'english')).toBe('er')
     expect(pick('g1', 'kazakh')).toBe('ak')
     expect(pick('g1', 'russian')).toBe('ru')
-    expect(pick('g1', 'science')).toBeNull()
+    expect(pick('g1', 'science')).toBe('di')
   })
   it('Бибі, Алима, Зере тобы: математика — Айдын, ағылшын — Ернар', () => {
     expect(pick('g2', 'math')).toBe('ai')

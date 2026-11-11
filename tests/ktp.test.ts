@@ -22,6 +22,7 @@ describe('КТП үлгілері', () => {
     }
     for (const g of [7, 8, 9, 10, 11]) expect(has(`phys${g}`), `phys${g}`).toBe(true)
     for (const g of [5, 6, 7, 8, 9, 10, 11]) expect(has(`hist${g}`), `hist${g}`).toBe(true)
+    for (const g of [3, 4, 5, 6]) expect(has(`sci${g}`), `sci${g}`).toBe(true)
   })
   it('id-лер қайталанбайды', () => {
     expect(new Set(TEMPLATES.map((t) => t.id)).size).toBe(TEMPLATES.length)
@@ -85,6 +86,9 @@ describe('pickTemplate', () => {
     ['Қазақстан тарихы', '11-сынып ҰБТ 1-топ · Қазақстан тарихы', 'ubthistory'],
     ['Қазақстан тарихы', '8 сынып', 'hist8'],
     ['Химия', '11 сынып ҰБТ', 'ubtchem'],
+    ['Жаратылыстану', '4-сынып 1-топ · Жаратылыстану', 'sci4'],
+    ['Жаратылыстану', '6 сынып', 'sci6'],
+    ['Жаратылыстану', 'НЗМ дайындық тобы · Жаратылыстану', 'nzmscience'],
   ]
   for (const [s, n, id] of cases) it(`${n} → ${id}`, () => expect(pickTemplate(s, n)?.id).toBe(id))
 })

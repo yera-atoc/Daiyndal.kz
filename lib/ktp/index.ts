@@ -4,12 +4,13 @@ import { MATH_PHYS } from './gradesMathPhys'
 import { ENGLISH } from './gradesEnglish'
 import { KAZAKH, RUSSIAN } from './gradesKazRus'
 import { HISTORY } from './gradesHistory'
+import { SCIENCE } from './gradesScience'
 import { gradeOfGroup, subjectsFromText } from '../assign'
 
 /** Барлық үлгі: сынып бойынша мектеп бағдарламасы + НЗМ/БИЛ/ҰБТ/IELTS дайындық курстары */
-export const TEMPLATES: KtpTemplate[] = [...MATH_PHYS, ...ENGLISH, ...KAZAKH, ...RUSSIAN, ...HISTORY, ...BASE_TEMPLATES]
+export const TEMPLATES: KtpTemplate[] = [...MATH_PHYS, ...ENGLISH, ...KAZAKH, ...RUSSIAN, ...HISTORY, ...SCIENCE, ...BASE_TEMPLATES]
 /** PDF/сүзгі үшін мұғалімдер реті */
-export const KTP_TEACHERS = ['Айдын', 'Жолтай', 'Ернар', 'Асан', 'Ақниет', 'Орыс тілі', 'Алуа']
+export const KTP_TEACHERS = ['Айдын', 'Жолтай', 'Ернар', 'Асан', 'Ақниет', 'Орыс тілі', 'Алуа', 'Диана']
 
 export type { KtpTemplate }
 
