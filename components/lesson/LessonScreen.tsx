@@ -10,7 +10,7 @@ const nextAtt = (s: AttStatus) => ATT_CYCLE[(ATT_CYCLE.indexOf(s) + 1) % ATT_CYC
 const tg = (n: number | null | undefined) => (n == null ? '' : `${n.toLocaleString('ru-RU')} ₸`)
 
 /** Бір сабақ — бір экран: тақырып (КТП-дан), қатысу, үй тапсырмасы, төлем, тест; бір «Сақтау» */
-export default function LessonScreen({ classId, date, onBack, onPlan }: { classId: string; date: string; onBack: () => void; onPlan: (classId: string) => void }) {
+export default function LessonScreen({ classId, date, onBack, onPlan, onGrid }: { classId: string; date: string; onBack: () => void; onPlan: (classId: string) => void; onGrid?: (classId: string) => void }) {
   const [v, setV] = useState<LessonView | null>(null)
   const [err, setErr] = useState('')
   const [topic, setTopic] = useState('')
@@ -128,7 +128,14 @@ export default function LessonScreen({ classId, date, onBack, onPlan }: { classI
 
   return (
     <div className="mt-4" style={{ color: INK }}>
-      <button onClick={onBack} className="mb-1 text-sm font-semibold" style={{ color: BLUE }}>← Бүгінгі сабақтар</button>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <button onClick={onBack} className="text-sm font-semibold" style={{ color: BLUE }}>← Бүгінгі сабақтар</button>
+        {onGrid && (
+          <button onClick={() => onGrid(classId)} className="rounded-lg border bg-white px-2.5 py-1 text-xs font-semibold" style={{ borderColor: LINE, color: INK }}>
+            ▦ Топ журналы
+          </button>
+        )}
+      </div>
       <h1 className="font-display text-2xl font-semibold tracking-tight">{v.class.name}</h1>
       <p className="mt-0.5 text-sm" style={{ color: MUTED }}>
         {[`${DAY_FULL[weekdayOf(date) - 1]}, ${dayMonth(date)}`, v.time, v.class.subject, `${v.students.length} оқушы`].filter(Boolean).join(' · ')}

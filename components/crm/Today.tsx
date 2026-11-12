@@ -5,6 +5,7 @@ import { parentText } from '@/lib/lesson'
 import { waPhone } from '@/lib/payments'
 import { BRAND, dmy, tg } from './core'
 import Today from '@/components/lesson/Today'
+import GroupGrid from '@/components/lesson/GroupGrid'
 import { Sheet, lessonPost } from '@/components/lesson/ui'
 
 type Lesson = { classId: string; name: string; teacher: string; teacherId: string; phone: string | null; time: string | null; students: number; marked: number; done: boolean; topic: string | null }
@@ -24,6 +25,7 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
   const [err, setErr] = useState('')
   const [pay, setPay] = useState<Debt | null>(null)
   const [lessonsOpen, setLessonsOpen] = useState(false)
+  const [gridOpen, setGridOpen] = useState(false)
   const [toast, setToast] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [oldOpen, setOldOpen] = useState(false)
@@ -81,6 +83,12 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
     load()
   }, [load])
 
+  if (gridOpen)
+    return (
+      <div className="-mt-6">
+        <GroupGrid classId={null} onBack={() => setGridOpen(false)} />
+      </div>
+    )
   if (lessonsOpen)
     return (
       <div className="-mt-6">
@@ -217,6 +225,10 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
       )}
 
       <div className="grid gap-2 sm:grid-cols-2">
+        <button onClick={() => setGridOpen(true)} className="rounded-2xl border bg-white p-4 text-left text-sm" style={{ borderColor: BRAND.line }}>
+          <b className="block">Топ журналдары</b>
+          <span style={{ color: BRAND.muted }}>Әр топ: кім келді, үй тапсырмасы, сабақтағы баға, тест — ай бойынша бір кестеде · Excel</span>
+        </button>
         <a href="/admin/assign" className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
           <b className="block">Оқушыларды мұғалімдерге бөлу</b>
           <span style={{ color: BRAND.muted }}>Пән мен сынып бойынша: әр мұғалім тек өз оқушыларын көреді</span>

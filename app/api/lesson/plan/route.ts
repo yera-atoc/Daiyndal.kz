@@ -38,8 +38,12 @@ export async function GET(req: NextRequest) {
     }
     const classes = (await listClasses(who)).filter((c) => c.active)
     const ids = classes.map((c) => c.id)
-    const { data } = ids.length ? await (await db()).from('class_plan').select('class_id').in('class_id', ids) : { data: [] as any[] }
-    return NextResponse.json({ classes: classes.map((c) => ({ id: c.id, name: c.name, subject: c.subject, count: (data ?? []).filter((p) => p.class_id === c.id).length })) })
+    const sb = await db()
+    const { data } = ids.length ? await sb.from('class_plan').select('class_id').in('class_id', ids) : { data: [] as any[] }
+    const tids = Array.from(new Set(classes.map((c) => c.teacher_id)))
+    const { data: ts } = tids.length > 1 ? await sb.from('teachers').select('id, name').in('id', tids) : { data: [] as any[] }
+    const tName = new Map((ts ?? []).map((t: any) => [t.id, t.name as string]))
+    return NextResponse.json({ classes: classes.map((c) => ({ id: c.id, name: c.name, subject: c.subject, teacher: tName.get(c.teacher_id) ?? null, count: (data ?? []).filter((p) => p.class_id === c.id).length })) })
   } catch (e: any) {
     if (/class_plan|plan_id/.test(e.message)) return bad(MIGRATE, 500)
     return bad(e.message, 500)

@@ -5,6 +5,7 @@ import { DAY_FULL, addDays, dayMonth, todayAlmaty, weekdayOf } from '@/lib/journ
 import type { TodayItem } from '@/lib/lesson'
 import LessonScreen from './LessonScreen'
 import PlanEditor from './PlanEditor'
+import GroupGrid from './GroupGrid'
 import { BLUE, INK, LINE, MUTED, SOFT } from './ui'
 
 /** Мұғалімнің басты беті: бүгінгі сабақтар → бір басу → сабақ экраны */
@@ -14,6 +15,7 @@ export default function Today({ admin = false, onExit }: { admin?: boolean; onEx
   const [err, setErr] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [plan, setPlan] = useState<string | null | false>(false)
+  const [grid, setGrid] = useState<string | null>(null)
   const [teacher, setTeacher] = useState('')
 
   const load = useCallback(async () => {
@@ -28,7 +30,8 @@ export default function Today({ admin = false, onExit }: { admin?: boolean; onEx
     load()
   }, [load])
 
-  if (open) return <LessonScreen classId={open} date={date} onBack={() => { setOpen(null); load() }} onPlan={(id) => { setOpen(null); setPlan(id) }} />
+  if (grid) return <GroupGrid classId={grid} onBack={() => { setGrid(null); setOpen(grid) }} />
+  if (open) return <LessonScreen classId={open} date={date} onBack={() => { setOpen(null); load() }} onPlan={(id) => { setOpen(null); setPlan(id) }} onGrid={(id) => { setOpen(null); setGrid(id) }} />
   if (plan !== false) return <PlanEditor classId={plan} onBack={() => { setPlan(false); load() }} />
 
   const today = todayAlmaty()

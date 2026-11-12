@@ -54,7 +54,7 @@ export async function todayItems(who: Who, date = todayAlmaty()): Promise<TodayI
   return out.sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99') || a.name.localeCompare(b.name))
 }
 
-async function classStudents(classId: string) {
+export async function classStudents(classId: string) {
   const sb = await db()
   const { data } = await sb.from('teacher_class_students').select('student_id, students(id, full_name, status, payment_deadline, payment_amount)').eq('class_id', classId)
   return (data ?? [])
