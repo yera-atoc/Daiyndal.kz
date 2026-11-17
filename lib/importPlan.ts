@@ -90,9 +90,17 @@ export function planGroup(g: ImpGroup): { classes: PlannedClass[]; slots: Planne
   return { classes, slots }
 }
 
-/** Мұғалімді аты бойынша табу (журналдағы «Жолтай ағай» → «Жолтай …») */
+// Кириллица → латын (мұғалім платформада латынша тіркелуі мүмкін: «Yernar»)
+const LAT: Record<string, string> = { а: 'a', ә: 'a', б: 'b', в: 'v', г: 'g', ғ: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'i', к: 'k', қ: 'k', л: 'l', м: 'm', н: 'n', ң: 'n', о: 'o', ө: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ұ: 'u', ү: 'u', ф: 'f', х: 'h', һ: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sh', ы: 'y', і: 'i', э: 'e', ю: 'yu', я: 'ya', ь: '', ъ: '' }
+const latin = (s: string) => Array.from(s.toLowerCase()).map((c) => LAT[c] ?? c).join('').replace(/^ye/, 'e').replace(/^yo/, 'o').replace(/y/g, 'i')
+
+/** Мұғалімді аты бойынша табу (журналдағы «Жолтай ағай» → «Жолтай …», «Ернар» → «Yernar …») */
 export function guessTeacher(hint: string, teachers: { id: string; name: string }[]) {
   const h = hint.trim().toLowerCase()
   if (!h) return ''
-  return teachers.find((t) => t.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(h) || h.startsWith(w)))?.id ?? ''
+  const same = (a: string, b: string) => a.length > 1 && b.length > 1 && (a.startsWith(b) || b.startsWith(a))
+  return (
+    teachers.find((t) => t.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(h) || h.startsWith(w))) ??
+    teachers.find((t) => t.name.split(/\s+/).some((w) => same(latin(w), latin(h))))
+  )?.id ?? ''
 }
