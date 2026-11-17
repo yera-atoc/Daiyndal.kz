@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DAY_SHORT, STATUS, dayMonth, todayAlmaty, weekdayOf, type AttStatus } from '@/lib/journal'
 import { HW, type HwMark } from '@/lib/lesson'
 import { markTone, monthLabel, shiftMonth, summarize, type GridCell, type GridView } from '@/lib/grid'
+import type { ReportLink } from '@/lib/reportServer'
 import { BLUE, INK, LINE, MUTED, SOFT, Sheet, Toast, lessonPost } from './ui'
 
 const MON = ['қаң', 'ақп', 'нау', 'сәу', 'мам', 'мау', 'шіл', 'там', 'қыр', 'қаз', 'қар', 'жел']
@@ -24,6 +25,8 @@ export default function GroupGrid({ classId, onBack }: { classId: string | null;
   const [edit, setEdit] = useState<{ sid: string; date: string } | null>(null)
   const [topicEdit, setTopicEdit] = useState<string | null>(null)
   const [q, setQ] = useState('')
+  const [reports, setReports] = useState<ReportLink[] | null | 'loading'>(null)
+  const [sent, setSent] = useState<Record<string, string>>({})
   const [toast, setToast] = useState<{ text: string; tone?: 'ok' | 'err' }>({ text: '' })
   const flash = (text: string, tone: 'ok' | 'err' = 'ok') => {
     setToast({ text, tone })
@@ -94,6 +97,41 @@ export default function GroupGrid({ classId, onBack }: { classId: string | null;
       setTopicEdit(null)
     } catch (e: any) {
       flash(e.message, 'err')
+    }
+  }
+
+  // Ата-аналарға есеп: сілтемелер тізімі. Кімге жіберілгені осы құрылғыда ғана есте сақталады (апта бойынша).
+  const sentKey = v ? `beles-report-sent:${v.class.id}` : ''
+  const openReports = async () => {
+    if (!v) return
+    setReports('loading')
+    try {
+      const saved = JSON.parse(localStorage.getItem(sentKey) || '{}')
+      setSent(saved && typeof saved === 'object' ? saved : {})
+    } catch {
+      setSent({})
+    }
+    try {
+      const j = await lessonPost('/api/lesson/grid', { action: 'reports', classId: v.class.id })
+      setReports(j.list ?? [])
+    } catch (e: any) {
+      setReports(null)
+      flash(e.message, 'err')
+    }
+  }
+  const markSent = (id: string) => {
+    const next = { ...sent, [id]: todayAlmaty() }
+    setSent(next)
+    try {
+      localStorage.setItem(sentKey, JSON.stringify(next))
+    } catch {}
+  }
+  const copyLink = async (r: ReportLink) => {
+    try {
+      await navigator.clipboard.writeText(r.url)
+      flash('Сілтеме көшірілді')
+    } catch {
+      window.prompt('Сілтемені көшіріңіз:', r.url)
     }
   }
 
@@ -219,6 +257,7 @@ export default function GroupGrid({ classId, onBack }: { classId: string | null;
               <option value={100}>100 балдық</option>
             </select>
           )}
+          {v && v.students.length > 0 && <button onClick={openReports} className="h-10 rounded-xl px-3 text-sm font-semibold text-white" style={{ background: BLUE }}>Ата-анаға есеп</button>}
           {v && <button onClick={exportExcel} className="h-10 rounded-xl px-3 text-sm font-semibold text-white" style={{ background: '#15803D' }}>Excel</button>}
         </div>
       </div>
@@ -382,6 +421,40 @@ export default function GroupGrid({ classId, onBack }: { classId: string | null;
             <button onClick={() => moveEdit(-1)} className="rounded-xl border py-3 text-sm font-semibold" style={{ borderColor: LINE }}>↑ Алдыңғы оқушы</button>
             <button onClick={() => moveEdit(1)} className="rounded-xl py-3 text-sm font-semibold text-white" style={{ background: INK }}>Келесі оқушы ↓</button>
           </div>
+        </Sheet>
+      )}
+
+      {reports && v && (
+        <Sheet title="Ата-аналарға есеп" onClose={() => setReports(null)}>
+          <p className="-mt-2 text-sm" style={{ color: MUTED }}>
+            Әр ата-анаға баласының жеке есебі: барлық пән бойынша қатысу, үй тапсырмасы, бағалар мен пікірлер, өткен тақырыптар. Есеп журналдан өзі жаңарып тұрады.
+          </p>
+          {reports === 'loading' && <p className="py-8 text-center text-sm" style={{ color: MUTED }}>Жүктелуде…</p>}
+          {reports !== 'loading' && (
+            <ul className="mt-3 divide-y" style={{ borderColor: LINE }}>
+              {reports.map((r) => (
+                <li key={r.id} className="flex items-center gap-2 py-2.5" style={{ borderColor: LINE }}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 truncate text-sm font-semibold">
+                      {r.risk && <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" title="Назар аудару керек" />}
+                      <span className="truncate">{r.name}</span>
+                    </div>
+                    <div className="text-[11px] tabular-nums" style={{ color: MUTED }}>
+                      {[r.att != null && `қатысу ${r.att}%`, r.hw != null && `ҮТ ${r.hw}%`, r.mark != null && `баға ${fmt(r.mark)}`].filter(Boolean).join(' · ') || '30 күнде белгі жоқ'}
+                      {sent[r.id] && <span className="ml-1 font-semibold text-green-700">· жіберілді {dayMonth(sent[r.id])}</span>}
+                    </div>
+                  </div>
+                  <a href={r.url} target="_blank" rel="noreferrer" className="rounded-lg border px-2.5 py-2 text-xs font-semibold" style={{ borderColor: LINE }}>Ашу</a>
+                  {r.wa ? (
+                    <a href={r.wa} target="_blank" rel="noreferrer" onClick={() => markSent(r.id)} className="rounded-lg px-2.5 py-2 text-xs font-semibold text-white" style={{ background: '#16A34A' }}>WhatsApp</a>
+                  ) : (
+                    <button onClick={() => copyLink(r)} className="rounded-lg px-2.5 py-2 text-xs font-semibold" style={{ background: SOFT }} title="Ата-ананың нөмірі енгізілмеген">Көшіру</button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-xs" style={{ color: MUTED }}>Қызыл нүкте — назар аудару керек оқушы (көп қалған, ҮТ орындамайды немесе бағасы төмен). «Көшіру» — ата-ананың нөмірі CRM-де жоқ.</p>
         </Sheet>
       )}
 

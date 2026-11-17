@@ -284,6 +284,28 @@ function Home({ c, onLogout, reload }: { c: Cabinet; onLogout: () => void; reloa
                     <Bar label="Үй тапсырмасы" v={k.progress.hw} />
                     <Bar label="Сабақ тесттері" v={k.progress.quiz} />
                   </div>
+                  {k.marks?.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-xs font-semibold" style={{ color: MUTED }}>Соңғы бағаларым</div>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {[...k.marks].reverse().map((m) => {
+                          const r = m.score / m.max
+                          const t = r >= 0.85 ? ['#DCFCE7', '#15803D'] : r >= 0.65 ? ['#E0F2FE', '#0369A1'] : r >= 0.45 ? ['#FEF3C7', '#B45309'] : ['#FEE2E2', '#B91C1C']
+                          return (
+                            <span key={m.date} className="rounded-lg px-2 py-1 text-center" style={{ background: t[0], color: t[1] }} title={m.comment ?? undefined}>
+                              <span className="block text-sm font-bold tabular-nums leading-none">{String(m.score).replace('.', ',')}</span>
+                              <span className="block text-[10px] leading-tight opacity-80">{dayMonth(m.date)}</span>
+                            </span>
+                          )
+                        })}
+                      </div>
+                      {k.marks.find((m) => m.comment) && (
+                        <p className="mt-2 rounded-xl px-3 py-2 text-[13px]" style={{ background: PAPER }}>
+                          <b>Мұғалім:</b> «{k.marks.find((m) => m.comment)!.comment}»
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {k.progress.absStreak >= 2 && <p className="mt-2 text-xs text-red-700">Соңғы {k.progress.absStreak} сабаққа келмедің — мұғаліммен сөйлес.</p>}
                 </div>
               ))}

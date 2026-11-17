@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { canSee, db, getClass, journalWho } from '@/lib/journalServer'
 import { gridView, saveCell } from '@/lib/gridServer'
+import { classReportLinks } from '@/lib/reportServer'
 import { SCALES } from '@/lib/grid'
 import { ISO, todayAlmaty } from '@/lib/journal'
 import { logServerError } from '@/lib/serverLog'
@@ -33,6 +34,7 @@ export async function GET(req: NextRequest) {
 //   cell  { classId, date, studentId, att?, hw?, mark?, comment? } — null өшіреді
 //   scale { classId, scale: 5 | 10 | 100 }
 //   topic { classId, date, topic }
+//   reports { classId } — ата-аналарға есеп сілтемелері
 export async function POST(req: NextRequest) {
   const who = await journalWho()
   if (!who) return bad('Кіру керек', 401)
@@ -47,6 +49,11 @@ export async function POST(req: NextRequest) {
       const { error } = await sb.from('teacher_classes').update({ mark_scale: scale }).eq('id', c.id)
       if (error) return bad(/mark_scale/.test(error.message) ? 'Алдымен 20261112_01_class_marks.sql миграциясын іске қосыңыз' : error.message, 500)
       return NextResponse.json({ ok: true })
+    }
+    // Ата-аналарға есеп: әр оқушының жабық сілтемесі және дайын WhatsApp хабарламасы
+    if (b.action === 'reports') {
+      const origin = process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin
+      return NextResponse.json({ list: await classReportLinks(c as any, origin.replace(/\/$/, '')) }, { headers: { 'Cache-Control': 'no-store' } })
     }
     const date = String(b?.date ?? '')
     if (!ISO.test(date)) return bad('Күні дұрыс емес')

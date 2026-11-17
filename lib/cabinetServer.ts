@@ -8,7 +8,7 @@ import { signRefs } from './privateFiles'
 
 export type CabLesson = { classId: string; name: string; subject: string | null; teacher: string; time: string | null; room: string | null; topic: string | null }
 export type CabHomework = { classId: string; subject: string | null; className: string; date: string; text: string; mark: HwMark | null; files: { id: string; url: string }[]; canUpload: boolean }
-export type CabClass = { id: string; name: string; subject: string | null; teacher: string; next: { date: string; time: string | null } | null; progress: Progress }
+export type CabClass = { id: string; name: string; subject: string | null; teacher: string; next: { date: string; time: string | null } | null; progress: Progress; marks: { date: string; score: number; max: number; comment: string | null }[] }
 export type Cabinet = {
   student: { id: string; full_name: string; grade: number | null; group: string | null }
   today: string
@@ -90,6 +90,9 @@ export async function cabinet(studentId: string): Promise<Cabinet | null> {
     sb.from('ielts_access').select('test_id, ielts_tests(exam, published)').eq('student_id', studentId),
     sb.from('subject_rows').select('id').eq('student_id', studentId).limit(1),
   ])
+  // Сабақтағы бағалар (кесте әлі жасалмаған базада — бос)
+  const mk: any = cids.length ? await sb.from('class_marks').select('class_id, date, score, max, comment').eq('student_id', studentId).in('class_id', cids).gte('date', from).order('date', { ascending: false }) : { data: [] }
+  const marksAll = ((mk.error ? [] : mk.data) ?? []) as any[]
   const qids = (quizzes.data ?? []).map((q: any) => q.id)
   const { data: qa } = qids.length ? await sb.from('class_quiz_answers').select('quiz_id, score, total').eq('student_id', studentId).in('quiz_id', qids) : { data: [] as any[] }
   const tName = new Map((teachers.data ?? []).map((t: any) => [t.id, t.name]))
@@ -151,6 +154,7 @@ export async function cabinet(studentId: string): Promise<Cabinet | null> {
       subject: c.subject,
       teacher: tName.get(c.teacher_id) ?? '',
       next,
+      marks: marksAll.filter((m) => m.class_id === c.id).slice(0, 6).map((m) => ({ date: m.date, score: Number(m.score), max: m.max || 10, comment: m.comment ?? null })),
       progress: progressOf(
         ((att.data ?? []) as any[]).filter((a) => a.class_id === c.id).map((a) => ({ date: a.date, status: a.status as AttStatus })),
         ((hw.data ?? []) as any[]).filter((h) => h.class_id === c.id).map((h) => ({ date: h.date, mark: h.mark as HwMark })),
