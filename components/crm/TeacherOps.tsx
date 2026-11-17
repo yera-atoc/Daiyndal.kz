@@ -7,7 +7,7 @@ import { monthRange, payText, reminderText, weekStart, weeklyText, type TeacherR
 import { addDays } from '@/lib/journal'
 import { waUrl } from '@/lib/parentMessages'
 
-type Tab = 'week' | 'pay' | 'rating'
+type Tab = 'stats' | 'week' | 'pay' | 'rating'
 const MONTHS = ['Қаңтар', 'Ақпан', 'Наурыз', 'Сәуір', 'Мамыр', 'Маусым', 'Шілде', 'Тамыз', 'Қыркүйек', 'Қазан', 'Қараша', 'Желтоқсан']
 const today = () => new Date(Date.now() + 5 * 3600e3).toISOString().slice(0, 10)
 const dm = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`
@@ -20,7 +20,7 @@ const shiftMonth = (ym: string, k: number) => {
 const tone = (v: number | null) => (v == null ? BRAND.muted : v >= 85 ? '#15803D' : v >= 65 ? '#B45309' : '#B91C1C')
 
 export default function TeacherOps({ flash }: { flash: (m: string) => void }) {
-  const [tab, setTab] = useState<Tab>('week')
+  const [tab, setTab] = useState<Tab>('stats')
   const [week, setWeek] = useState(() => weekStart(today()))
   const [month, setMonth] = useState(() => today().slice(0, 7))
   const [rows, setRows] = useState<TeacherReport[] | null>(null)
@@ -69,7 +69,7 @@ export default function TeacherOps({ flash }: { flash: (m: string) => void }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        {([['week', 'Апталық есеп'], ['pay', 'Еңбекақы'], ['rating', 'Рейтинг пен бонус']] as [Tab, string][]).map(([k, l]) => (
+        {([['stats', 'Статистика'], ['week', 'Апталық есеп'], ['pay', 'Еңбекақы'], ['rating', 'Рейтинг пен бонус']] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className="rounded-lg px-3.5 py-2 text-sm font-semibold" style={{ background: tab === k ? BRAND.ink : '#fff', color: tab === k ? '#fff' : BRAND.text, border: `1px solid ${BRAND.line}` }}>
             {l}
           </button>
@@ -83,6 +83,8 @@ export default function TeacherOps({ flash }: { flash: (m: string) => void }) {
 
       {err && <p className="rounded-xl p-3 text-sm" style={{ background: '#FEF2F2', color: BRAND.red }}>{err}</p>}
       {!rows && !err && <p className="text-sm" style={{ color: BRAND.muted }}>Жүктелуде…</p>}
+
+      {rows && tab === 'stats' && <Stats rows={rows} />}
 
       {rows && tab === 'week' && (
         <>
@@ -226,6 +228,57 @@ function Mini({ label, value, color }: { label: string; value: string; color?: s
     <div className="rounded-xl bg-slate-50 px-2 py-1.5">
       <div className="text-base font-bold tabular-nums" style={{ color }}>{value}</div>
       <div className="text-[11px]" style={{ color: BRAND.muted }}>{label}</div>
+    </div>
+  )
+}
+
+/** Мұғалімдер статистикасы: оқушы саны, топтар, өткізген сабақ, қатысу (таңдалған ай бойынша) */
+function Stats({ rows }: { rows: TeacherReport[] }) {
+  const list = [...rows].sort((a, b) => b.students - a.students || b.classes - a.classes)
+  const maxSt = Math.max(1, ...list.map((r) => r.students))
+  const students = list.reduce((a, r) => a + r.students, 0)
+  const classes = list.reduce((a, r) => a + r.classes, 0)
+  const held = list.reduce((a, r) => a + r.held, 0)
+  const withAtt = list.filter((r) => r.attendance != null)
+  const att = withAtt.length ? Math.round(withAtt.reduce((a, r) => a + (r.attendance as number), 0) / withAtt.length) : null
+  const kpi: [string, string, string?][] = [
+    ['Мұғалімдер', String(list.length)],
+    ['Оқушылар', String(students), 'журналдағы, мұғалім бойынша'],
+    ['Топтар', String(classes)],
+    ['Өткізілген сабақ', String(held)],
+    ['Орташа қатысу', att == null ? '—' : `${att}%`],
+  ]
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {kpi.map(([l, v, sub]) => (
+          <div key={l} className="rounded-2xl border bg-white p-4" style={{ borderColor: BRAND.line }}>
+            <div className="text-xs" style={{ color: BRAND.muted }}>{l}</div>
+            <div className="mt-1 text-2xl font-bold tabular-nums">{v}</div>
+            {sub && <div className="text-[11px]" style={{ color: BRAND.muted }}>{sub}</div>}
+          </div>
+        ))}
+      </div>
+      <div className="rounded-2xl border bg-white p-4" style={{ borderColor: BRAND.line }}>
+        <div className="mb-3 font-semibold">Мұғалімдердің оқушы саны</div>
+        {!list.length && <p className="text-sm" style={{ color: BRAND.muted }}>Мұғалімдер жоқ</p>}
+        <div className="space-y-3">
+          {list.map((r) => (
+            <div key={r.id}>
+              <div className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="min-w-0 truncate font-medium">{r.name}<span className="ml-1.5 text-xs font-normal" style={{ color: BRAND.muted }}>{r.subject ?? ''}</span></span>
+                <span className="shrink-0 font-bold tabular-nums">{r.students} оқушы</span>
+              </div>
+              <div className="mt-1 h-2.5 overflow-hidden rounded-full" style={{ background: '#EEF1F6' }}>
+                <div className="h-full rounded-full" style={{ width: `${Math.round((r.students / maxSt) * 100)}%`, background: BRAND.blue }} />
+              </div>
+              <div className="mt-1 text-xs" style={{ color: BRAND.muted }}>
+                {r.classes} топ · {r.held} сабақ өткізді · қатысу <b style={{ color: tone(r.attendance) }}>{r.attendance ?? '—'}%</b> · журнал {r.journal ?? '—'}%{r.left ? ` · ${r.left} оқушы кетті` : ''}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

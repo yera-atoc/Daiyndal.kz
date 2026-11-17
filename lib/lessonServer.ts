@@ -3,7 +3,7 @@ import { addDays, isLessonDay, todayAlmaty, weekdayOf, type AttStatus, type JCla
 import { db, listClasses, syncCrmAttendance, type Who } from './journalServer'
 import { nextDeadlineAfter, paymentStatus } from './payments'
 import { signRefs } from './privateFiles'
-import { nextPlanItem, progressOf, type HwMark, type LessonView, type PlanItem, type QuizQ, type TodayItem } from './lesson'
+import { monthVisits, nextPlanItem, progressOf, type HwMark, type LessonView, type PlanItem, type QuizQ, type TodayItem } from './lesson'
 
 const hm = (t: string | null | undefined) => (t ? t.slice(0, 5) : null)
 
@@ -116,6 +116,7 @@ export async function lessonView(c: JClass, date: string, teacherName: string): 
         id: s.id,
         full_name: s.full_name,
         pay: { deadline: s.payment_deadline ?? null, amount: s.payment_amount ?? null, kind: st.kind, days: st.days },
+        month: monthVisits(date, c.days ?? [], (att.data ?? []).filter((a) => a.student_id === s.id).map((a) => ({ date: a.date, status: a.status as AttStatus }))),
         progress: progressOf(
           (att.data ?? []).filter((a) => a.student_id === s.id).map((a) => ({ date: a.date, status: a.status as AttStatus })),
           (hw.data ?? []).filter((h) => h.student_id === s.id).map((h) => ({ date: h.date, mark: h.mark as HwMark })),
