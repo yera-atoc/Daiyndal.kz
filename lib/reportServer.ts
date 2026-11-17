@@ -5,7 +5,9 @@ import { classStudents } from './lessonServer'
 import { HW, type HwMark } from './lesson'
 import { paymentStatus, waPhone } from './payments'
 import { reportToken } from './reportToken'
-import { notesOf, reportMessage, type ReportClass, type StudentReport } from './report'
+import { examTitle, rowTotal, scoresForExam, type ScoreRow } from './bilimTest'
+import { getStudent, listExams, listSubmissions } from './bilimTestStore'
+import { notesOf, reportMessage, type BtReport, type ReportClass, type StudentReport } from './report'
 
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : null)
 const hm = (t: string | null | undefined) => (t ? String(t).slice(0, 5) : null)
@@ -16,7 +18,7 @@ export async function studentReport(studentId: string): Promise<StudentReport | 
   const sb = await db()
   const today = todayAlmaty()
   const from = addDays(today, -DAYS)
-  const { data: s } = await sb.from('students').select('id, full_name, grade, status, payment_deadline, payment_amount, student_groups(name)').eq('id', studentId).maybeSingle()
+  const { data: s } = await sb.from('students').select('*, student_groups(name)').eq('id', studentId).maybeSingle()
   if (!s || (s as any).status === 'left') return null
   const { data: mem } = await sb.from('teacher_class_students').select('class_id').eq('student_id', studentId)
   const ids = (mem ?? []).map((m) => m.class_id)
@@ -82,6 +84,7 @@ export async function studentReport(studentId: string): Promise<StudentReport | 
     }
   })
 
+  const bt = (s as any).bt_student_id ? await btReport((s as any).bt_student_id).catch(() => null) : null
   const ps = paymentStatus((s as any).payment_deadline, today)
   return {
     student: { name: clean(s.full_name), grade: (s as any).grade ?? null, group: (s as any).student_groups?.name ?? null },
@@ -89,7 +92,8 @@ export async function studentReport(studentId: string): Promise<StudentReport | 
     to: today,
     classes: out,
     pay: ps.kind === 'none' || ps.days == null ? null : { deadline: (s as any).payment_deadline, kind: ps.kind, days: ps.days, amount: (s as any).payment_amount ?? null },
-    notes: notesOf(out),
+    bt,
+    notes: notesOf(out, bt),
   }
 }
 
@@ -135,3 +139,40 @@ export async function classReportLinks(c: JClass & { mark_scale?: number }, orig
 }
 
 export { reportToken, studentOfToken } from './reportToken'
+
+/** Білім тексеру: тек жарияланған айлар (+ сайтқа дейінгі Excel нәтижелері). Соңғы ай — пәндер бойынша, орны топта. */
+export async function btReport(btId: string): Promise<BtReport | null> {
+  const st = await getStudent(btId)
+  if (!st) return null
+  const exams = (await listExams(st.group_id)).filter((e) => e.published)
+  const legacy = (st as any).legacy_scores ?? {}
+  const rows: { month: string; title: string; row: ScoreRow; max: number; all?: Record<string, ScoreRow>; subjects: { id: string; name: string; max: number }[] }[] = []
+  for (const [month, row] of Object.entries(legacy as Record<string, ScoreRow>)) {
+    if (exams.some((e) => e.month === month)) continue
+    const subj = (exams[0]?.subjects ?? []).filter((x) => x.id in row)
+    rows.push({ month, title: examTitle(month), row, max: subj.reduce((a, x) => a + x.max, 0), subjects: subj })
+  }
+  for (const e of exams.slice(-6)) {
+    const all = scoresForExam(e, await listSubmissions(e.id))
+    const row = all[st.full_name]
+    if (!row) continue
+    const subj = e.subjects.filter((x) => x.id in row)
+    rows.push({ month: e.month, title: e.title || examTitle(e.month), row, max: subj.reduce((a, x) => a + x.max, 0), all, subjects: e.subjects })
+  }
+  rows.sort((a, b) => a.month.localeCompare(b.month))
+  const last = rows[rows.length - 1]
+  if (!last) return null
+  const prev = rows[rows.length - 2]
+  const totals = last.all ? Object.values(last.all).map(rowTotal).filter((x): x is number => x != null).sort((a, b) => b - a) : []
+  const mine = rowTotal(last.row)
+  return {
+    title: last.title,
+    month: last.month,
+    total: mine,
+    max: last.max,
+    place: mine != null && totals.length > 1 ? totals.indexOf(mine) + 1 : null,
+    of: totals.length,
+    subjects: last.subjects.filter((x) => x.id in last.row).map((x) => ({ name: x.name, score: last.row[x.id] ?? null, max: x.max, prev: prev?.row[x.id] ?? null })),
+    history: rows.slice(-6).map((r) => ({ month: r.month, title: r.title, total: rowTotal(r.row), max: r.max })),
+  }
+}

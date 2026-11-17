@@ -267,6 +267,9 @@ function Home({ c, onLogout, reload }: { c: Cabinet; onLogout: () => void; reloa
         {/* Сабақ тесттері (мұғалім тақырып бойынша ашқан) */}
         <LessonQuizzes accent={BLUE} />
 
+        {/* Менің жетістіктерім: сериялар, айлық мақсат, белгілер */}
+        {c.streaks && <Achievements s={c.streaks} />}
+
         {/* Менің прогресім */}
         {c.classes.length > 0 && (
           <section className="mt-5">
@@ -442,5 +445,68 @@ function HomeworkCard({ h, reload }: { h: CabHomework; reload: () => void }) {
       )}
       {err && <p className="mt-2 rounded-xl bg-red-50 p-2.5 text-sm text-red-700">{err}</p>}
     </div>
+  )
+}
+
+function Achievements({ s }: { s: NonNullable<Cabinet['streaks']> }) {
+  const bar = (a: number, b: number, color: string) => (
+    <div className="mt-1 h-2 rounded-full" style={{ background: PAPER }}>
+      <div className="h-2 rounded-full" style={{ width: `${b ? Math.round((a / b) * 100) : 0}%`, background: color }} />
+    </div>
+  )
+  const earned = s.badges.filter((b) => b.earned).length
+  return (
+    <section className="mt-5">
+      <h2 className="font-display mb-2 text-lg font-semibold">Менің жетістіктерім</h2>
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { n: s.att, best: s.attBest, label: 'сабақ қатарынан', icon: '🔥', bg: '#FFF7ED', fg: '#C2410C' },
+          { n: s.hw, best: s.hwBest, label: 'ҮТ қатарынан', icon: '📘', bg: '#EEF2FF', fg: '#4338CA' },
+        ].map((x) => (
+          <div key={x.label} className="rounded-2xl p-4" style={{ background: x.bg }}>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl" aria-hidden>{x.icon}</span>
+              <span className="text-3xl font-bold tabular-nums" style={{ color: x.fg }}>{x.n}</span>
+            </div>
+            <div className="text-[13px] font-semibold" style={{ color: x.fg }}>{x.label}</div>
+            {x.best > x.n && <div className="text-[11px]" style={{ color: MUTED }}>рекорд: {x.best}</div>}
+          </div>
+        ))}
+      </div>
+      {s.next && <p className="mt-3 rounded-xl px-3 py-2.5 text-sm font-medium" style={{ background: '#F0FDF4', color: '#166534' }}>🎯 {s.next}</p>}
+      {(s.month.held > 0 || s.month.hwGiven > 0) && (
+        <div className="mt-3 rounded-2xl border bg-white p-4" style={{ borderColor: LINE }}>
+          <div className="text-sm font-semibold">{s.month.label} айының мақсаты</div>
+          {s.month.held > 0 && (
+            <div className="mt-2 text-[13px]">
+              <div className="flex justify-between"><span>Барлық сабаққа келу</span><b className="tabular-nums">{s.month.attended}/{s.month.held}</b></div>
+              {bar(s.month.attended, s.month.held, s.month.attended === s.month.held ? '#16A34A' : '#F59E0B')}
+            </div>
+          )}
+          {s.month.hwGiven > 0 && (
+            <div className="mt-2 text-[13px]">
+              <div className="flex justify-between"><span>Үй тапсырмасын толық орындау</span><b className="tabular-nums">{s.month.hwDone}/{s.month.hwGiven}</b></div>
+              {bar(s.month.hwDone, s.month.hwGiven, s.month.hwDone / s.month.hwGiven >= 0.9 ? '#16A34A' : '#6366F1')}
+            </div>
+          )}
+        </div>
+      )}
+      <div className="mt-3 rounded-2xl border bg-white p-4" style={{ borderColor: LINE }}>
+        <div className="flex items-baseline justify-between">
+          <div className="text-sm font-semibold">Белгілер</div>
+          <div className="text-xs" style={{ color: MUTED }}>{earned}/{s.badges.length} алынды</div>
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
+          {s.badges.map((b) => (
+            <div key={b.id} className="rounded-xl p-2 text-center" style={{ background: b.earned ? '#FEF9C3' : PAPER, opacity: b.earned ? 1 : 0.75 }} title={b.hint}>
+              <div className="text-2xl" style={{ filter: b.earned ? undefined : 'grayscale(1)', opacity: b.earned ? 1 : 0.45 }} aria-hidden>{b.icon}</div>
+              <div className="mt-0.5 text-[11px] font-semibold leading-tight">{b.title}</div>
+              {!b.earned && <div className="mt-0.5 text-[10px] leading-tight" style={{ color: MUTED }}>{b.hint}</div>}
+              {b.progress && b.progress[0] > 0 && <div className="mt-1 h-1 rounded-full bg-white"><div className="h-1 rounded-full" style={{ width: `${(b.progress[0] / b.progress[1]) * 100}%`, background: '#F59E0B' }} /></div>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   )
 }

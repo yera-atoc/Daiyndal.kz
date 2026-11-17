@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { DAY_FULL, dayMonth, weekdayOf } from '@/lib/journal'
 import { money } from '@/lib/payments'
 import { studentOfToken, studentReport } from '@/lib/reportServer'
-import type { ReportClass } from '@/lib/report'
+import type { BtReport, ReportClass } from '@/lib/report'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -85,6 +85,68 @@ function ClassCard({ c }: { c: ReportClass }) {
   )
 }
 
+function BtCard({ bt }: { bt: BtReport }) {
+  const p = bt.total != null && bt.max ? Math.round((bt.total / bt.max) * 100) : null
+  const h = bt.history.filter((x) => x.total != null && x.max)
+  const prev = h.length >= 2 ? h[h.length - 2] : null
+  const d = prev && p != null ? p - Math.round((prev.total! / prev.max) * 100) : null
+  return (
+    <section className="rounded-2xl border bg-white p-4" style={{ borderColor: LINE }}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-semibold leading-tight">Білім тексеру</h2>
+          <p className="text-[13px]" style={{ color: MUTED }}>Ай сайынғы сынақ · {bt.title}</p>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold tabular-nums leading-none" style={{ color: tone(p) }}>{bt.total ?? '—'}<span className="text-sm font-semibold" style={{ color: MUTED }}>/{bt.max}</span></div>
+          <div className="mt-1 text-[11px] font-semibold" style={{ color: MUTED }}>
+            {[p != null && `${p}%`, bt.place && `топта ${bt.place}-орын (${bt.of})`].filter(Boolean).join(' · ')}
+          </div>
+          {d != null && d !== 0 && <div className="text-[11px] font-bold" style={{ color: d > 0 ? '#15803D' : '#B91C1C' }}>{d > 0 ? '▲' : '▼'} {Math.abs(d)}% алдыңғы айға қарағанда</div>}
+        </div>
+      </div>
+      <ul className="mt-3 space-y-2">
+        {bt.subjects.map((x) => {
+          const v = x.score != null && x.max ? Math.round((x.score / x.max) * 100) : null
+          const dv = x.score != null && x.prev != null ? x.score - x.prev : null
+          return (
+            <li key={x.name}>
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="font-medium">{x.name}</span>
+                <span className="tabular-nums">
+                  <b style={{ color: tone(v) }}>{x.score ?? '—'}</b>
+                  <span style={{ color: MUTED }}>/{x.max}</span>
+                  {dv != null && dv !== 0 && <span className="ml-1.5 text-[11px] font-bold" style={{ color: dv > 0 ? '#15803D' : '#B91C1C' }}>{dv > 0 ? `+${dv}` : dv}</span>}
+                </span>
+              </div>
+              <div className="mt-1 h-1.5 rounded-full" style={{ background: PAPER }}>
+                <div className="h-1.5 rounded-full" style={{ width: `${v ?? 0}%`, background: tone(v) }} />
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+      {h.length >= 2 && (
+        <div className="mt-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: MUTED }}>Айлар бойынша</h3>
+          <div className="mt-2 flex items-end gap-2">
+            {h.map((x) => {
+              const v = Math.round((x.total! / x.max) * 100)
+              return (
+                <div key={x.month} className="flex flex-1 flex-col items-center">
+                  <span className="text-[11px] font-bold tabular-nums" style={{ color: tone(v) }}>{v}%</span>
+                  <div className="mt-0.5 w-full max-w-[36px] rounded-t-md" style={{ height: `${Math.max(6, v * 0.6)}px`, background: x.month === bt.month ? '#2563EB' : '#C7D2FE' }} />
+                  <span className="mt-1 text-[10px]" style={{ color: MUTED }}>{x.title.split(' ')[0].slice(0, 3)}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
 export default async function ParentReport({ params }: { params: { token: string } }) {
   const id = studentOfToken(params.token)
   const r = id ? await studentReport(id).catch(() => null) : null
@@ -127,7 +189,9 @@ export default async function ParentReport({ params }: { params: { token: string
           </section>
         )}
 
-        {!r.classes.length && <p className="rounded-2xl border border-dashed bg-white p-6 text-center text-sm" style={{ borderColor: LINE, color: MUTED }}>Оқушы әзірге сабақ топтарына қосылмаған. Есеп топқа қосылғаннан кейін осы сілтемеде шығады.</p>}
+        {r.bt && <BtCard bt={r.bt} />}
+
+        {!r.classes.length && !r.bt && <p className="rounded-2xl border border-dashed bg-white p-6 text-center text-sm" style={{ borderColor: LINE, color: MUTED }}>Оқушы әзірге сабақ топтарына қосылмаған. Есеп топқа қосылғаннан кейін осы сілтемеде шығады.</p>}
         {r.classes.map((c) => <ClassCard key={c.id} c={c} />)}
 
         {pay && (

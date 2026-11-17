@@ -15,6 +15,7 @@ import OverviewTab from '@/components/teacher/OverviewTab'
 import Today from '@/components/lesson/Today'
 import PlanEditor from '@/components/lesson/PlanEditor'
 import GroupGrid from '@/components/lesson/GroupGrid'
+import HelpList from '@/components/lesson/HelpList'
 import { fileSrc } from '@/lib/fileUrl'
 
 const MATERIALS_BUCKET = 'materials'
@@ -46,7 +47,7 @@ type StudentRow = {
 }
 type AttendanceRecord = { id: string; student_id: string; date: string; present: boolean }
 
-type Tab = 'today' | 'grid' | 'plan' | 'overview' | 'journal' | 'schedule' | 'students' | 'notes' | 'results' | 'materials' | 'tests' | 'profile'
+type Tab = 'today' | 'grid' | 'help' | 'plan' | 'overview' | 'journal' | 'schedule' | 'students' | 'notes' | 'results' | 'materials' | 'tests' | 'profile'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -110,6 +111,7 @@ export default function TeacherDashboard() {
   const main: [Tab, string][] = [
     ['today', 'Бүгін'],
     ['grid', 'Журнал'],
+    ['help', 'Көмек'],
     ['plan', 'КТП'],
     ['overview', 'Прогресс'],
   ]
@@ -193,6 +195,7 @@ export default function TeacherDashboard() {
 
         {tab === 'today' && <Today />}
         {tab === 'grid' && <GroupGrid classId={null} />}
+        {tab === 'help' && <HelpList />}
         {tab === 'plan' && <PlanEditor classId={null} onBack={() => setTab('today')} />}
 
         {tab === 'overview' && <OverviewTab />}

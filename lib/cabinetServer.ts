@@ -18,7 +18,10 @@ export type Cabinet = {
   exams: { bilim: boolean; ubt: boolean; ielts: boolean; toefl: boolean }
   /** CRM-ге әлі қосылмаған, тек Білім тексерудегі оқушы */
   btOnly?: boolean
+  streaks?: Streaks | null
 }
+
+import { streaksOf, type Streaks } from './streaks'
 
 const hm = (t: string | null | undefined) => (t ? t.slice(0, 5) : null)
 
@@ -163,6 +166,26 @@ export async function cabinet(studentId: string): Promise<Cabinet | null> {
     }
   })
 
+  // Сериялар ұзақ болуы мүмкін — қатысу мен ҮТ белгілерін 120 күнге аламыз (тек күн мен белгі)
+  const far = addDays(today, -120)
+  const [att2, hw2] = cids.length
+    ? await Promise.all([
+        sb.from('class_attendance').select('class_id, date, status').eq('student_id', studentId).in('class_id', cids).gte('date', far).lte('date', today),
+        sb.from('class_homework').select('class_id, date, mark').eq('student_id', studentId).in('class_id', cids).gte('date', far).lte('date', today),
+      ])
+    : [{ data: [] as any[] }, { data: [] as any[] }]
+  const streaks = cids.length
+    ? streaksOf(
+        {
+          att: ((att2.data ?? []) as any[]).map((x) => ({ classId: x.class_id, date: x.date, status: x.status as AttStatus })),
+          hw: ((hw2.data ?? []) as any[]).map((x) => ({ classId: x.class_id, date: x.date, mark: x.mark as HwMark })),
+          marks: marksAll.map((m) => ({ classId: m.class_id, date: m.date, score: Number(m.score), max: m.max || 10 })),
+          quiz: ((qa ?? []) as any[]).map((x) => ({ score: x.score, total: x.total })),
+        },
+        today
+      )
+    : null
+
   const ex = new Set(((access.data ?? []) as any[]).filter((a) => a.ielts_tests?.published !== false).map((a) => a.ielts_tests?.exam ?? 'ielts'))
   return {
     student: { id: s.id, full_name: String(s.full_name).replace(/[)\s]+$/, ''), grade: (s as any).grade ?? null, group: (s as any).student_groups?.name ?? null },
@@ -170,6 +193,7 @@ export async function cabinet(studentId: string): Promise<Cabinet | null> {
     lessons: todayLessons,
     homework,
     classes: classRows,
+    streaks,
     exams: { bilim: !!(s as any).bt_student_id, ubt: ex.has('ubt') || !!(subj.data ?? []).length, ielts: ex.has('ielts'), toefl: ex.has('toefl') },
   }
 }

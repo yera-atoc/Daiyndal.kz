@@ -23,12 +23,24 @@ export type ReportClass = {
   absStreak: number
 }
 export type ReportNote = { tone: 'good' | 'warn' | 'bad'; text: string }
+export type BtSubject = { name: string; score: number | null; max: number; prev: number | null }
+export type BtReport = {
+  title: string
+  month: string
+  total: number | null
+  max: number
+  place: number | null
+  of: number
+  subjects: BtSubject[]
+  history: { month: string; title: string; total: number | null; max: number }[]
+}
 export type StudentReport = {
   student: { name: string; grade: number | null; group: string | null }
   from: string
   to: string
   classes: ReportClass[]
   pay: { deadline: string; kind: 'overdue' | 'today' | 'soon' | 'ok'; days: number; amount: number | null } | null
+  bt: BtReport | null
   notes: ReportNote[]
 }
 
@@ -44,10 +56,18 @@ export function markTrend(marks: Pick<ReportMark, 'date' | 'score' | 'max'>[]): 
 }
 
 /** Қарапайым тілмен қорытынды: алдымен назар аударатыны, сосын жақсысы. */
-export function notesOf(classes: ReportClass[]): ReportNote[] {
+export function notesOf(classes: ReportClass[], bt: BtReport | null = null): ReportNote[] {
   const bad: ReportNote[] = []
   const warn: ReportNote[] = []
   const good: ReportNote[] = []
+  const h = bt?.history.filter((x) => x.total != null && x.max > 0) ?? []
+  if (h.length >= 2) {
+    const [a, b] = h.slice(-2)
+    const d = Math.round(((b.total! / b.max) - (a.total! / a.max)) * 100)
+    if (d >= 5) good.push({ tone: 'good', text: `Білім тексеру: ${b.title} сынағында нәтижесі +${d}% өсті` })
+    else if (d <= -5) warn.push({ tone: 'warn', text: `Білім тексеру: ${b.title} сынағында нәтижесі ${d}% төмендеді` })
+  }
+  for (const x of bt?.subjects ?? []) if (x.score != null && x.max > 0 && x.score / x.max < 0.4) warn.push({ tone: 'warn', text: `Білім тексеру: ${x.name} — ${Math.round((x.score / x.max) * 100)}%, осы пәнге көңіл бөлу керек` })
   for (const c of classes) {
     const s = subj(c)
     if (c.absStreak >= 2) bad.push({ tone: 'bad', text: `${s}: соңғы ${c.absStreak} сабаққа қатарынан келмеді` })

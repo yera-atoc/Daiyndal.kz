@@ -6,6 +6,7 @@ import { waPhone } from '@/lib/payments'
 import { BRAND, dmy, tg } from './core'
 import Today from '@/components/lesson/Today'
 import GroupGrid from '@/components/lesson/GroupGrid'
+import HelpList from '@/components/lesson/HelpList'
 import { Sheet, lessonPost } from '@/components/lesson/ui'
 
 type Lesson = { classId: string; name: string; teacher: string; teacherId: string; phone: string | null; time: string | null; students: number; marked: number; done: boolean; topic: string | null }
@@ -26,6 +27,7 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
   const [pay, setPay] = useState<Debt | null>(null)
   const [lessonsOpen, setLessonsOpen] = useState(false)
   const [gridOpen, setGridOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [toast, setToast] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [oldOpen, setOldOpen] = useState(false)
@@ -83,6 +85,12 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
     load()
   }, [load])
 
+  if (helpOpen)
+    return (
+      <div className="-mt-6">
+        <HelpList admin onBack={() => setHelpOpen(false)} />
+      </div>
+    )
   if (gridOpen)
     return (
       <div className="-mt-6">
@@ -203,7 +211,7 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
       )}
 
       {d.watch.length > 0 && (
-        <Block title="Назар аударатын оқушылар" note="Қатарынан келмеген немесе үй тапсырмасын орындамай жүрген — ата-анаға хабар беріңіз">
+        <Block title="Назар аударатын оқушылар" note="Қатарынан келмеген немесе үй тапсырмасын орындамай жүрген — ата-анаға хабар беріңіз. Толық тізім (бағалары түскендер де) — «Көмек керек оқушылар»">
           {d.watch.map((s) => {
             const kind = s.absStreak >= 2 ? 'absent' : 'homework'
             const link = wa(s.phone, parentText(kind, s.name))
@@ -225,6 +233,10 @@ export default function AdminToday({ go }: { go: (view: string) => void }) {
       )}
 
       <div className="grid gap-2 sm:grid-cols-2">
+        <button onClick={() => setHelpOpen(true)} className="rounded-2xl border bg-white p-4 text-left text-sm" style={{ borderColor: '#FECACA' }}>
+          <b className="block">Көмек керек оқушылар</b>
+          <span style={{ color: BRAND.muted }}>Барлық топ: қатарынан келмегендер, ҮТ орындамайтындар, бағасы төмен немесе түсіп бара жатқандар — пән мен мұғалім бойынша, ата-анаға бір басумен</span>
+        </button>
         <button onClick={() => setGridOpen(true)} className="rounded-2xl border bg-white p-4 text-left text-sm" style={{ borderColor: BRAND.line }}>
           <b className="block">Топ журналдары</b>
           <span style={{ color: BRAND.muted }}>Әр топ: кім келді, үй тапсырмасы, сабақтағы баға, тест — ай бойынша бір кестеде · Excel</span>
