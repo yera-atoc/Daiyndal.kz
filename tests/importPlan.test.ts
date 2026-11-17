@@ -96,3 +96,14 @@ describe('teacher hints', () => {
     expect(guessTeacher('Айдын', [{ id: 'a', name: 'Асан ағай' }, { id: 'b', name: 'Айдын ағай' }])).toBe('b')
   })
 })
+
+import { guessTeacher as gt } from '@/lib/importPlan'
+describe('guessTeacher latin', () => {
+  it('finds latin-named teachers', () => {
+    const t = [{ id: 'y', name: 'Yernar' }, { id: 'z', name: 'Zholtai Kairat' }, { id: 'd', name: 'Диана' }]
+    expect(gt('Ернар', t)).toBe('y')
+    expect(gt('Жолтай', t)).toBe('z')
+    expect(gt('Диана', t)).toBe('d')
+    expect(gt('Асан', t)).toBe('')
+  })
+})
