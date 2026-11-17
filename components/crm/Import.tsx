@@ -1,14 +1,39 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ChevronDown, Plus, Trash2, Upload } from 'lucide-react'
+import { CheckCircle2, ChevronDown, FileSpreadsheet, Plus, Trash2, Upload } from 'lucide-react'
 import { BRAND, inputCls, selCls, btnDark, btnLine, type CGroup, type CStudent, type CTeacher } from './core'
 import { candidates, confident } from '@/lib/studentMatch'
 import { IMPORT_SEED, REMOVED_SEED_KEYS } from '@/lib/importSeed'
 import { guessTeacher, validateGroup, type ImpGroup, type ImpLesson, type ImpStudent } from '@/lib/importPlan'
+import type { SheetPayment, SheetResult } from '@/lib/sheetImport'
 
 const DAYS = ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жс']
 const KEY = 'beles-import-draft-v1'
+const SHEET_KEY = 'beles-import-sheet-v1'
+
+// Мұғалімнің пәні: CRM-де жазылмаса — кестедегі әдеттегі пәні
+const DEFAULT_SUBJECT: Record<string, string> = { Жолтай: 'Математика', Айдын: 'Математика', Ернар: 'Ағылшын тілі', Диана: 'Жаратылыстану', Асан: 'ҰБТ' }
+
+type SheetState = { file: string; warnings: string[]; payments: SheetPayment[]; payDone?: { added: number; skipped: number; missing: string[]; ambiguous: string[] } }
+
+/** Excel кестесінің талдауы → енгізу жобасы */
+function fromSheet(r: SheetResult, teachers: CTeacher[]): Draft[] {
+  return r.groups.map((g) => ({
+    key: g.key,
+    name: g.name,
+    grade: g.grade,
+    teacherId: guessTeacher(g.teacherHint || g.lessons[0]?.teacherHint || '', teachers),
+    // Мұғалімі платформадан табылмаған сабақ басқа мұғалімге жазылып кетпеуі үшін алынбайды (ескерту шығады)
+    lessons: g.lessons
+      .map((l) => {
+        const tid = guessTeacher(l.teacherHint, teachers)
+        return { days: l.days, start: l.start, end: l.end, teacherId: tid, subject: teachers.find((t) => t.id === tid)?.subject || DEFAULT_SUBJECT[l.teacherHint] || '' }
+      })
+      .filter((l) => l.teacherId),
+    students: g.students.map((st) => ({ name: st.name, parentName: st.parentName, parentPhone: st.parentPhone, note: st.note })),
+  }))
+}
 
 type Draft = ImpGroup & { note?: string; open?: boolean }
 
@@ -72,6 +97,60 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
   const [done, setDone] = useState<string[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [sheet, setSheet] = useState<SheetState | null>(null)
+  const [showWarn, setShowWarn] = useState(false)
+
+  useEffect(() => {
+    try {
+      setSheet(JSON.parse(localStorage.getItem(SHEET_KEY) ?? 'null'))
+    } catch {}
+  }, [])
+  useEffect(() => {
+    try {
+      if (sheet) localStorage.setItem(SHEET_KEY, JSON.stringify(sheet))
+      else localStorage.removeItem(SHEET_KEY)
+    } catch {}
+  }, [sheet])
+
+  async function loadSheet(file: File) {
+    if (groups && groups.some((g) => !done.includes(g.key)) && !confirm('Тізім Excel кестесімен ауыстырылады (енгізілмеген түзетулер өшеді). Жалғастырасыз ба?')) return
+    setBusy('sheet')
+    setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const r = await fetch('/api/admin/import/sheet', { method: 'POST', body: fd })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error ?? 'Қате')
+      setGroups(fromSheet(j as SheetResult, teachers))
+      const lost = Array.from(new Set((j as SheetResult).groups.flatMap((g) => g.lessons.map((l) => l.teacherHint)).filter((h) => !guessTeacher(h, teachers))))
+      const extra = lost.map((h) => `«${h}» деген мұғалім платформада табылмады — оның сабақтары енгізілмеді. «Мұғалімдер» бөлімінен қосып, файлды қайта жүктеңіз`)
+      setSheet({ file: file.name, warnings: [...extra, ...(j.warnings ?? [])], payments: j.payments ?? [] })
+      flash(`Кесте оқылды: ${j.groups.length} топ, ${j.groups.reduce((a: number, g: any) => a + g.students.length, 0)} оқушы, ${j.payments.length} төлем`)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function sendPayments() {
+    if (!sheet) return
+    setBusy('pay')
+    setError('')
+    try {
+      const r = await fetch('/api/admin/import/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ payments: sheet.payments }) })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error ?? 'Қате')
+      setSheet({ ...sheet, payDone: { added: j.added, skipped: j.skipped, missing: j.missing, ambiguous: j.ambiguous } })
+      flash(`Төлемдер енгізілді: ${j.added} жаңа${j.skipped ? `, ${j.skipped} бұрын бар еді` : ''}`)
+      await reload()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(null)
+    }
+  }
 
   // Жоба браузерде сақталады: беттен шығып кетсе де, түзетулер жоғалмайды
   useEffect(() => {
@@ -81,7 +160,9 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
         // Жобада жоқ жаңа топтарды (кейін қосылған журналдар) соңына қосамыз, ауыстырылған ескілерін аламыз
         const doneKeys: string[] = saved.done ?? []
         const have = new Set((saved.groups as Draft[]).map((g) => g.key))
-        const added = fromSeed(teachers, new Set(IMPORT_SEED.map((g) => g.key).filter((k) => !have.has(k))))
+        // Excel кестесінен жүктелген болса, қағаз журнал тізімін қоспаймыз
+        const fromXl = (saved.groups as Draft[]).some((g) => g.key.startsWith('xl-'))
+        const added = fromXl ? [] : fromSeed(teachers, new Set(IMPORT_SEED.map((g) => g.key).filter((k) => !have.has(k))))
         // Мұғалімі таңдалмаған топтарға журналдағы аты бойынша қайта іздейміз (мысалы, «Айдын ағай»)
         const hints = new Map(IMPORT_SEED.map((g) => [g.key, g.teacherHint]))
         const kept = (saved.groups as Draft[])
@@ -144,7 +225,7 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
     <div className="space-y-4">
       <div className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
         <p>
-          Қағаз журналдардан <b>{groups.length} топ</b>, <b>{totalStudents} оқушы</b> көшірілді.
+          {sheet ? <>«{sheet.file}» кестесінен</> : 'Қағаз журналдардан'} <b>{groups.length} топ</b>, <b>{totalStudents} оқушы</b> көшірілді.
           {linked > 0 && <> Оның <b style={{ color: '#15803D' }}>{linked}-і базадағы бар оқушылармен</b> байланыстырылды (жасыл) — аты-жөні мен телефоны базадан алынды, жаңа оқушы ашылмайды.</>}
           {unsure > 0 && <> Сәйкесі табылмаған, нақты оқылмаған <b style={{ color: '#B45309' }}>{unsure} атты</b> (сары) тексеріңіз: ұсынылғандардан таңдаңыз не түзетіңіз.</>}
         </p>
@@ -152,6 +233,21 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
           Әр топқа мұғалімді таңдаңыз, ата-ананың WhatsApp нөмірін жазыңыз (кейін де қосуға болады) да, «Енгізу» басыңыз. Қайта басса, екі есе жазылмайды.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
+          <label className={`${btnLine} cursor-pointer`} style={{ borderColor: BRAND.line }}>
+            <FileSpreadsheet size={15} className="mr-1.5 inline" />
+            {busy === 'sheet' ? 'Оқылуда…' : 'Excel кестесінен жүктеу'}
+            <input
+              type="file"
+              accept=".xlsx"
+              className="hidden"
+              disabled={!!busy}
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (f) loadSheet(f)
+              }}
+            />
+          </label>
           <button disabled={!ready.length || !!busy} onClick={() => send(ready)} className={btnDark} style={{ background: BRAND.ink }}>
             <Upload size={15} className="mr-1.5 inline" />
             Дайын топтарды енгізу ({ready.length})
@@ -170,6 +266,7 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
               if (confirm('Барлық түзетулер өшіп, журналдағы бастапқы тізім қайта жүктеледі. Жалғастырасыз ба?')) {
                 setGroups(fromSeed(teachers))
                 setDone([])
+                setSheet(null)
               }
             }}
             className={btnLine}
@@ -180,6 +277,36 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
         </div>
         {error && <p className="mt-3 rounded-lg p-2 text-sm" style={{ background: '#FEF2F2', color: BRAND.red }}>{error}</p>}
       </div>
+
+      {sheet && sheet.warnings.length > 0 && (
+        <div className="rounded-2xl border p-4 text-sm" style={{ borderColor: '#FCD34D', background: '#FFFBEB' }}>
+          <button onClick={() => setShowWarn(!showWarn)} className="flex w-full items-center justify-between text-left font-semibold" style={{ color: '#92400E' }}>
+            Кестеде нақтылау керек {sheet.warnings.length} жер бар
+            <ChevronDown size={16} className={showWarn ? 'rotate-180' : ''} />
+          </button>
+          <p className="mt-1 text-xs" style={{ color: '#92400E' }}>Қай топқа жататыны анық емес сабақ уақыттары енгізілмейді — оларды тиісті топтың «Сабақтар» бөліміне қолмен қосыңыз не «Кесте» бөлімінен кейін қосыңыз.</p>
+          {showWarn && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs" style={{ color: '#78350F' }}>{sheet.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
+        </div>
+      )}
+
+      {sheet && sheet.payments.length > 0 && (
+        <div className="rounded-2xl border bg-white p-4 text-sm" style={{ borderColor: BRAND.line }}>
+          <div className="font-semibold">Төлемдер: {sheet.payments.length} жазба · {sheet.payments.reduce((a, p) => a + p.amount, 0).toLocaleString('ru-RU')} ₸</div>
+          <p className="mt-1 text-xs" style={{ color: BRAND.muted }}>
+            «толық төлемдер» бетінен. Оқушы аты-жөні бойынша табылады, сондықтан алдымен топтарды енгізіңіз. Күні жазылмаған төлем айдың 1-күнімен жазылады. Қайта басса, екі рет жазылмайды.
+          </p>
+          {sheet.payDone && (
+            <div className="mt-2 space-y-1 text-xs">
+              <p style={{ color: '#15803D' }}>Енгізілді: {sheet.payDone.added}{sheet.payDone.skipped ? ` · бұрын бар еді: ${sheet.payDone.skipped}` : ''}</p>
+              {sheet.payDone.missing.length > 0 && <p style={{ color: BRAND.red }}>Базадан табылмады ({sheet.payDone.missing.length}): {sheet.payDone.missing.join(', ')}</p>}
+              {sheet.payDone.ambiguous.length > 0 && <p style={{ color: '#B45309' }}>Аттас оқушылар, қолмен енгізіңіз: {sheet.payDone.ambiguous.join(', ')}</p>}
+            </div>
+          )}
+          <button disabled={!!busy} onClick={sendPayments} className={`${btnDark} mt-3`} style={{ background: BRAND.ink }}>
+            {busy === 'pay' ? 'Енгізілуде…' : sheet.payDone ? 'Төлемдерді қайта тексеріп енгізу' : `Төлемдерді енгізу (${sheet.payments.length})`}
+          </button>
+        </div>
+      )}
 
       {groups.map((g, i) => {
         const isDone = done.includes(g.key)
