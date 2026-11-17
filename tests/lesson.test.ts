@@ -64,3 +64,18 @@ describe('scoreQuiz', () => {
     expect(scoreQuiz(qs, [1, 9])).toEqual({ answers: [1, -1], score: 1, total: 2 })
   })
 })
+
+import { monthVisits } from '@/lib/lesson'
+describe('monthVisits', () => {
+  it('planned lessons by weekday and came this month', () => {
+    // 2026-11: Дс/Ср/Жм — 13 сабақ
+    const v = monthVisits('2026-11-17', [1, 3, 5], [
+      { date: '2026-11-02', status: 'present' },
+      { date: '2026-11-04', status: 'late' },
+      { date: '2026-11-06', status: 'absent' },
+      { date: '2026-10-30', status: 'present' },
+    ])
+    expect(v).toEqual({ came: 2, planned: 13 })
+    expect(monthVisits('2026-11-17', [], []).planned).toBe(0)
+  })
+})

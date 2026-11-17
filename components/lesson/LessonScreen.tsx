@@ -212,6 +212,14 @@ export default function LessonScreen({ classId, date, onBack, onPlan, onGrid }: 
                     {s.progress.risk !== 'ok' && <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.progress.risk === 'high' ? '#DC2626' : '#F59E0B' }} title="Назар аударыңыз" />}
                     <span className="truncate text-[15px] font-medium">{s.full_name}</span>
                   </div>
+                  {s.month && s.month.planned > 0 && (
+                    <div className="mt-1 flex items-center gap-1" title="Осы айда келген сабақтар">
+                      {Array.from({ length: Math.min(s.month.planned, 16) }, (_, n) => (
+                        <span key={n} className="h-2 w-2 rounded-full" style={{ background: n < s.month!.came ? '#15803D' : '#D9DEE7' }} />
+                      ))}
+                      <span className="ml-1 text-[11px] font-semibold tabular-nums" style={{ color: MUTED }}>{s.month.came}/{s.month.planned}</span>
+                    </div>
+                  )}
                   <div className="mt-0.5 flex flex-wrap gap-x-2.5 text-[11px]" style={{ color: MUTED }}>
                     <Pct label="Қатысу" v={s.progress.att} />
                     <Pct label="ҮТ" v={s.progress.hw} />

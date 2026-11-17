@@ -49,6 +49,13 @@ function fromSeed(teachers: CTeacher[], only?: Set<string>): Draft[] {
   }))
 }
 
+/** «Топ жетекшісі» жоқ: әр сабақты өз мұғалімі өткізеді. Ескі жобаларда сабақ мұғалімі бос болса — бұрынғы топ мұғалімі алынады;
+ *  оқушының «негізгі мұғалімі» (CRM) — бірінші сабақтың мұғалімі. */
+function withTeachers(g: Draft): Draft {
+  const lessons = g.lessons.map((l) => ({ ...l, teacherId: l.teacherId || g.teacherId }))
+  return { ...g, lessons, teacherId: lessons.find((l) => l.teacherId)?.teacherId ?? '' }
+}
+
 /** Журналдағы аттарды базадағы оқушылармен сәйкестендіру: сенімді болса — бірден байланыстырамыз, әйтпесе үміткерлерді ұсынамыз */
 function autoMatch(g: Draft, students: CStudent[]): Draft {
   const used = new Set<string>()
@@ -194,7 +201,17 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
     setGroups(groups.map((g) => (g.matched || done.includes(g.key) ? g : autoMatch(g, students))))
   }, [groups, students, done])
 
-  const issues = useMemo(() => (groups ?? []).map((g) => validateGroup(g)), [groups])
+  const issues = useMemo(
+    () =>
+      (groups ?? []).map((g) => {
+        const n = withTeachers(g)
+        const errs = validateGroup(n)
+        if (!n.lessons.length) errs.push('Сабақ қосылмаған')
+        if (n.lessons.some((l) => !l.teacherId)) errs.push('Сабаққа мұғалім таңдалмаған')
+        return Array.from(new Set(errs.map((e) => (e === 'Мұғалім таңдалмаған' ? 'Сабаққа мұғалім таңдалмаған' : e))))
+      }),
+    [groups]
+  )
 
   if (!groups) return null
 
@@ -206,7 +223,7 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
     setBusy(list.length === 1 ? list[0].key : 'all')
     setError('')
     try {
-      const r = await fetch('/api/admin/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groups: list }) })
+      const r = await fetch('/api/admin/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groups: list.map(withTeachers) }) })
       const j = await r.json()
       if (j.done?.length) setDone((d) => Array.from(new Set([...d, ...j.done])))
       if (!r.ok) throw new Error(j.error ?? 'Қате')
@@ -329,7 +346,7 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
               <div className="min-w-0 flex-1">
                 <div className="truncate font-semibold">{g.name || 'Атауы жоқ'}</div>
                 <div className="truncate text-xs" style={{ color: BRAND.muted }}>
-                  {g.students.length} оқушы · {teachers.find((t) => t.id === g.teacherId)?.name ?? 'мұғалім таңдалмаған'} · {g.lessons.map((l) => `${l.days.map((d) => DAYS[d - 1]).join('/')} ${l.start || '—'}`).join(', ')}
+                  {g.students.length} оқушы · {Array.from(new Set(withTeachers(g).lessons.map((l) => teachers.find((t) => t.id === l.teacherId)?.name ?? '?'))).join(', ') || 'мұғалім таңдалмаған'} · {g.lessons.map((l) => `${l.days.map((d) => DAYS[d - 1]).join('/')} ${l.start || '—'}`).join(', ')}
                 </div>
               </div>
               {isDone ? (
@@ -353,13 +370,6 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
                   <label className="text-xs" style={{ color: BRAND.muted }}>
                     Сынып
                     <input type="number" min={1} max={11} value={g.grade ?? ''} onChange={(e) => set(i, { grade: e.target.value ? Number(e.target.value) : null })} className={`${inputCls} mt-1`} style={{ borderColor: BRAND.line }} />
-                  </label>
-                  <label className="text-xs" style={{ color: BRAND.muted }}>
-                    Мұғалімі (топ жетекшісі)
-                    <select value={g.teacherId} onChange={(e) => set(i, { teacherId: e.target.value })} className={`${selCls} mt-1 w-full`} style={{ borderColor: BRAND.line }}>
-                      <option value="">— таңдаңыз —</option>
-                      {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}{t.subject ? ` (${t.subject})` : ''}</option>)}
-                    </select>
                   </label>
                 </div>
                 <label className="block text-xs" style={{ color: BRAND.muted }}>
@@ -391,7 +401,7 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
                         <span style={{ color: BRAND.muted }}>–</span>
                         <input type="time" value={l.end} onChange={(e) => setLesson(i, k, { end: e.target.value })} className={inputCls} style={{ borderColor: l.end ? BRAND.line : '#FCD34D', width: 112 }} />
                         <select value={l.teacherId} onChange={(e) => setLesson(i, k, { teacherId: e.target.value })} className={selCls} style={{ borderColor: BRAND.line }}>
-                          <option value="">Топ мұғалімі</option>
+                          <option value="">— мұғалім —</option>
                           {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                         <button onClick={() => set(i, { lessons: g.lessons.filter((_, j) => j !== k) })} aria-label="Сабақты өшіру" className="p-1.5" style={{ color: BRAND.muted }}>

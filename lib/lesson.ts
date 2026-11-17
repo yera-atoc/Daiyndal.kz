@@ -7,7 +7,24 @@ export type QuizQ = { q: string; options: string[]; correct: number }
 export type PayInfo = { deadline: string | null; amount: number | null; kind: 'none' | 'overdue' | 'today' | 'soon' | 'ok'; days: number | null }
 export type Progress = { att: number | null; hw: number | null; quiz: number | null; risk: 'high' | 'medium' | 'ok'; absStreak: number; hwStreak: number }
 
-export type LessonStudent = { id: string; full_name: string; pay: PayInfo; progress: Progress }
+export type LessonStudent = { id: string; full_name: string; pay: PayInfo; progress: Progress; month?: MonthVisits }
+/** Осы айдағы келу: келген сабақ / айдағы барлық сабақ (кесте күндері бойынша) */
+export type MonthVisits = { came: number; planned: number }
+
+/** Айдағы сабақ саны (топтың апта күндері бойынша, 1 = дүйсенбі) және оқушының сол айда келгені */
+export function monthVisits(date: string, days: number[], att: { date: string; status: AttStatus }[]): MonthVisits {
+  const ym = date.slice(0, 7)
+  const y = Number(ym.slice(0, 4))
+  const m = Number(ym.slice(5, 7))
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  let planned = 0
+  for (let d = 1; d <= last; d++) {
+    const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7
+    if (days.includes(wd)) planned++
+  }
+  const came = new Set(att.filter((a) => a.date.startsWith(ym) && (a.status === 'present' || a.status === 'late')).map((a) => a.date)).size
+  return { came, planned: Math.max(planned, came) }
+}
 export type LessonView = {
   class: { id: string; name: string; subject: string | null; days: number[]; teacher: string }
   date: string
