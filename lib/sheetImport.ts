@@ -360,3 +360,18 @@ export function parseWorkbook(sheets: Sheet[], baseYear = 2026): SheetResult {
 
   return { groups: kept, payments, warnings }
 }
+
+/** Google Drive сілтемесінен файл ID-ін алу (тек Google доменіндегі сілтемелер) */
+export function driveId(link: string): string | null {
+  let u: URL
+  try {
+    u = new URL(link.trim())
+  } catch {
+    return null
+  }
+  if (!/^(docs|drive)\.google\.com$/.test(u.hostname)) return null
+  const m = /\/d\/([\w-]{20,})/.exec(u.pathname)
+  const id = m?.[1] ?? u.searchParams.get('id')
+  return id && /^[\w-]{20,}$/.test(id) ? id : null
+}
+
