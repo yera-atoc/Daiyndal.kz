@@ -99,6 +99,7 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
   const [error, setError] = useState('')
   const [sheet, setSheet] = useState<SheetState | null>(null)
   const [showWarn, setShowWarn] = useState(false)
+  const [driveLink, setDriveLink] = useState('')
 
   useEffect(() => {
     try {
@@ -112,20 +113,25 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
     } catch {}
   }, [sheet])
 
-  async function loadSheet(file: File) {
+  async function loadSheet(file: File | string) {
     if (groups && groups.some((g) => !done.includes(g.key)) && !confirm('Тізім Excel кестесімен ауыстырылады (енгізілмеген түзетулер өшеді). Жалғастырасыз ба?')) return
     setBusy('sheet')
     setError('')
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const r = await fetch('/api/admin/import/sheet', { method: 'POST', body: fd })
+      let r: Response
+      if (typeof file === 'string') {
+        r = await fetch('/api/admin/import/sheet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: file }) })
+      } else {
+        const fd = new FormData()
+        fd.append('file', file)
+        r = await fetch('/api/admin/import/sheet', { method: 'POST', body: fd })
+      }
       const j = await r.json()
       if (!r.ok) throw new Error(j.error ?? 'Қате')
       setGroups(fromSheet(j as SheetResult, teachers))
       const lost = Array.from(new Set((j as SheetResult).groups.flatMap((g) => g.lessons.map((l) => l.teacherHint)).filter((h) => !guessTeacher(h, teachers))))
       const extra = lost.map((h) => `«${h}» деген мұғалім платформада табылмады — оның сабақтары енгізілмеді. «Мұғалімдер» бөлімінен қосып, файлды қайта жүктеңіз`)
-      setSheet({ file: file.name, warnings: [...extra, ...(j.warnings ?? [])], payments: j.payments ?? [] })
+      setSheet({ file: typeof file === 'string' ? 'Google Drive' : file.name, warnings: [...extra, ...(j.warnings ?? [])], payments: j.payments ?? [] })
       flash(`Кесте оқылды: ${j.groups.length} топ, ${j.groups.reduce((a: number, g: any) => a + g.students.length, 0)} оқушы, ${j.payments.length} төлем`)
     } catch (e: any) {
       setError(e.message)
@@ -273,6 +279,12 @@ export default function Import({ teachers, students, crmGroups, reload, flash }:
             style={{ borderColor: BRAND.line, color: BRAND.muted }}
           >
             Бастапқы тізімге қайтару
+          </button>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <input value={driveLink} onChange={(e) => setDriveLink(e.target.value)} placeholder="не Google Drive сілтемесін қойыңыз" className={inputCls} style={{ borderColor: BRAND.line }} />
+          <button disabled={!driveLink.trim() || !!busy} onClick={() => loadSheet(driveLink.trim())} className={btnLine} style={{ borderColor: BRAND.line }}>
+            {busy === 'sheet' ? 'Оқылуда…' : 'Жүктеу'}
           </button>
         </div>
         {error && <p className="mt-3 rounded-lg p-2 text-sm" style={{ background: '#FEF2F2', color: BRAND.red }}>{error}</p>}

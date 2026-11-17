@@ -83,3 +83,13 @@ describe('sheetImport', () => {
     ])
   })
 })
+
+import { driveId } from '@/lib/sheetImport'
+describe('driveId', () => {
+  it('only google links', () => {
+    expect(driveId('https://docs.google.com/spreadsheets/d/1QzGRgsX0AA8-vuacc_B9Gcbn0PK79Xju/edit?usp=drive_link')).toBe('1QzGRgsX0AA8-vuacc_B9Gcbn0PK79Xju')
+    expect(driveId('https://drive.google.com/open?id=1QzGRgsX0AA8-vuacc_B9Gcbn0PK79Xju')).toBe('1QzGRgsX0AA8-vuacc_B9Gcbn0PK79Xju')
+    expect(driveId('https://evil.com/d/1QzGRgsX0AA8-vuacc_B9Gcbn0PK79Xju')).toBeNull()
+    expect(driveId('not a url')).toBeNull()
+  })
+})
