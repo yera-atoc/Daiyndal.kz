@@ -5,12 +5,12 @@ import { DEFAULT_SUBJECTS } from '../lib/bilimTest'
 describe('exam countdown', () => {
   const target = new Date(seasonFor('nzm')!.examDate)
   it('counts calendar months and days in Almaty time', () => {
-    // 29 қазан 2026, 20:00 Алматы → 27 наурыз 2027
+    // 29 қазан 2026, 20:00 Алматы → 26 наурыз 2027
     const c = countdown(new Date('2026-10-29T20:00:00+05:00'), target)
     expect(c.months).toBe(4)
-    expect(c.days).toBe(26) // 28 ақпан 20:00 → 27 наурыз 00:00 = 26 күн 4 сағ
+    expect(c.days).toBe(25) // 28 ақпан 20:00 → 26 наурыз 00:00 = 25 күн 4 сағ
     expect(c.hours).toBe(4)
-    expect(c.totalDays).toBe(148)
+    expect(c.totalDays).toBe(147)
     expect(c.done).toBe(false)
   })
   it('5th grade NIS group shares the season', () => {
