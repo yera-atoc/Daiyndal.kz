@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Download, MessageCircle, Plus, Search, UserPlus } from 'lucide-react'
 import { nextDeadlineAfter } from '@/lib/payments'
 import {
@@ -51,6 +51,7 @@ export default function Students({
   const [group, setGroup] = useState('')
   const [status, setStatus] = useState('active')
   const [pay, setPay] = useState<PayFilter>('all')
+  const [grade, setGrade] = useState<number | 'none' | null>(null)
   const [edit, setEdit] = useState<Partial<CStudent> | null>(null)
   const [importOpen, setImportOpen] = useState(false)
 
@@ -67,10 +68,30 @@ export default function Students({
         }),
     [students, today, attendance, q, group, status]
   )
+  // Сынып: оқушыда жазылмаса — топ атауынан («5-сынып 2-топ» → 5, НЗМ/БИЛ → 6)
+  const gradeOf = (st: CStudent): number | null => {
+    if (st.grade) return st.grade
+    const n = groups.find((g) => g.id === st.group_id)?.name ?? ''
+    const m = /(\d{1,2})\s*-?\s*сынып/i.exec(n)
+    if (m) return Number(m[1])
+    return /нзм|ниш|бил|біл/i.test(n) ? 6 : null
+  }
+  const grades = useMemo(() => {
+    const c = new Map<number | 'none', number>()
+    for (const { s: st } of base) {
+      const g = gradeOf(st) ?? 'none'
+      c.set(g, (c.get(g) ?? 0) + 1)
+    }
+    return Array.from(c.entries()).sort((a, b) => (a[0] === 'none' ? 1 : b[0] === 'none' ? -1 : (a[0] as number) - (b[0] as number)))
+  }, [base, groups]) // eslint-disable-line react-hooks/exhaustive-deps
   const payMatch = (k: PayFilter, kind: string) =>
     k === 'all' || kind === k || (k === 'soon' && kind === 'today')
-  const rows = base.filter(({ p }) => payMatch(pay, p.kind))
-  const count = (k: PayFilter) => base.filter(({ p }) => payMatch(k, p.kind)).length
+  const inGrade = (st: CStudent) => grade === null || (gradeOf(st) ?? 'none') === grade
+  // Сынып бойынша реттеледі: 3-сынып → 11-сынып → сыныпсыз, ішінде — аты-жөні бойынша
+  const rows = base
+    .filter(({ s: st, p }) => inGrade(st) && payMatch(pay, p.kind))
+    .sort((a, b) => (gradeOf(a.s) ?? 99) - (gradeOf(b.s) ?? 99) || a.s.full_name.localeCompare(b.s.full_name, 'kk'))
+  const count = (k: PayFilter) => base.filter(({ s: st, p }) => inGrade(st) && payMatch(k, p.kind)).length
 
   const gName = (id: string | null) => groups.find((g) => g.id === id)?.name ?? '—'
   const open = students.find((s) => s.id === openId) ?? null
@@ -107,6 +128,21 @@ export default function Students({
         </button>
       </div>
 
+      <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Сынып">
+        {([[null, 'Барлық сынып', base.length], ...grades.map(([g, n]) => [g, g === 'none' ? 'Сыныпсыз' : `${g}-сынып`, n])] as [number | 'none' | null, string, number][]).map(([g, l, n]) => (
+          <button
+            key={String(g)}
+            role="tab"
+            aria-selected={grade === g}
+            onClick={() => setGrade(g)}
+            className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold"
+            style={grade === g ? { background: BRAND.blue, color: '#fff' } : { background: '#fff', border: `1px solid ${BRAND.line}` }}
+          >
+            {l} <span className="ml-0.5 font-normal opacity-70">{n}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap gap-1.5">
         {([
           ['all', 'Барлығы'],
@@ -140,8 +176,19 @@ export default function Students({
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ s, p, a }) => (
-              <tr key={s.id} className="cursor-pointer border-b last:border-0 hover:bg-slate-50" style={{ borderColor: BRAND.line }} onClick={() => setOpenId(s.id)}>
+            {rows.map(({ s, p, a }, i) => {
+              const g = gradeOf(s)
+              const head = grade === null && (i === 0 || gradeOf(rows[i - 1].s) !== g)
+              return (
+              <Fragment key={s.id}>
+              {head && (
+                <tr className="border-b" style={{ borderColor: BRAND.line, background: '#F6F8FC' }}>
+                  <td colSpan={7} className="px-4 py-2 text-xs font-bold uppercase tracking-wide" style={{ color: BRAND.muted }}>
+                    {g ? `${g}-сынып` : 'Сыныбы белгісіз'} · {rows.filter((r) => gradeOf(r.s) === g).length} оқушы
+                  </td>
+                </tr>
+              )}
+              <tr className="cursor-pointer border-b last:border-0 hover:bg-slate-50" style={{ borderColor: BRAND.line }} onClick={() => setOpenId(s.id)}>
                 <td className="px-4 py-2.5">
                   <div className="font-semibold">{s.full_name}</div>
                   <div className="text-xs" style={{ color: BRAND.muted }}>{[s.grade ? `${s.grade}-сынып` : '', s.school ?? '', s.status && s.status !== 'active' ? STATUS[s.status].label : ''].filter(Boolean).join(' · ')}</div>
@@ -166,7 +213,9 @@ export default function Students({
                   </div>
                 </td>
               </tr>
-            ))}
+              </Fragment>
+              )
+            })}
           </tbody>
         </table>
         {rows.length === 0 && <Empty>{students.length ? 'Сүзгіге сай оқушы жоқ.' : 'Әзірге оқушы жоқ. «Оқушы қосу» батырмасын басыңыз.'}</Empty>}
