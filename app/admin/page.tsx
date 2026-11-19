@@ -3,28 +3,16 @@
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  CalendarCheck,
-  CalendarDays,
   ClipboardList,
   GraduationCap,
   LayoutDashboard,
   LogOut,
   Users,
-  UsersRound,
   Wallet,
   Headphones,
   ShieldCheck,
   BookOpenCheck,
-  Inbox,
-  Trophy,
-  Sparkles,
-  Upload,
-  MessageCircle,
-  Eye,
-  BarChart3,
-  DoorOpen,
   Sun,
-  ChevronDown,
 } from 'lucide-react'
 import { BRAND, dmy, type CrmData } from '@/components/crm/core'
 import Overview from '@/components/crm/Overview'
@@ -45,35 +33,23 @@ import AdminToday from '@/components/crm/Today'
 type View = 'today' | 'jarvis' | 'import' | 'parents' | 'proctor' | 'tops' | 'overview' | 'students' | 'payments' | 'attendance' | 'schedule' | 'rooms' | 'groups' | 'teachers' | 'journal' | 'lessons' | 'leads' | 'site'
 
 // Күнделікті керегі — жоғарыда; сирек керегі — «Тағы» ішінде
-const MAIN: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'today', label: 'Бүгін', icon: Sun },
-  { id: 'students', label: 'Оқушылар', icon: Users },
-  { id: 'payments', label: 'Төлемдер', icon: Wallet },
-  { id: 'lessons', label: 'Сабақ журналы', icon: BookOpenCheck },
-  { id: 'schedule', label: 'Кесте', icon: CalendarDays },
-  { id: 'jarvis', label: 'Beles Manager', icon: Sparkles },
+// Мәзір: 6 бөлім. Бөлімнің ішкі беттері жоғарыда қойынды болып тұрады (?view= сілтемелері бұрынғыдай)
+type Section = { id: string; label: string; icon: typeof LayoutDashboard; views: { id: View; label: string }[] }
+const SECTIONS: Section[] = [
+  { id: 'home', label: 'Бүгін', icon: Sun, views: [{ id: 'today', label: 'Бүгін' }, { id: 'jarvis', label: 'Beles Manager' }, { id: 'overview', label: 'Шолу' }] },
+  { id: 'people', label: 'Оқушылар', icon: Users, views: [{ id: 'students', label: 'Оқушылар' }, { id: 'groups', label: 'Топтар' }, { id: 'attendance', label: 'Қатысу' }, { id: 'leads', label: 'Өтінімдер' }, { id: 'import', label: 'Енгізу' }] },
+  { id: 'money', label: 'Төлемдер', icon: Wallet, views: [{ id: 'payments', label: 'Төлемдер' }, { id: 'parents', label: 'Ата-аналарға хабар' }] },
+  { id: 'study', label: 'Сабақтар', icon: BookOpenCheck, views: [{ id: 'lessons', label: 'Сабақ журналы' }, { id: 'schedule', label: 'Кесте' }, { id: 'rooms', label: 'Кабинеттер' }] },
+  { id: 'staff', label: 'Мұғалімдер', icon: GraduationCap, views: [{ id: 'teachers', label: 'Мұғалімдер' }, { id: 'tops', label: 'Есеп пен статистика' }] },
+  { id: 'more', label: 'Басқа', icon: ShieldCheck, views: [{ id: 'proctor', label: 'Тест бақылауы' }, { id: 'site', label: 'Жетістіктер' }, { id: 'journal', label: 'Әрекеттер' }] },
 ]
-const MORE: { id: View; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'leads', label: 'Өтінімдер', icon: Inbox },
-  { id: 'parents', label: 'Ата-аналарға хабар', icon: MessageCircle },
-  { id: 'import', label: 'Оқушыларды енгізу', icon: Upload },
-  { id: 'attendance', label: 'Қатысу', icon: CalendarCheck },
-  { id: 'rooms', label: 'Кабинеттер', icon: DoorOpen },
-  { id: 'groups', label: 'Топтар', icon: UsersRound },
-  { id: 'teachers', label: 'Мұғалімдер', icon: GraduationCap },
-  { id: 'tops', label: 'Мұғалім есебі', icon: BarChart3 },
-  { id: 'proctor', label: 'Тест бақылауы', icon: Eye },
-  { id: 'journal', label: 'Әрекеттер', icon: ShieldCheck },
-  { id: 'site', label: 'Жетістіктер', icon: Trophy },
-  { id: 'overview', label: 'Шолу', icon: LayoutDashboard },
-]
-const NAV = [...MAIN, ...MORE]
+const NAV = SECTIONS.flatMap((x) => x.views)
+const sectionOf = (v: View) => SECTIONS.find((x) => x.views.some((w) => w.id === v)) ?? SECTIONS[0]
 
 function Crm() {
   const sp = useSearchParams()
   const router = useRouter()
   const view = (sp.get('view') as View) || 'today'
-  const [more, setMore] = useState(false)
   const [data, setData] = useState<CrmData | null>(null)
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
@@ -98,7 +74,7 @@ function Crm() {
   if (data.error) return <p className="p-10 text-center" style={{ color: BRAND.red }}>{data.error}</p>
 
   const title = NAV.find((n) => n.id === view)?.label ?? 'Бүгін'
-  const moreOpen = more || MORE.some((n) => n.id === view)
+  const section = sectionOf(view)
   const openStudent = (id: string) => {
     if (view !== 'students') go('students')
     setOpenId(id)
@@ -116,36 +92,12 @@ function Crm() {
           <div className="text-xs md:mt-3" style={{ color: BRAND.muted }}>Оқу орталығын басқару</div>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:block md:space-y-0.5" aria-label="Бөлімдер">
-          {MAIN.map(({ id, label, icon: Icon }) => {
-            const active = view === id
+          {SECTIONS.map(({ id, label, icon: Icon, views }) => {
+            const active = section.id === id
             return (
               <button
                 key={id}
-                onClick={() => go(id)}
-                aria-current={active ? 'page' : undefined}
-                className="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium md:w-full"
-                style={{ background: active ? BRAND.ink : 'transparent', color: active ? '#fff' : BRAND.text }}
-              >
-                <Icon size={17} />
-                {label}
-              </button>
-            )
-          })}
-          <button
-            onClick={() => setMore(!moreOpen)}
-            className="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium md:w-full"
-            style={{ color: BRAND.muted }}
-            aria-expanded={moreOpen}
-          >
-            <ChevronDown size={17} style={{ transform: moreOpen ? 'rotate(180deg)' : undefined }} />
-            {moreOpen ? 'Жасыру' : 'Тағы'}
-          </button>
-          {moreOpen && MORE.map(({ id, label, icon: Icon }) => {
-            const active = view === id
-            return (
-              <button
-                key={id}
-                onClick={() => go(id)}
+                onClick={() => go(views[0].id)}
                 aria-current={active ? 'page' : undefined}
                 className="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium md:w-full"
                 style={{ background: active ? BRAND.ink : 'transparent', color: active ? '#fff' : BRAND.text }}
@@ -185,10 +137,26 @@ function Crm() {
       <main className="min-w-0 px-5 py-6 lg:px-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h1 className="font-display text-2xl font-semibold tracking-tight md:text-[28px]">{title}</h1>
+            <h1 className="font-display text-2xl font-semibold tracking-tight md:text-[28px]">{section.views.length > 1 ? section.label : title}</h1>
             <p className="mt-1 text-sm" style={{ color: BRAND.muted }}>Бүгін {dmy(data.today)}</p>
           </div>
         </div>
+        {section.views.length > 1 && (
+          <div className="-mt-2 mb-5 flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label={section.label}>
+            {section.views.map((w) => (
+              <button
+                key={w.id}
+                role="tab"
+                aria-selected={view === w.id}
+                onClick={() => go(w.id)}
+                className="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium"
+                style={view === w.id ? { background: BRAND.ink, color: '#fff' } : { background: '#fff', color: BRAND.text, border: `1px solid ${BRAND.line}` }}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {data.missing.length > 0 && (() => {
           // Қай кесте жоқ болса — нақты қай SQL файлын іске қосу керек

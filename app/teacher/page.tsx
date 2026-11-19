@@ -65,7 +65,6 @@ function initials(name: string) {
 export default function TeacherDashboard() {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('today')
-  const [more, setMore] = useState(false)
   const [me, setMe] = useState<Teacher | null>(null)
   const [materials, setMaterials] = useState<Material[]>([])
   const [tests, setTests] = useState<Test[]>([])
@@ -107,24 +106,25 @@ export default function TeacherDashboard() {
     )
   }
 
-  // Күнделікті жұмыс — алғашқы үшеуі; қалғаны «Тағы» ішінде
-  const main: [Tab, string][] = [
-    ['today', 'Бүгін'],
-    ['grid', 'Журнал'],
-    ['help', 'Көмек'],
-    ['plan', 'КТП'],
-    ['overview', 'Прогресс'],
+  // Мәзір: 5 бөлім, әрқайсысының ішкі беттері қойынды болып тұрады
+  const sections: { id: string; label: string; tabs: [Tab, string][] }[] = [
+    { id: 'today', label: 'Бүгін', tabs: [['today', 'Бүгінгі сабақтар']] },
+    { id: 'journal', label: 'Журнал', tabs: [['grid', 'Топ журналы'], ['journal', 'Апталық'], ['plan', 'КТП']] },
+    {
+      id: 'students',
+      label: 'Оқушылар',
+      tabs: [
+        ['overview', 'Прогресс'],
+        ['help', 'Көмек керек'],
+        ['students', 'Тізім'],
+        ['notes', 'Пікір'],
+        ...(isEnglishSubject(me?.subject) ? ([['results', 'Нәтижелер']] as [Tab, string][]) : []),
+      ],
+    },
+    { id: 'materials', label: 'Материалдар', tabs: [['materials', 'Материалдар'], ['tests', 'Тесттер']] },
+    { id: 'me', label: 'Мен', tabs: [['schedule', 'Менің кестем'], ['profile', 'Профиль']] },
   ]
-  const tabs: [Tab, string][] = [
-    ['journal', 'Апталық журнал'],
-    ['schedule', 'Менің кестем'],
-    ['students', 'Оқушылар'],
-    ['notes', 'Оқушыға пікір'],
-    ...(isEnglishSubject(me?.subject) ? ([['results', 'Нәтижелер']] as [Tab, string][]) : []),
-    ['materials', 'Материалдар'],
-    ['tests', 'Тесттер'],
-    ['profile', 'Профиль'],
-  ]
+  const section = sections.find((x) => x.tabs.some(([k]) => k === tab)) ?? sections[0]
 
   return (
     <main className="min-h-screen bg-[#F8F9FA] font-sans text-zinc-900">
@@ -161,31 +161,26 @@ export default function TeacherDashboard() {
       </header>
 
       <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-8">
-        <div className="flex flex-wrap gap-2">
-          {main.map(([key, label]) => (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {sections.map((x) => (
             <button
-              key={key}
-              onClick={() => { setTab(key); setMore(false) }}
-              className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tab === key ? 'bg-black text-white shadow-sm' : 'bg-white text-zinc-700 ring-1 ring-zinc-200 hover:ring-zinc-400'}`}
+              key={x.id}
+              onClick={() => setTab(x.tabs[0][0])}
+              className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${section.id === x.id ? 'bg-black text-white shadow-sm' : 'bg-white text-zinc-700 ring-1 ring-zinc-200 hover:ring-zinc-400'}`}
             >
-              {label}
+              {x.label}
             </button>
           ))}
-          <button
-            onClick={() => setMore(!more)}
-            className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tabs.some(([k]) => k === tab) ? 'bg-black text-white' : 'bg-white text-zinc-700 ring-1 ring-zinc-200 hover:ring-zinc-400'}`}
-            aria-expanded={more}
-          >
-            {tabs.find(([k]) => k === tab)?.[1] ?? 'Тағы'} ▾
-          </button>
         </div>
-        {more && (
-          <div className="mt-2 flex flex-wrap gap-2 rounded-2xl bg-white p-2 ring-1 ring-zinc-200">
-            {tabs.map(([key, label]) => (
+        {section.tabs.length > 1 && (
+          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1" role="tablist">
+            {section.tabs.map(([key, label]) => (
               <button
                 key={key}
-                onClick={() => { setTab(key); setMore(false) }}
-                className={`rounded-lg px-3.5 py-2 text-sm font-medium transition ${tab === key ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+                role="tab"
+                aria-selected={tab === key}
+                onClick={() => setTab(key)}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${tab === key ? 'bg-zinc-800 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
               >
                 {label}
               </button>
