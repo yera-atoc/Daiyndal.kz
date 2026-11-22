@@ -33,7 +33,7 @@ import { grantGroup } from '@/lib/nisGrant'
 import { fileSrc } from '@/lib/fileUrl'
 import Watermark from '@/components/Watermark'
 
-type OpenExam = { id: string; title: string; shuffle?: boolean; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
+type OpenExam = { id: string; title: string; shuffle?: boolean; standalone?: boolean; subjects: (SheetSubject & { open: boolean; done: boolean })[] }
 type Summary = {
   examId: string
   title: string
@@ -48,6 +48,8 @@ type Summary = {
   of: number
   // Сайтқа дейінгі ай (Excel баллдары): жауап парағы жоқ, тек пән баллдары мен топ рейтингі
   legacy?: boolean
+  // Жеке ресми тест (сөздік тест т.б.): айлық өсу графигіне кірмейді
+  standalone?: boolean
   month?: string
   rows?: { id: string; name: string; short: string; score: number | null; max: number }[]
   table?: { place: number; name: string; me: boolean; scores: Record<string, number>; total: number }[]
@@ -388,7 +390,7 @@ function Tests({
       )}
       {me.open.map((e) => (
         <section key={e.id} className="mb-6">
-          <h1 className="text-xl font-bold">{e.title}: Білім тексеру</h1>
+          <h1 className="text-xl font-bold">{e.standalone ? e.title : `${e.title}: Білім тексеру`}</h1>
           {e.shuffle && (
             <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
               <b>Жеке нұсқа.</b> Әр оқушының сұрақтары мен жауаптарының реті әртүрлі. Жауапты <b>өз парағыңдағы</b> нөмір мен әріп бойынша белгіле.
@@ -470,7 +472,7 @@ function Tests({
 }
 function Results({ list, onOpen, season, drills, grant = false }: { list: Summary[]; onOpen: (id: string) => void; season: SeasonView | null; drills: boolean; grant?: boolean }) {
   if (!list.length && !season) return <Empty title="Нәтиже әлі жоқ" text="Мұғалім нәтижені жариялағанда осында шығады." />
-  const scored = list.filter((r) => r.score !== null)
+  const scored = list.filter((r) => r.score !== null && !r.standalone)
   return (
     <>
     {season && (
@@ -609,7 +611,7 @@ function ResultDetail({ examId, onBack, startMistakes = false }: { examId: strin
         <button onClick={onBack} className="-ml-2 rounded-lg px-2 py-1 text-sm text-blue-600">← Нәтижелерім</button>
         <a href={`/bilim-test/report?exam=${encodeURIComponent(exam.id)}`} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-sm font-semibold text-blue-600">PDF жүктеу</a>
       </div>
-      <h1 className="mt-2 text-2xl font-bold">{exam.title}: Білім тексеру</h1>
+      <h1 className="mt-2 text-2xl font-bold">{exam.standalone ? exam.title : `${exam.title}: Білім тексеру`}</h1>
 
       <div className="mt-4 grid grid-cols-6 gap-2.5 sm:grid-cols-5 [&>*:nth-child(-n+2)]:col-span-3 [&>*]:col-span-2 sm:[&>*]:col-span-1 sm:[&>*:nth-child(-n+2)]:col-span-1">
         <Stat label="Балл" value={total !== null ? `${total}` : '—'} sub={total !== null ? `${max}-ден · ${fmtPct(pct(total, max))}` : ''} />
@@ -640,7 +642,7 @@ function ResultDetail({ examId, onBack, startMistakes = false }: { examId: strin
         </button>
       )}
 
-      {(() => {
+      {!exam.standalone && (() => {
         const fc = buildForecast(exam, nowRow, data.history)
         const pts: ChartPoint[] = [
           ...data.history.filter((h) => h.month < exam.month && h.total !== null).map((h) => ({ month: h.month, value: h.total!, max: h.max || max, kind: 'actual' as const })),

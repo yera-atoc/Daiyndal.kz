@@ -61,6 +61,7 @@ function subjectPath(s: SubjectConfig, now: number, prev: number | null, steps: 
 }
 
 export function buildForecast(exam: Exam, nowRow: ScoreRow, history: HistPoint[]): Forecast | null {
+  if (exam.standalone) return null // жеке тест (сөздік т.б.) — айлық болжам жасалмайды
   const end = endMonthFor(exam.group_id, exam.month)
   if (!end) return null
   const months = monthsBetween(exam.month, end)

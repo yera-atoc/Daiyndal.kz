@@ -15,17 +15,19 @@ export async function GET() {
   try {
     const me = await currentStudent()
     if (!me) return NextResponse.json({ error: 'Кіру керек' }, { status: 401 })
-    const [groups, exams, peers, drills] = await Promise.all([
+    const [groups, exams, peers, drills, tests] = await Promise.all([
       listGroups(),
       listExams(me.group_id),
       listStudents(me.group_id),
       listExams(me.group_id, 'only'),
+      listExams(me.group_id, 'tests'),
     ])
     const names = new Set(peers.map((p) => p.full_name))
 
     const open = []
     const results = []
-    for (const e of [...exams].reverse()) {
+    // Жеке ресми тесттер (сөздік тест т.б.) — айлық сынақтармен бірге: ашық болса тапсырады, жарияланса нәтижесі мен орны көрінеді
+    for (const e of [...exams, ...tests].sort((a, b) => a.month.localeCompare(b.month) || Number(!!a.standalone) - Number(!!b.standalone)).reverse()) {
       const isOpen = e.open_subjects.length > 0
       if (!isOpen && !e.published) continue
       const subs = await listSubmissions(e.id)
@@ -35,6 +37,7 @@ export async function GET() {
           id: e.id,
           title: e.title,
           shuffle: !!e.shuffle,
+          ...(e.standalone ? { standalone: true } : {}),
           subjects: e.subjects.map((s) => ({
             id: s.id,
             name: s.name,
@@ -47,7 +50,7 @@ export async function GET() {
       }
       if (e.published && mine.length) {
         const rk = ranking(e, subs.filter((s) => names.has(s.student_name)))
-        results.push(resultSummary(e, mine, rk.place[me.full_name] ?? null, rk.of))
+        results.push({ ...resultSummary(e, mine, rk.place[me.full_name] ?? null, rk.of), ...(e.standalone ? { standalone: true } : {}) })
       }
     }
     // Дайындық: өткен айлардың сынағы. Әр пән бойынша соңғы тапсырғандағы балл.

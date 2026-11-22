@@ -79,11 +79,12 @@ function normExam(e: any): Exam {
     published: !!e.published,
     practice: !!e.practice,
     shuffle: !!e.shuffle,
+    standalone: !!e.standalone,
   }
 }
 
-// Ресми сынақтар (әдепкі). practice: 'only' — тек дайындық сынақтары, 'all' — бәрі.
-export async function listExams(groupId?: string, practice: 'none' | 'only' | 'all' = 'none'): Promise<Exam[]> {
+// Айлық ресми сынақтар (әдепкі). 'only' — тек дайындық сынақтары, 'tests' — жеке ресми тесттер (standalone), 'all' — бәрі.
+export async function listExams(groupId?: string, practice: 'none' | 'only' | 'tests' | 'all' = 'none'): Promise<Exam[]> {
   let rows: any[]
   if (DEMO) rows = mem().exams
   else {
@@ -94,7 +95,7 @@ export async function listExams(groupId?: string, practice: 'none' | 'only' | 'a
   return rows
     .map(normExam)
     .filter((e) => !groupId || e.group_id === groupId)
-    .filter((e) => practice === 'all' || (practice === 'only' ? e.practice : !e.practice))
+    .filter((e) => practice === 'all' || (practice === 'only' ? e.practice : practice === 'tests' ? !e.practice && !!e.standalone : !e.practice && !e.standalone))
     .sort((a, b) => a.month.localeCompare(b.month))
 }
 
@@ -121,6 +122,7 @@ export async function saveExam(e: Exam): Promise<void> {
     ...(e.practice ? { practice: true } : {}),
     // shuffle бағаны SQL арқылы қосылады; жоқ болса да сақтау бұзылмасын — тек true кезде жіберіледі
     ...(e.shuffle ? { shuffle: true } : {}),
+    ...(e.standalone ? { standalone: true } : {}),
   }
   if (DEMO) {
     mem().exams = mem().exams.filter((x) => x.id !== e.id).concat(row)
@@ -308,6 +310,7 @@ export async function checkPin(id: string, pin: string): Promise<'ok' | 'wrong' 
 export async function previousScores(
   exam: Exam
 ): Promise<{ id: string; month: string; title: string; scores: Record<string, ScoreRow> } | null> {
+  if (exam.standalone) return null // жеке тест айлық сынақпен салыстырылмайды
   const [exams, students] = await Promise.all([listExams(exam.group_id), listStudents(exam.group_id)])
   const legacy = students.flatMap((s) => Object.keys(s.legacy_scores ?? {}))
   const months = Array.from(new Set([...legacy, ...exams.map((e) => e.month)]))
@@ -327,6 +330,7 @@ export async function previousScores(
 // ── Тарих: әр оқушының айлар бойынша нәтижесі (график пен болжам үшін) ──
 
 export async function groupHistories(exam: Exam): Promise<Record<string, HistPoint[]>> {
+  if (exam.standalone) return {}
   const [exams, students] = await Promise.all([listExams(exam.group_id), listStudents(exam.group_id)])
   const maxOf = (row: ScoreRow, subjects: Exam['subjects']) =>
     subjects.filter((s) => s.id in row).reduce((a, s) => a + s.max, 0)

@@ -39,19 +39,21 @@ export async function GET(req: NextRequest) {
     const gid = req.nextUrl.searchParams.get('group') || groups[0]?.id
     const group = groups.find((g) => g.id === gid) ?? null
     if (!group) return NextResponse.json({ groups, group: null, students: [], exams: [], exam: null, submissions: [], previous: null })
-    const [students, exams] = await Promise.all([listStudents(group.id), listExams(group.id)])
+    const [students, monthly, tests] = await Promise.all([listStudents(group.id), listExams(group.id), listExams(group.id, 'tests')])
+    const exams = [...monthly, ...tests]
     const eid = req.nextUrl.searchParams.get('exam')
-    const exam = exams.find((e) => e.id === eid) ?? exams[exams.length - 1] ?? null
+    // Әдепкі — соңғы айлық сынақ; жеке тесттер тізімде «★» белгісімен
+    const exam = exams.find((e) => e.id === eid) ?? monthly[monthly.length - 1] ?? tests[tests.length - 1] ?? null
     return NextResponse.json({
       groups,
       group,
       students,
-      exams: exams.map((e) => ({ id: e.id, title: e.title, month: e.month })),
+      exams: exams.map((e) => ({ id: e.id, title: e.standalone ? `★ ${e.title}` : e.title, month: e.month })),
       exam,
       submissions: exam ? await listSubmissions(exam.id) : [],
       previous: exam ? await previousScores(exam) : null,
       histories: exam ? await groupHistories(exam) : {},
-      season: seasonFor(group.id, group.name) || exams.length ? await seasonView(group.id, 'admin') : null,
+      season: seasonFor(group.id, group.name) || monthly.length ? await seasonView(group.id, 'admin') : null,
     })
   } catch (e: any) {
     await logServerError('bilim-test/admin', e)
