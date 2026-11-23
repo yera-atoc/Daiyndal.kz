@@ -355,3 +355,13 @@ export async function groupHistories(exam: Exam): Promise<Record<string, HistPoi
   for (const k of Object.keys(out)) out[k].sort((a, b) => a.month.localeCompare(b.month))
   return out
 }
+
+/** Уақыт шегі бар пән: оқушының бастаған уақыты (алғаш ашқанда жазылады, кейін өзгермейді). Кесте жоқ болса — null. */
+export async function timerStart(exam_id: string, student_name: string, subject: string): Promise<string | null> {
+  if (DEMO) return new Date().toISOString()
+  const sb = await db()
+  const ins = await sb.from('bt_timers').upsert({ exam_id, student_name, subject }, { onConflict: 'exam_id,student_name,subject', ignoreDuplicates: true })
+  if (ins.error) return null
+  const { data } = await sb.from('bt_timers').select('started_at').eq('exam_id', exam_id).eq('student_name', student_name).eq('subject', subject).maybeSingle()
+  return (data as any)?.started_at ?? null
+}

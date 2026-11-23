@@ -62,16 +62,35 @@ export default function AnswerSheet({
   }, [examId, subject.id])
   const withText = !!qs && mode === 'questions'
 
+  // Уақыт шегі (мұғалім қойса): сервер санайды, біткенде жауаптар өзі жіберіледі
+  const [endAt, setEndAt] = useState<number | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    fetch(`/api/bilim-test/me/timer?exam=${encodeURIComponent(examId)}&subject=${encodeURIComponent(subject.id)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : { timer: null }))
+      .then((j) => j.timer && setEndAt(Date.now() + j.timer.left * 1000))
+      .catch(() => {})
+  }, [examId, subject.id])
+  useEffect(() => {
+    if (endAt === null) return
+    const t = setInterval(() => setNow(Date.now()), 500)
+    return () => clearInterval(t)
+  }, [endAt])
+  const left = endAt === null ? null : Math.max(0, Math.ceil((endAt - now) / 1000))
+  const timeUp = left === 0
+
   const letters = LETTERS.slice(0, subject.options)
   const filled = answers.filter(Boolean).length
   const blanks = useMemo(() => answers.map((a, i) => (a ? 0 : i + 1)).filter(Boolean), [answers])
 
   const pick = (i: number, l: string) => {
+    if (timeUp) return
     pr.mark(i)
     setAnswers((prev) => prev.map((a, j) => (j === i ? (a === l ? '' : l) : a)))
   }
 
   const submit = async () => {
+    if (sending) return
     setSending(true)
     setErr('')
     try {
@@ -91,9 +110,25 @@ export default function AnswerSheet({
     }
   }
 
+  // Уақыт біткенде — бір рет автоматты жіберу (қате болса, «Қайта жіберу» батырмасы қалады)
+  const [autoSent, setAutoSent] = useState(false)
+  useEffect(() => {
+    if (timeUp && !autoSent) {
+      setAutoSent(true)
+      submit()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp, autoSent])
+
   return (
     <>
       {pr.ui}
+      {left !== null && (
+        <div className={`sticky top-2 z-30 mb-3 flex items-center justify-between rounded-2xl px-4 py-2.5 text-white shadow-lg ${timeUp ? 'bg-slate-700' : left <= 60 ? 'bg-red-600' : 'bg-slate-900'}`}>
+          <span className="text-sm font-semibold">{timeUp ? (sending ? 'Уақыт бітті — жіберілуде…' : 'Уақыт бітті') : 'Қалған уақыт'}</span>
+          <span className="text-2xl font-bold tabular-nums">{String(Math.floor((left ?? 0) / 60)).padStart(2, '0')}:{String((left ?? 0) % 60).padStart(2, '0')}</span>
+        </div>
+      )}
       <button onClick={onBack} className="-ml-2 rounded-lg px-2 py-1 text-sm text-blue-600 active:bg-blue-50">
         ← Пәндер
       </button>
