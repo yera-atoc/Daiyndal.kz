@@ -39,6 +39,7 @@ const PLATFORM = [
   { href: '/bilim-test', title: 'Білім тексеру', text: 'Ай сайынғы сынақ: жауап парағын телефоннан белгілейсің, нәтиже, топтағы орын және PDF есеп.', cta: 'Кабинетке кіру' },
   { href: '/ubt', title: 'ҰБТ сынағы', text: '120 тапсырма, 240 минут, 12 комбинация. 140 балл ресми ереже бойынша бірден есептеледі.', cta: 'Сынаққа кіру' },
   { href: '/ielts', title: 'IELTS mock', text: 'Listening, Reading, Writing, Speaking – таймермен, бір рет ойнайтын аудиомен, нақты емтихандағыдай.', cta: 'Mock-қа кіру' },
+  { href: '/english-test', title: 'Ағылшын тілі тесті A1–A2', text: 'AtoC кітаптары бойынша: Vocabulary A1–A2 және Workbook A1, әрқайсысында 30 сұрақ. Қателер мен нәтиже бірден.', cta: 'Тест тапсыру' },
   { href: '/toefl', title: 'TOEFL mock', text: '2026 жылғы жаңа TOEFL iBT форматы: Complete the Words, Build a Sentence, Interview.', cta: 'Mock-қа кіру' },
   { href: '/materials', title: 'Оқу материалдары', text: 'Мұғалімдер жүктеген конспектілер, тапсырмалар және пайдалы сілтемелер.', cta: 'Ашу' },
   { href: '/ielts/materials', title: 'IELTS · TOEFL кеңестері', text: 'Формат, бағалау критерийлері, пайдалы тіркестер және ресми тегін ресурстар.', cta: 'Ашу' },

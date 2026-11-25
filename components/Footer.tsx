@@ -28,6 +28,7 @@ export default function Footer() {
             <li><Link href="/ubt" className="hover:text-black">ҰБТ сынағы</Link></li>
             <li><Link href="/ielts" className="hover:text-black">IELTS mock</Link></li>
             <li><Link href="/toefl" className="hover:text-black">TOEFL mock</Link></li>
+            <li><Link href="/english-test" className="hover:text-black">Ағылшын тілі тесті A1–A2</Link></li>
             <li><Link href="/teacher/login" className="hover:text-black">Мұғалімдерге</Link></li>
             <li><Link href="/admin/login" className="hover:text-black">Әкімші</Link></li>
           </ul>
