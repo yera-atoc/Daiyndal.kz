@@ -73,7 +73,8 @@ function cleanSubjects(list: any): SubjectConfig[] {
       max: Math.min(10000, Math.max(1, Math.round(Number(s?.max) || 0))),
       questions: Math.min(150, Math.max(1, Math.round(Number(s?.questions) || 0))),
       options: Math.min(5, Math.max(2, Math.round(Number(s?.options) || 4))),
-      ...(Number(s?.minutes) > 0 ? { minutes: Math.min(300, Math.round(Number(s.minutes))) } : {}),
+      // минут, секундқа дейінгі дәлдікпен (6 мин 7 сек = 367/60)
+      ...(Number(s?.minutes) > 0 ? { minutes: Math.min(300, Math.round(Number(s.minutes) * 60) / 60) } : {}),
     }))
     .filter((s) => SUBJ_ID_RE.test(s.id) && s.name && !seen.has(s.id) && seen.add(s.id))
 }
