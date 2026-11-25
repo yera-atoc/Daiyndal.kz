@@ -7,6 +7,7 @@ import { askLLM, friendlyError, provider } from '@/lib/llm'
 import { parseQuestions } from '@/lib/aiTest'
 import { throttleCheck, throttleFail } from '@/lib/security'
 import { logServerError } from '@/lib/serverLog'
+import { quizPreset } from '@/lib/quizPresets'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -66,6 +67,7 @@ export async function GET(req: NextRequest) {
 //   save  { classId, date, topic, homework, planId, attendance:{sid:status}, homeworkMarks:{sid:mark|null} }
 //   pay   { classId, studentId, amount?, method }
 //   quiz  { classId, date, topic, count? }   — ИИ сабақ тесті
+//   quizPreset { classId, date, preset } — дайын тест (lib/quizPresets)
 //   quizClose { quizId, open }
 export async function POST(req: NextRequest) {
   const who = await journalWho()
@@ -90,6 +92,14 @@ export async function POST(req: NextRequest) {
     if (b.action === 'save') return NextResponse.json(await saveLesson(c, date, who.actor, b))
 
     if (b.action === 'pay') return NextResponse.json(await recordPayment(c, String(b.studentId ?? ''), who.actor, await actorName(who), b))
+
+    if (b.action === 'quizPreset') {
+      const p = quizPreset(String(b.preset ?? ''))
+      if (!p) return bad('Дайын тест табылмады')
+      const { data, error } = await sb.from('class_quizzes').insert({ class_id: c.id, date, topic: p.topic, questions: p.questions, open: true }).select('id').single()
+      if (error) return bad(/class_quizzes/.test(error.message) ? MIGRATE : error.message, 500)
+      return NextResponse.json({ ok: true, id: data.id, total: p.questions.length })
+    }
 
     if (b.action === 'quiz') {
       if (!provider()) return bad('ИИ кілті орнатылмаған (Vercel-де ANTHROPIC_API_KEY немесе GEMINI_API_KEY)', 503)

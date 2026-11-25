@@ -1,5 +1,6 @@
 'use client'
 
+import { QUIZ_PRESETS } from '@/lib/quizPresets'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DAY_FULL, STATUS, dayMonth, weekdayOf, type AttStatus } from '@/lib/journal'
 import { HW, type HwMark, type LessonStudent, type LessonView } from '@/lib/lesson'
@@ -106,6 +107,18 @@ export default function LessonScreen({ classId, date, onBack, onPlan, onGrid }: 
     try {
       await lessonPost('/api/lesson', { action: 'quiz', classId, date, topic })
       flash('Тест дайын — оқушылар өз кабинетінде көреді')
+      load()
+    } catch (e: any) {
+      flash(e.message, 'err')
+    } finally {
+      setQuizBusy(false)
+    }
+  }
+  const addPreset = async (preset: string) => {
+    setQuizBusy(true)
+    try {
+      await lessonPost('/api/lesson', { action: 'quizPreset', classId, date, preset })
+      flash('Дайын тест ашылды — оқушылар өз кабинетінде көреді')
       load()
     } catch (e: any) {
       flash(e.message, 'err')
@@ -295,6 +308,17 @@ export default function LessonScreen({ classId, date, onBack, onPlan, onGrid }: 
             <button onClick={makeQuiz} disabled={quizBusy || !topic.trim()} className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ background: BLUE }}>
               {quizBusy ? 'ИИ құрастырып жатыр… (10–30 сек)' : `«${topic.trim().slice(0, 40) || 'тақырып'}» бойынша тест жасау`}
             </button>
+            <div className="mt-3 border-t pt-3" style={{ borderColor: LINE }}>
+              <p className="text-xs font-semibold" style={{ color: MUTED }}>Немесе дайын тест:</p>
+              <div className="mt-2 grid gap-2">
+                {QUIZ_PRESETS.map((p) => (
+                  <button key={p.id} onClick={() => addPreset(p.id)} disabled={quizBusy} className="rounded-xl border px-3 py-2.5 text-left text-sm disabled:opacity-50" style={{ borderColor: LINE }}>
+                    <b>{p.topic}</b>
+                    <span className="block text-xs" style={{ color: MUTED }}>{p.about}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </section>
