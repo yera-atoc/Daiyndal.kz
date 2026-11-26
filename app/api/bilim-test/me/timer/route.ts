@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/bilimTestAuth'
 import { getExam, timerStart } from '@/lib/bilimTestStore'
+import { liveSubjects } from '@/lib/bilimTest'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -10,10 +11,10 @@ export const fetchCache = 'force-no-store'
 export async function GET(req: NextRequest) {
   const me = await currentStudent()
   if (!me) return NextResponse.json({ error: 'Кіру керек' }, { status: 401 })
-  const exam = await getExam(req.nextUrl.searchParams.get('exam') ?? '')
+  const exam = await getExam(req.nextUrl.searchParams.get('exam') ?? '', false)
   const subject = req.nextUrl.searchParams.get('subject') ?? ''
   const cfg = exam?.subjects.find((s) => s.id === subject)
-  if (!exam || !cfg || exam.group_id !== me.group_id || exam.practice || !exam.open_subjects.includes(subject) || !cfg.minutes) {
+  if (!exam || !cfg || exam.group_id !== me.group_id || exam.practice || !liveSubjects(exam).includes(subject) || !cfg.minutes) {
     return NextResponse.json({ timer: null }, { headers: { 'Cache-Control': 'no-store' } })
   }
   const started = await timerStart(exam.id, me.full_name, subject).catch(() => null)

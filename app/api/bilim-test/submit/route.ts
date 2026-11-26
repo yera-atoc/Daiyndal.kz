@@ -1,6 +1,6 @@
 import { logServerError } from '@/lib/serverLog'
 import { NextRequest, NextResponse } from 'next/server'
-import { LETTERS } from '@/lib/bilimTest'
+import { LETTERS, liveSubjects } from '@/lib/bilimTest'
 import { addSubmission, getExam, replaceSubmission } from '@/lib/bilimTestStore'
 import { currentStudent } from '@/lib/bilimTestAuth'
 import { examVariant, toCanonical } from '@/lib/bilimShuffle'
@@ -10,12 +10,12 @@ export async function POST(req: NextRequest) {
     const me = await currentStudent()
     if (!me) return NextResponse.json({ error: 'Қайта кіріңіз' }, { status: 401 })
     const body = await req.json().catch(() => null)
-    const exam = await getExam(String(body?.examId ?? ''))
+    const exam = await getExam(String(body?.examId ?? ''), false)
     const cfg = exam?.subjects.find((s) => s.id === String(body?.subject ?? ''))
     if (!exam || !cfg || exam.group_id !== me.group_id) {
       return NextResponse.json({ error: 'Сынақ табылмады' }, { status: 404 })
     }
-    if (!exam.practice && !exam.open_subjects.includes(cfg.id)) {
+    if (!exam.practice && !liveSubjects(exam).includes(cfg.id)) {
       return NextResponse.json({ error: 'Бұл пән бойынша жауап қабылдау жабық' }, { status: 403 })
     }
     const answers = body?.answers

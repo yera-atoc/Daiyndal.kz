@@ -1,3 +1,4 @@
+import { liveSubjects } from './bilimTest'
 // Маусым кестесінің деректерін жинау (сервер)
 import { DEFAULT_SUBJECTS, scoresForExam } from './bilimTest'
 import { buildSeason, seasonFor, type SeasonInput, type SeasonView } from './bilimSeason'
@@ -16,7 +17,7 @@ export async function seasonInput(groupId: string): Promise<SeasonInput> {
         title: e.title,
         subjects: e.subjects,
         published: e.published,
-        open: e.open_subjects.length > 0,
+        open: liveSubjects(e).length > 0,
         scores: scoresForExam(e, subs),
         submitted: Array.from(new Set(subs.map((s) => s.student_name))),
       }

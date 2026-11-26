@@ -44,6 +44,17 @@ export type Exam = {
   // Жеке ресми тест (мысалы, сөздік тест · 23 қараша): өз нәтижесі мен топтағы орны бар, бірақ айлық Білім тексеру
   // тарихына, болжамға, алдыңғы аймен салыстыруға және айлық есептерге кірмейді.
   standalone?: boolean
+  // Кесте бойынша ашылу уақыты (ISO): осы уақытқа дейін оқушыға пәндер жабық, кабинетте кері санақ көрінеді
+  opens_at?: string | null
+}
+
+// Оқушы үшін дәл қазір ашық пәндер: opens_at келмесе — бос
+export function liveSubjects(e: Pick<Exam, 'open_subjects' | 'opens_at'>, now = Date.now()): SubjectId[] {
+  if (e.opens_at && now < Date.parse(e.opens_at)) return []
+  return e.open_subjects
+}
+export function opensLater(e: Pick<Exam, 'open_subjects' | 'opens_at'>, now = Date.now()): boolean {
+  return !!e.opens_at && e.open_subjects.length > 0 && now < Date.parse(e.opens_at)
 }
 
 export type Submission = {

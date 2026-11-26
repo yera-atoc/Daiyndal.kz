@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/bilimTestAuth'
 import { listExams, listGroups, listStudents, listSubmissions } from '@/lib/bilimTestStore'
-import { DEFAULT_SUBJECTS, examTitle, gradeSubject, ranking, rowTotal, shortName } from '@/lib/bilimTest'
+import { DEFAULT_SUBJECTS, liveSubjects, opensLater, examTitle, gradeSubject, ranking, rowTotal, shortName } from '@/lib/bilimTest'
 import { resultSummary } from '@/lib/bilimTestResults'
 import { seasonView } from '@/lib/bilimSeasonServer'
 import { seasonFor } from '@/lib/bilimSeason'
@@ -22,10 +22,17 @@ export async function GET() {
     const names = new Set(peers.map((p) => p.full_name))
 
     const open = []
+    const upcoming = []
     const results = []
     // Жеке ресми тесттер (сөздік тест т.б.) — айлық сынақтармен бірге: ашық болса тапсырады, жарияланса нәтижесі мен орны көрінеді
     for (const e of [...exams, ...tests].sort((a, b) => a.month.localeCompare(b.month) || Number(!!a.standalone) - Number(!!b.standalone)).reverse()) {
-      const isOpen = e.open_subjects.length > 0
+      // Кесте бойынша кейін ашылатын сынақ: кері санақ үшін ғана (пәндер жабық)
+      if (opensLater(e)) {
+        upcoming.push({ id: e.id, title: e.title, opens_at: e.opens_at, subjects: e.subjects.map((s) => s.name) })
+        continue
+      }
+      const live = liveSubjects(e)
+      const isOpen = live.length > 0
       if (!isOpen && !e.published) continue
       const subs = await listSubmissions(e.id)
       const mine = subs.filter((s) => s.student_name === me.full_name)
@@ -40,7 +47,7 @@ export async function GET() {
             name: s.name,
             questions: s.questions,
             options: s.options,
-            open: e.open_subjects.includes(s.id),
+            open: live.includes(s.id),
             done: mine.some((m) => m.subject === s.id),
           })),
         })
@@ -113,6 +120,8 @@ export async function GET() {
         student: { id: me.id, name: me.full_name },
         group: { id: me.group_id, name: groups.find((g) => g.id === me.group_id)?.name ?? '' },
         open,
+        upcoming,
+        now: Date.now(),
         results,
         practice,
         // Маусым: айлар бойынша нәтиже және рейтинг (НЗМ: Қыркүйек → Наурыз)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/bilimTestAuth'
-import { getExam } from '@/lib/bilimTestStore'
+import { getExamSubject } from '@/lib/bilimTestStore'
+import { liveSubjects } from '@/lib/bilimTest'
 import { examVariant, personalQuestions } from '@/lib/bilimShuffle'
 
 export const dynamic = 'force-dynamic'
@@ -12,10 +13,10 @@ export async function GET(req: NextRequest) {
   try {
     const me = await currentStudent()
     if (!me) return NextResponse.json({ error: 'Кіру керек' }, { status: 401 })
-    const exam = await getExam(req.nextUrl.searchParams.get('exam') ?? '')
     const subject = req.nextUrl.searchParams.get('subject') ?? ''
+    const exam = await getExamSubject(req.nextUrl.searchParams.get('exam') ?? '', subject)
     const cfg = exam?.subjects.find((s) => s.id === subject)
-    if (!exam || !cfg || exam.group_id !== me.group_id || exam.practice || !exam.open_subjects.includes(subject)) {
+    if (!exam || !cfg || exam.group_id !== me.group_id || exam.practice || !liveSubjects(exam).includes(subject)) {
       return NextResponse.json({ error: 'Сынақ табылмады' }, { status: 404 })
     }
     const qs = exam.questions[subject]

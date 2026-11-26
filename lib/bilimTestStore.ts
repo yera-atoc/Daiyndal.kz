@@ -80,12 +80,13 @@ function normExam(e: any): Exam {
     practice: !!e.practice,
     shuffle: !!e.shuffle,
     standalone: !!e.standalone,
+    opens_at: e.opens_at ?? null,
   }
 }
 
 // Айлық ресми сынақтар (әдепкі). 'only' — тек дайындық сынақтары, 'tests' — жеке ресми тесттер (standalone), 'all' — бәрі.
 // full=false: сұрақ мәтіндерін (questions — ең ауыр баған) жүктемейді. Supabase egress-ті үнемдейді.
-const LIGHT_COLS = 'id,group_id,month,title,subjects,open_subjects,answer_key,published,practice,shuffle,standalone'
+const LIGHT_COLS = 'id,group_id,month,title,subjects,open_subjects,answer_key,published,practice,shuffle,standalone,opens_at'
 export async function listExams(groupId?: string, practice: 'none' | 'only' | 'tests' | 'all' = 'none', full = false): Promise<Exam[]> {
   let rows: any[]
   if (DEMO) rows = mem().exams
@@ -108,13 +109,28 @@ export async function listExams(groupId?: string, practice: 'none' | 'only' | 't
     .sort((a, b) => a.month.localeCompare(b.month) || a.id.localeCompare(b.id))
 }
 
-export async function getExam(id: string): Promise<Exam | null> {
+export async function getExam(id: string, full = true): Promise<Exam | null> {
   if (DEMO) {
     const e = mem().exams.find((x) => x.id === id)
     return e ? normExam(e) : null
   }
-  const data = check(await (await db()).from('bt_exams').select('*').eq('id', id).maybeSingle())
+  const sb = await db()
+  let res: any = await sb.from('bt_exams').select(full ? '*' : LIGHT_COLS).eq('id', id).maybeSingle()
+  if (res.error && !full) res = await sb.from('bt_exams').select('*').eq('id', id).maybeSingle()
+  const data = check(res)
   return data ? normExam(data) : null
+}
+
+// Бір пәннің сұрақтары ғана (суреттер бар сұрақтар ауыр — бүкіл сынақты жүктемейміз)
+export async function getExamSubject(id: string, subject: string): Promise<Exam | null> {
+  if (DEMO || !/^[a-z0-9_]+$/.test(subject)) return getExam(id)
+  const sb = await db()
+  let res: any = await sb.from('bt_exams').select(`${LIGHT_COLS},qs:questions->${subject}`).eq('id', id).maybeSingle()
+  if (res.error) return getExam(id)
+  const data = check(res) as any
+  if (!data) return null
+  const { qs, ...rest } = data
+  return normExam({ ...rest, questions: { [subject]: qs ?? [] } })
 }
 
 export async function saveExam(e: Exam): Promise<void> {

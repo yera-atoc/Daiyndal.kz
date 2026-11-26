@@ -60,7 +60,8 @@ type Practice = {
   month: string
   subjects: { id: string; name: string; questions: number; max: number; score: number | null; correct: number | null }[]
 }
-type Me = { student: { id: string; name: string }; group: { id: string; name: string }; open: OpenExam[]; results: Summary[]; practice?: Practice[]; season?: SeasonView | null }
+type Upcoming = { id: string; title: string; opens_at: string; subjects: string[] }
+type Me = { student: { id: string; name: string }; group: { id: string; name: string }; open: OpenExam[]; upcoming?: Upcoming[]; now?: number; results: Summary[]; practice?: Practice[]; season?: SeasonView | null }
 type Tab = 'tests' | 'level' | 'results' | 'rating'
 
 async function api<T>(url: string, body?: unknown): Promise<T> {
@@ -337,6 +338,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
             done={done}
             onOpen={(examId, subject) => { setDone(null); setSheet({ examId, subject }) }}
             onPractice={(examId, subjectId) => { setDone(null); setDrill({ examId, subjectId }); window.scrollTo({ top: 0 }) }}
+            onRefresh={refresh}
           />
           </>
         ) : tab === 'level' ? (
@@ -364,14 +366,62 @@ function Empty({ title, text }: { title: string; text: string }) {
   )
 }
 
+// Кесте бойынша ашылатын сынаққа кері санақ. Уақыт келгенде бет өзі жаңарады (сервер уақытымен есептеледі).
+function Countdown({ u, skew, onDue }: { u: Upcoming; skew: number; onDue: () => void }) {
+  const target = Date.parse(u.opens_at)
+  const [now, setNow] = useState(() => Date.now() + skew)
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now() + skew), 1000)
+    return () => clearInterval(t)
+  }, [skew])
+  const left = Math.max(0, Math.floor((target - now) / 1000))
+  useEffect(() => {
+    if (left > 0) return
+    onDue()
+    const t = setInterval(onDue, 5000)
+    return () => clearInterval(t)
+  }, [left > 0]) // eslint-disable-line react-hooks/exhaustive-deps
+  const d = Math.floor(left / 86400), h = Math.floor((left % 86400) / 3600), m = Math.floor((left % 3600) / 60), sec = left % 60
+  const when = new Date(target).toLocaleString('kk-KZ', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' })
+  const cell = (v: number, l: string) => (
+    <div className="flex min-w-[64px] flex-col items-center rounded-xl bg-white/15 px-2 py-2">
+      <span className="text-3xl font-bold tabular-nums">{String(v).padStart(2, '0')}</span>
+      <span className="text-xs opacity-80">{l}</span>
+    </div>
+  )
+  return (
+    <section className="mb-6 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-800 p-5 text-white shadow-sm">
+      <div className="text-sm font-semibold uppercase tracking-wide opacity-80">Алдағы сынақ</div>
+      <h1 className="mt-1 text-2xl font-bold">{u.title}</h1>
+      {left > 0 ? (
+        <>
+          <p className="mt-1 text-sm opacity-90">Ашылуына қалды:</p>
+          <div className="mt-3 flex gap-2">
+            {d > 0 && cell(d, 'күн')}
+            {cell(h, 'сағат')}
+            {cell(m, 'минут')}
+            {cell(sec, 'секунд')}
+          </div>
+          <p className="mt-3 text-sm opacity-90">Сынақ {when}-де ашылады. Бет өзі жаңарады.</p>
+        </>
+      ) : (
+        <p className="mt-3 text-lg font-semibold">Сынақ ашылып жатыр…</p>
+      )}
+      <p className="mt-3 text-xs opacity-80">{u.subjects.join(' · ')}</p>
+    </section>
+  )
+}
+
 function Tests({
   me,
   done,
   onOpen,
   onPractice,
+  onRefresh,
 }: {
   me: Me
   done: string | null
+  onRefresh?: () => void
   onOpen: (examId: string, s: SheetSubject) => void
   onPractice: (examId: string, subjectId: string) => void
 }) {
@@ -383,7 +433,10 @@ function Tests({
           <b>{done}</b> жауаптары қабылданды. Жарайсың!
         </div>
       )}
-      {me.open.length === 0 && (
+      {(me.upcoming ?? []).map((u) => (
+        <Countdown key={u.id} u={u} skew={me.now ? me.now - Date.now() : 0} onDue={() => onRefresh?.()} />
+      ))}
+      {me.open.length === 0 && !(me.upcoming ?? []).length && (
         <Empty
           title="Қазір ашық сынақ жоқ"
           text={practice.length ? 'Мұғалім сынақты ашқанда осында пайда болады. Әзірге төмендегі дайындық сынағын тапсырып көр.' : 'Мұғалім сынақты ашқанда осында пайда болады.'}

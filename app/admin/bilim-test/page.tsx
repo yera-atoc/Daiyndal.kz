@@ -87,7 +87,7 @@ function Admin() {
   }, [groupId, examId])
   useEffect(() => {
     setAt(new Date())
-    const t = setInterval(() => document.visibilityState === 'visible' && refresh(), 20000)
+    const t = setInterval(() => document.visibilityState === 'visible' && refresh(), 45000)
     return () => clearInterval(t)
   }, [refresh])
 

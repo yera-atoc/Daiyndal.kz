@@ -83,6 +83,7 @@ function cleanSubjects(list: any): SubjectConfig[] {
 
 function cleanUrl(v: any) {
   const u = String(v ?? '').trim()
+  if (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]{20,400000}$/.test(u)) return u
   return /^https:\/\/[^\s"'<>]{4,600}$/.test(u) ? u : ''
 }
 

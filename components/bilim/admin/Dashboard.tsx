@@ -14,6 +14,7 @@ import {
   type Exam,
 } from '@/lib/bilimTest'
 import { BRAND, type Resp } from './shared'
+import { opensLater } from '@/lib/bilimTest'
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
 
@@ -163,7 +164,7 @@ export default function Dashboard({ data, exam, onOpenStudent }: { data: Resp; e
         <Kpi
           label="Сынақ күйі"
           small
-          value={exam.published ? 'Жарияланды' : exam.open_subjects.length ? 'Жүріп жатыр' : 'Жабық'}
+          value={exam.published ? 'Жарияланды' : opensLater(exam) ? `Ашылады: ${new Date(exam.opens_at!).toLocaleString('kk-KZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' })}` : exam.open_subjects.length ? 'Жүріп жатыр' : 'Жабық'}
           sub={`Кілт: ${keyed} / ${exam.subjects.length} пән`}
           tone={exam.published ? BRAND.green : exam.open_subjects.length ? BRAND.blue : BRAND.text}
         />
