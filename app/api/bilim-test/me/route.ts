@@ -55,7 +55,8 @@ export async function GET() {
     }
     // Дайындық: өткен айлардың сынағы. Әр пән бойынша соңғы тапсырғандағы балл.
     const practice = []
-    for (const e of [...drills].reverse()) {
+    // Дайындық: жаңа ай жоғарыда, бір айдың ішінде — 1-нұсқадан 10-нұсқаға қарай
+    for (const e of [...drills].sort((a, b) => b.month.localeCompare(a.month) || a.id.localeCompare(b.id))) {
       const mine = (await listSubmissions(e.id)).filter((s) => s.student_name === me.full_name)
       practice.push({
         id: e.id,

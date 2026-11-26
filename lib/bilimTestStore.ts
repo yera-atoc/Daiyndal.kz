@@ -96,7 +96,7 @@ export async function listExams(groupId?: string, practice: 'none' | 'only' | 't
     .map(normExam)
     .filter((e) => !groupId || e.group_id === groupId)
     .filter((e) => practice === 'all' || (practice === 'only' ? e.practice : practice === 'tests' ? !e.practice && !!e.standalone : !e.practice && !e.standalone))
-    .sort((a, b) => a.month.localeCompare(b.month))
+    .sort((a, b) => a.month.localeCompare(b.month) || a.id.localeCompare(b.id))
 }
 
 export async function getExam(id: string): Promise<Exam | null> {
