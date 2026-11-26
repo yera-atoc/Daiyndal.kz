@@ -43,7 +43,9 @@ export async function GET(req: NextRequest) {
     const exams = [...monthly, ...tests]
     const eid = req.nextUrl.searchParams.get('exam')
     // Әдепкі — соңғы айлық сынақ; жеке тесттер тізімде «★» белгісімен
-    const exam = exams.find((e) => e.id === eid) ?? monthly[monthly.length - 1] ?? tests[tests.length - 1] ?? null
+    const pick = exams.find((e) => e.id === eid) ?? monthly[monthly.length - 1] ?? tests[tests.length - 1] ?? null
+    // Таңдалған сынақ қана сұрақтарымен толық жүктеледі (редактор үшін)
+    const exam = pick ? await getExam(pick.id) : null
     return NextResponse.json({
       groups,
       group,

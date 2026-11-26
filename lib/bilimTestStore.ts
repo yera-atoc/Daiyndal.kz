@@ -84,13 +84,22 @@ function normExam(e: any): Exam {
 }
 
 // Айлық ресми сынақтар (әдепкі). 'only' — тек дайындық сынақтары, 'tests' — жеке ресми тесттер (standalone), 'all' — бәрі.
-export async function listExams(groupId?: string, practice: 'none' | 'only' | 'tests' | 'all' = 'none'): Promise<Exam[]> {
+// full=false: сұрақ мәтіндерін (questions — ең ауыр баған) жүктемейді. Supabase egress-ті үнемдейді.
+const LIGHT_COLS = 'id,group_id,month,title,subjects,open_subjects,answer_key,published,practice,shuffle,standalone'
+export async function listExams(groupId?: string, practice: 'none' | 'only' | 'tests' | 'all' = 'none', full = false): Promise<Exam[]> {
   let rows: any[]
   if (DEMO) rows = mem().exams
   else {
-    let q = (await db()).from('bt_exams').select('*')
-    if (groupId) q = q.eq('group_id', groupId)
-    rows = check(await q) ?? []
+    const sb = await db()
+    const run = async (cols: string) => {
+      let q = sb.from('bt_exams').select(cols)
+      if (groupId) q = q.eq('group_id', groupId)
+      return await q
+    }
+    let res: any = await run(full ? '*' : LIGHT_COLS)
+    // Ескі базада бір баған (мысалы shuffle) жоқ болса — толық жүктеуге қайтамыз
+    if (res.error && !full) res = await run('*')
+    rows = check(res) ?? []
   }
   return rows
     .map(normExam)

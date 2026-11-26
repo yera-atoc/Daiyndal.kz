@@ -15,13 +15,10 @@ export async function GET() {
   try {
     const me = await currentStudent()
     if (!me) return NextResponse.json({ error: 'Кіру керек' }, { status: 401 })
-    const [groups, exams, peers, drills, tests] = await Promise.all([
-      listGroups(),
-      listExams(me.group_id),
-      listStudents(me.group_id),
-      listExams(me.group_id, 'only'),
-      listExams(me.group_id, 'tests'),
-    ])
+    const [groups, all, peers] = await Promise.all([listGroups(), listExams(me.group_id, 'all'), listStudents(me.group_id)])
+    const exams = all.filter((e) => !e.practice && !e.standalone)
+    const drills = all.filter((e) => e.practice)
+    const tests = all.filter((e) => !e.practice && !!e.standalone)
     const names = new Set(peers.map((p) => p.full_name))
 
     const open = []

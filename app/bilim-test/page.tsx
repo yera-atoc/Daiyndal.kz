@@ -94,7 +94,8 @@ export default function BilimTestPage() {
   useEffect(() => {
     refresh()
     // Мұғалім пәнді ашқанда / нәтижені жариялағанда бет өзі жаңарсын
-    const t = setInterval(refresh, 20000)
+    // Тек бет ашық тұрғанда, минутына бір рет (Supabase трафигін үнемдеу)
+    const t = setInterval(() => document.visibilityState === 'visible' && refresh(), 60000)
     const onVis = () => document.visibilityState === 'visible' && refresh()
     document.addEventListener('visibilitychange', onVis)
     return () => {

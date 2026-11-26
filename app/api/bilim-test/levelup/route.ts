@@ -27,8 +27,8 @@ async function saveState(id: string, st: State) {
 async function compute(me: { id: string; full_name: string; group_id: string }, state: State | null) {
   const [season, exams, drills, daily] = await Promise.all([
     seasonView(me.group_id, { id: me.id }),
-    listExams(me.group_id),
-    listExams(me.group_id, 'only'),
+    listExams(me.group_id, 'none', true),
+    listExams(me.group_id, 'only', true),
     supabaseAdmin.from('bt_daily_answers').select('day, answers, correct').eq('student_id', me.id).order('day', { ascending: false }).limit(400),
   ])
   if (daily.error) throw new Error(daily.error.message)

@@ -20,7 +20,7 @@ async function todays(track: DailyTrack, day: string, groupId: string, groupName
     const formulas: PoolRow[] = formulaQuiz(day).map((q) => ({ ...q, section: 'Математика формулалары' }))
     if (!isNish(groupId, groupName)) return formulas
     // НИШ: + Білім тексеру сынағының (қазан) сұрақтарынан әр пәннен 5-тен
-    const exam = pickExam(await listExams(groupId))
+    const exam = pickExam(await listExams(groupId, 'none', true))
     return exam ? [...formulas, ...examDaily(exam, day)] : formulas
   }
   const { data, error } = await supabaseAdmin
