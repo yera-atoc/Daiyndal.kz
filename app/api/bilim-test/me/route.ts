@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/bilimTestAuth'
-import { listExams, listGroups, listStudents, listSubmissions } from '@/lib/bilimTestStore'
+import { listExams, listGroups, listStudents, listSubmissions, saveExam } from '@/lib/bilimTestStore'
+import { almatyDay, dailyVocabEnabled, dailyVocabExam, dailyVocabId, isDailyVocabId } from '@/lib/vocabDaily'
 import { DEFAULT_SUBJECTS, liveSubjects, opensLater, examTitle, gradeSubject, ranking, rowTotal, shortName } from '@/lib/bilimTest'
 import { resultSummary } from '@/lib/bilimTestResults'
 import { seasonView } from '@/lib/bilimSeasonServer'
@@ -17,7 +18,17 @@ export async function GET() {
     if (!me) return NextResponse.json({ error: 'Кіру керек' }, { status: 401 })
     const [groups, all, peers] = await Promise.all([listGroups(), listExams(me.group_id, 'all'), listStudents(me.group_id)])
     const exams = all.filter((e) => !e.practice && !e.standalone)
-    const drills = all.filter((e) => e.practice)
+    // Күнделікті сөздік (English-Adults, Pre-IELTS): бүгінгі 100 сөз жоқ болса — жасаймыз
+    const groupName = groups.find((g) => g.id === me.group_id)?.name
+    const today = almatyDay()
+    if (dailyVocabEnabled(groupName) && !all.some((e) => e.id === dailyVocabId(me.group_id, today))) {
+      const ex = dailyVocabExam(me.group_id, today)
+      await saveExam(ex).catch(() => null)
+      all.push({ ...ex, questions: {} })
+    }
+    // Күнделікті сөздіктің тек соңғы 7 күні көрінеді
+    const weekAgo = almatyDay(Date.now() - 6 * 86400000)
+    const drills = all.filter((e) => e.practice && !(isDailyVocabId(e.id) && e.id.slice(-10) < weekAgo))
     const tests = all.filter((e) => !e.practice && !!e.standalone)
     const names = new Set(peers.map((p) => p.full_name))
 
@@ -61,7 +72,9 @@ export async function GET() {
     // Дайындық: өткен айлардың сынағы. Әр пән бойынша соңғы тапсырғандағы балл.
     const practice = []
     // Дайындық: жаңа ай жоғарыда, бір айдың ішінде — 1-нұсқадан 10-нұсқаға қарай
-    for (const e of [...drills].sort((a, b) => b.month.localeCompare(a.month) || a.id.localeCompare(b.id))) {
+    // Күнделікті сөздік — ең жоғарыда, бүгінгісі бірінші
+    const dayFirst = (a: string, b: string) => Number(isDailyVocabId(b)) - Number(isDailyVocabId(a)) || (isDailyVocabId(a) ? b.localeCompare(a) : 0)
+    for (const e of [...drills].sort((a, b) => dayFirst(a.id, b.id) || b.month.localeCompare(a.month) || a.id.localeCompare(b.id))) {
       const mine = (await listSubmissions(e.id)).filter((s) => s.student_name === me.full_name)
       practice.push({
         id: e.id,

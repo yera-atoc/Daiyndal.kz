@@ -664,7 +664,12 @@ function Vocab({
                   className={`flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50 ${i ? 'border-t border-slate-100' : ''}`}
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold">{s.name.replace(/^Сөздік · /, '')}</div>
+                    <div className="font-semibold">
+                      {s.name.replace(/^Сөздік · /, '')}
+                      {e.id.endsWith(`_vocab-day-${new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10)}`) && (
+                        <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Бүгін · жаңа</span>
+                      )}
+                    </div>
                     {s.score !== null ? (
                       <div className="mt-1.5 flex items-center gap-2">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
