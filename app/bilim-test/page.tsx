@@ -62,7 +62,9 @@ type Practice = {
 }
 type Upcoming = { id: string; title: string; opens_at: string; subjects: string[] }
 type Me = { student: { id: string; name: string }; group: { id: string; name: string }; open: OpenExam[]; upcoming?: Upcoming[]; now?: number; results: Summary[]; practice?: Practice[]; season?: SeasonView | null }
-type Tab = 'tests' | 'level' | 'results' | 'rating'
+type Tab = 'tests' | 'level' | 'english' | 'results' | 'rating'
+// Сөздік тесттер «Ағылшын тілі» бөліміне шығады
+const isVocab = (e: { id: string; title: string }) => /сөздік/i.test(e.title) || /_sozdik-v|vocab/i.test(e.id)
 
 async function api<T>(url: string, body?: unknown): Promise<T> {
   const r = await fetch(url, {
@@ -242,6 +244,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
   const dq = useDaily(!!dailyTrack(me.group.id, me.group.name))
   const nish = isNishGroup(me.group.id, me.group.name)
 
+  const hasVocab = !!me && ((me.practice ?? []).some(isVocab) || me.open.some(isVocab))
   const go = (t: Tab) => {
     setTab(t)
     setSheet(null)
@@ -271,17 +274,18 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
           </div>
         </div>
         {!sheet && !drill && !daily && (
-          <nav className="mx-auto flex max-w-3xl gap-1 px-2">
+          <nav className="no-scrollbar mx-auto flex max-w-3xl gap-1 overflow-x-auto px-2">
             {([
               ['tests', 'Сынақ'],
               ...(nish ? [['level', 'Деңгей']] : []),
+              ...(hasVocab ? [['english', 'Ағылшын тілі']] : []),
               ['results', 'Нәтижелерім'],
               ['rating', 'Рейтинг'],
             ] as [Tab, string][]).map(([t, l]) => (
               <button
                 key={t}
                 onClick={() => go(t)}
-                className={`flex-1 border-b-2 py-2.5 text-sm font-semibold ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500'}`}
+                className={`flex-1 shrink-0 whitespace-nowrap border-b-2 px-2 py-2.5 text-sm font-semibold ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500'}`}
               >
                 {l}
                 {t === 'results' && me.results.length > 0 && <span className="ml-1 rounded-full bg-blue-100 px-1.5 text-xs text-blue-700">{me.results.length}</span>}
@@ -343,6 +347,14 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
           </>
         ) : tab === 'level' ? (
           <LevelUpTab name={me.student.name} />
+        ) : tab === 'english' ? (
+          <Tests
+            me={me}
+            done={done}
+            english
+            onOpen={(examId, subject) => { setDone(null); setSheet({ examId, subject }) }}
+            onPractice={(examId, subjectId) => { setDone(null); setDrill({ examId, subjectId }); window.scrollTo({ top: 0 }) }}
+          />
         ) : tab === 'results' ? (
           detail ? (
             <ResultDetail key={detail} examId={detail.replace(/#mistakes$/, '')} startMistakes={detail.endsWith('#mistakes')} onBack={() => { setDetail(null); window.scrollTo({ top: 0 }) }} />
@@ -418,14 +430,19 @@ function Tests({
   onOpen,
   onPractice,
   onRefresh,
+  english = false,
 }: {
   me: Me
   done: string | null
   onRefresh?: () => void
+  english?: boolean
   onOpen: (examId: string, s: SheetSubject) => void
   onPractice: (examId: string, subjectId: string) => void
 }) {
-  const practice = me.practice ?? []
+  // Сынақ бөлімі — сөздік тесттерсіз; «Ағылшын тілі» бөлімі — тек сөздік тесттер
+  const practice = (me.practice ?? []).filter((e) => isVocab(e) === english)
+  const openList = me.open.filter((e) => isVocab(e) === english)
+  if (english) return <Vocab open={openList} practice={practice} done={done} onOpen={onOpen} onPractice={onPractice} />
   return (
     <div className="mx-auto max-w-xl">
       {done && (
@@ -436,13 +453,13 @@ function Tests({
       {(me.upcoming ?? []).map((u) => (
         <Countdown key={u.id} u={u} skew={me.now ? me.now - Date.now() : 0} onDue={() => onRefresh?.()} />
       ))}
-      {me.open.length === 0 && !(me.upcoming ?? []).length && (
+      {openList.length === 0 && !(me.upcoming ?? []).length && (
         <Empty
           title="Қазір ашық сынақ жоқ"
           text={practice.length ? 'Мұғалім сынақты ашқанда осында пайда болады. Әзірге төмендегі дайындық сынағын тапсырып көр.' : 'Мұғалім сынақты ашқанда осында пайда болады.'}
         />
       )}
-      {me.open.map((e) => (
+      {openList.map((e) => (
         <section key={e.id} className="mb-6">
           <h1 className="text-xl font-bold">{e.standalone ? e.title : `${e.title}: Білім тексеру`}</h1>
           {e.shuffle && (
@@ -524,6 +541,103 @@ function Tests({
     </div>
   )
 }
+function Vocab({
+  open,
+  practice,
+  done,
+  onOpen,
+  onPractice,
+}: {
+  open: OpenExam[]
+  practice: Practice[]
+  done: string | null
+  onOpen: (examId: string, s: SheetSubject) => void
+  onPractice: (examId: string, subjectId: string) => void
+}) {
+  const rows = practice.flatMap((e) => e.subjects.map((s) => ({ e, s })))
+  const doneN = rows.filter((r) => r.s.score !== null).length
+  return (
+    <div className="mx-auto max-w-xl">
+      {done && (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
+          <b>{done}</b> жауаптары қабылданды. Жарайсың!
+        </div>
+      )}
+      {open.map((e) => (
+        <section key={e.id} className="mb-6">
+          <h1 className="text-xl font-bold">{e.title}</h1>
+          <div className="mt-3 space-y-2.5">
+            {e.subjects.map((s) => {
+              const can = s.open && !s.done
+              return (
+                <button
+                  key={s.id}
+                  disabled={!can}
+                  onClick={() => onOpen(e.id, s)}
+                  className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left ${can ? 'border-blue-200 bg-white shadow-sm active:scale-[.99]' : 'border-slate-200 bg-slate-100/60'}`}
+                >
+                  <div>
+                    <div className={`text-lg font-semibold ${can ? '' : 'text-slate-500'}`}>{s.name}</div>
+                    <div className="text-sm text-slate-500">{s.questions} сұрақ</div>
+                  </div>
+                  {s.done ? (
+                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Тапсырылды ✓</span>
+                  ) : s.open ? (
+                    <span className="rounded-full bg-blue-600 px-3 py-1 text-sm font-semibold text-white">Бастау →</span>
+                  ) : (
+                    <span className="rounded-full bg-slate-200 px-3 py-1 text-sm text-slate-500">Жабық</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      ))}
+      {rows.length > 0 && (
+        <section className="mb-6">
+          <div className="flex items-baseline justify-between gap-3">
+            <h1 className="text-xl font-bold">Сөздік тесттер</h1>
+            <span className="shrink-0 text-sm text-slate-500">{doneN}/{rows.length}</span>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">Сөздерді жаттап, өзіңді тексер: нәтиже бірден шығады, қатесін көресің. Қайта-қайта тапсыруға болады, ресми нәтижеге кірмейді.</p>
+          <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            {rows.map(({ e, s }, i) => {
+              const p = s.score !== null ? s.score / s.max : 0
+              return (
+                <button
+                  key={e.id + s.id}
+                  onClick={() => onPractice(e.id, s.id)}
+                  className={`flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50 ${i ? 'border-t border-slate-100' : ''}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold">{s.name.replace(/^Сөздік · /, '')}</div>
+                    {s.score !== null ? (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                          <div className={`h-full rounded-full ${p >= 0.7 ? 'bg-emerald-500' : p >= 0.4 ? 'bg-amber-400' : 'bg-red-500'}`} style={{ width: `${p * 100}%` }} />
+                        </div>
+                        <span className="text-xs tabular-nums text-slate-500">{s.correct}/{s.questions}</span>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-500">{s.questions} сөз</div>
+                    )}
+                  </div>
+                  {s.score !== null ? (
+                    <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">Қайта →</span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-blue-600 px-3 py-1 text-sm font-semibold text-white">Бастау →</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
+      {!open.length && !rows.length && <Empty title="Сөздік тест әлі жоқ" text="Мұғалім қосқанда осында пайда болады." />}
+    </div>
+  )
+}
+
 function Results({ list, onOpen, season, drills, grant = false }: { list: Summary[]; onOpen: (id: string) => void; season: SeasonView | null; drills: boolean; grant?: boolean }) {
   if (!list.length && !season) return <Empty title="Нәтиже әлі жоқ" text="Мұғалім нәтижені жариялағанда осында шығады." />
   const scored = list.filter((r) => r.score !== null && !r.standalone)

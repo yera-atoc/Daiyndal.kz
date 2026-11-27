@@ -30,3 +30,7 @@ body {
 @keyframes stripe-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .stripe { transform-origin: bottom; animation: stripe-rise .9s cubic-bezier(.2,.8,.2,1) both; }
 @media (prefers-reduced-motion: reduce) { .stripe { animation: none; } }
+
+/* Көлденең айналатын қойындылар: жолақсыз */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
