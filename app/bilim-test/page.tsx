@@ -237,6 +237,8 @@ function Login({ onDone }: { onDone: () => void }) {
 function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<void>; onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>('tests')
   const [sheet, setSheet] = useState<{ examId: string; subject: SheetSubject } | null>(null)
+  // Уақыты шектелген пән: ашпас бұрын ескерту көрсетеміз
+  const [gate, setGate] = useState<{ examId: string; subject: SheetSubject } | null>(null)
   const [detail, setDetail] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
   const [drill, setDrill] = useState<{ examId: string; subjectId: string } | null>(null)
@@ -306,6 +308,14 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
             <QuoteCard seed={me.student.name} />
           </div>
         )}
+        {gate && (
+          <StartGate
+            examId={gate.examId}
+            subject={gate.subject}
+            onCancel={() => setGate(null)}
+            onStart={() => { setSheet(gate); setGate(null); window.scrollTo({ top: 0 }) }}
+          />
+        )}
         {sheet ? (
           <div className="mx-auto max-w-xl">
             <AnswerSheet
@@ -340,7 +350,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
           <Tests
             me={me}
             done={done}
-            onOpen={(examId, subject) => { setDone(null); setSheet({ examId, subject }) }}
+            onOpen={(examId, subject) => { setDone(null); if (subject.minutes) setGate({ examId, subject }); else setSheet({ examId, subject }) }}
             onPractice={(examId, subjectId) => { setDone(null); setDrill({ examId, subjectId }); window.scrollTo({ top: 0 }) }}
             onRefresh={refresh}
           />
@@ -352,7 +362,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
             me={me}
             done={done}
             english
-            onOpen={(examId, subject) => { setDone(null); setSheet({ examId, subject }) }}
+            onOpen={(examId, subject) => { setDone(null); if (subject.minutes) setGate({ examId, subject }); else setSheet({ examId, subject }) }}
             onPractice={(examId, subjectId) => { setDone(null); setDrill({ examId, subjectId }); window.scrollTo({ top: 0 }) }}
           />
         ) : tab === 'results' ? (
@@ -379,6 +389,50 @@ function Empty({ title, text }: { title: string; text: string }) {
 }
 
 // Кесте бойынша ашылатын сынаққа кері санақ. Уақыт келгенде бет өзі жаңарады (сервер уақытымен есептеледі).
+// Уақыты шектелген пәнді бастау алдындағы ескерту
+function StartGate({ examId, subject, onCancel, onStart }: { examId: string; subject: SheetSubject; onCancel: () => void; onStart: () => void }) {
+  const [info, setInfo] = useState<{ started: boolean; left: number | null } | null>(null)
+  useEffect(() => {
+    fetch(`/api/bilim-test/me/timer?peek=1&exam=${encodeURIComponent(examId)}&subject=${encodeURIComponent(subject.id)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : { timer: null }))
+      .then((j) => setInfo(j.timer ? { started: !!j.timer.started, left: j.timer.left } : { started: false, left: null }))
+      .catch(() => setInfo({ started: false, left: null }))
+  }, [examId, subject.id])
+  const m = subject.minutes ?? 0
+  const fmt = (sec: number) => `${Math.floor(sec / 60)} мин ${String(sec % 60).padStart(2, '0')} с`
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 sm:items-center" onClick={onCancel}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber-100 text-2xl">⏱</span>
+          <div>
+            <div className="text-sm font-semibold uppercase tracking-wide text-amber-600">Назар аударыңыз!</div>
+            <h2 className="text-xl font-bold">{subject.name}</h2>
+          </div>
+        </div>
+        {info?.started ? (
+          <div className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
+            Бұл пән басталған, таймер жүріп тұр. Қалған уақыт: <b>{info.left !== null ? fmt(info.left) : '—'}</b>.
+          </div>
+        ) : (
+          <ul className="mt-4 space-y-2 text-[15px] leading-snug text-slate-700">
+            <li>• Бұл пәнге <b>{m} минут</b> беріледі ({subject.questions} сұрақ).</li>
+            <li>• <b>«Бастау»</b> басқан сәттен таймер қосылады. Оны тоқтату не қайта бастау мүмкін емес — бетті жапсаң да, уақыт жүре береді.</li>
+            <li>• Уақыт біткенде белгілеген жауаптарың <b>автоматты түрде тапсырылады</b>.</li>
+            <li>• Дайын болсаң ғана баста: телефон қуатын, интернетті тексер.</li>
+          </ul>
+        )}
+        <div className="mt-5 grid grid-cols-2 gap-2.5">
+          <button onClick={onCancel} className="rounded-xl border border-slate-200 py-3 font-semibold text-slate-600">Кейінірек</button>
+          <button disabled={!info} onClick={onStart} className="rounded-xl bg-blue-600 py-3 font-semibold text-white disabled:opacity-50">
+            {info?.started ? 'Жалғастыру →' : `Бастау · ${m} мин`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Countdown({ u, skew, onDue }: { u: Upcoming; skew: number; onDue: () => void }) {
   const target = Date.parse(u.opens_at)
   const [now, setNow] = useState(() => Date.now() + skew)
@@ -479,7 +533,7 @@ function Tests({
                 >
                   <div>
                     <div className={`text-lg font-semibold ${can ? '' : 'text-slate-500'}`}>{s.name}</div>
-                    <div className="text-sm text-slate-500">{s.questions} сұрақ</div>
+                    <div className="text-sm text-slate-500">{s.questions} сұрақ{s.minutes ? ` · ⏱ ${s.minutes} мин` : ""}</div>
                   </div>
                   {s.done ? (
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Тапсырылды ✓</span>
@@ -578,7 +632,7 @@ function Vocab({
                 >
                   <div>
                     <div className={`text-lg font-semibold ${can ? '' : 'text-slate-500'}`}>{s.name}</div>
-                    <div className="text-sm text-slate-500">{s.questions} сұрақ</div>
+                    <div className="text-sm text-slate-500">{s.questions} сұрақ{s.minutes ? ` · ⏱ ${s.minutes} мин` : ""}</div>
                   </div>
                   {s.done ? (
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Тапсырылды ✓</span>
@@ -942,7 +996,7 @@ function ResultDetail({ examId, onBack, startMistakes = false }: { examId: strin
             <div className="rounded-2xl border border-slate-200 bg-white p-4 lg:col-span-2">
               <h3 className="font-bold">Тақырыптар бойынша</h3>
               <div className="mt-3 space-y-2.5">
-                {stats.map((t) => {
+                {[...stats].sort((a, b) => a.correct / a.total - b.correct / b.total).map((t) => {
                   const p = t.correct / t.total
                   return (
                     <div key={t.topic} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,14rem)_1fr_auto]">
@@ -951,6 +1005,9 @@ function ResultDetail({ examId, onBack, startMistakes = false }: { examId: strin
                       <div className="col-span-2 h-2 overflow-hidden rounded-full bg-slate-100 sm:col-span-1">
                         <div className={`h-full rounded-full ${p >= 0.7 ? 'bg-emerald-500' : p >= 0.4 ? 'bg-amber-400' : 'bg-red-500'}`} style={{ width: `${p * 100}%` }} />
                       </div>
+                      {t.wrong.length > 0 && (
+                        <span className="col-span-2 -mt-0.5 text-xs text-red-600 sm:col-span-3">Қате / бос сұрақтар: {t.wrong.join(', ')}</span>
+                      )}
                     </div>
                   )
                 })}

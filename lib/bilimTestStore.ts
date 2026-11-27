@@ -382,6 +382,12 @@ export async function groupHistories(exam: Exam): Promise<Record<string, HistPoi
 }
 
 /** Уақыт шегі бар пән: оқушының бастаған уақыты (алғаш ашқанда жазылады, кейін өзгермейді). Кесте жоқ болса — null. */
+export async function timerPeek(exam_id: string, student_name: string, subject: string): Promise<string | null> {
+  if (DEMO) return null
+  const { data } = await (await db()).from('bt_timers').select('started_at').eq('exam_id', exam_id).eq('student_name', student_name).eq('subject', subject).maybeSingle()
+  return (data as any)?.started_at ?? null
+}
+
 export async function timerStart(exam_id: string, student_name: string, subject: string): Promise<string | null> {
   if (DEMO) return new Date().toISOString()
   const sb = await db()

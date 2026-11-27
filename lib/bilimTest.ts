@@ -296,14 +296,15 @@ export function topicStats(
   key: string[] | undefined,
   answers: string[] | undefined,
   questions: Question[] | undefined
-): { topic: string; correct: number; total: number }[] {
-  const map = new Map<string, { correct: number; total: number }>()
+): { topic: string; correct: number; total: number; wrong: number[] }[] {
+  const map = new Map<string, { correct: number; total: number; wrong: number[] }>()
   for (let i = 0; i < s.questions; i++) {
     const t = questions?.[i]?.topic?.trim()
     if (!t || !key?.[i]) continue
-    const e = map.get(t) ?? { correct: 0, total: 0 }
+    const e = map.get(t) ?? { correct: 0, total: 0, wrong: [] }
     e.total++
     if (answers?.[i] && answers[i] === key[i]) e.correct++
+    else e.wrong.push(i + 1) // қате немесе бос — сұрақ нөмірі
     map.set(t, e)
   }
   return Array.from(map, ([topic, v]) => ({ topic, ...v }))

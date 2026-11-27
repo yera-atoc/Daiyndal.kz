@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/bilimTestAuth'
-import { getExam, timerStart } from '@/lib/bilimTestStore'
+import { getExam, timerPeek, timerStart } from '@/lib/bilimTestStore'
 import { liveSubjects } from '@/lib/bilimTest'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +16,12 @@ export async function GET(req: NextRequest) {
   const cfg = exam?.subjects.find((s) => s.id === subject)
   if (!exam || !cfg || exam.group_id !== me.group_id || exam.practice || !liveSubjects(exam).includes(subject) || !cfg.minutes) {
     return NextResponse.json({ timer: null }, { headers: { 'Cache-Control': 'no-store' } })
+  }
+  // peek=1: тек қарау (таймерді қоспайды) — «Бастау» алдындағы ескерту үшін
+  if (req.nextUrl.searchParams.get('peek')) {
+    const at = await timerPeek(exam.id, me.full_name, subject).catch(() => null)
+    const left = at ? Math.max(0, Math.round((new Date(at).getTime() + cfg.minutes * 60000 - Date.now()) / 1000)) : null
+    return NextResponse.json({ timer: { minutes: cfg.minutes, started: !!at, left } }, { headers: { 'Cache-Control': 'no-store' } })
   }
   const started = await timerStart(exam.id, me.full_name, subject).catch(() => null)
   if (!started) return NextResponse.json({ timer: null }, { headers: { 'Cache-Control': 'no-store' } })

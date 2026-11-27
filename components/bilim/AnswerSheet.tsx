@@ -5,7 +5,7 @@ import { LETTERS } from '@/lib/bilimTest'
 import { fileSrc } from '@/lib/fileUrl'
 import { useProctor } from '@/components/useProctor'
 
-export type SheetSubject = { id: string; name: string; questions: number; options: number }
+export type SheetSubject = { id: string; name: string; questions: number; options: number; minutes?: number }
 
 const draftKey = (exam: string, student: string, subject: string) => `bt_draft:${exam}:${student}:${subject}`
 
