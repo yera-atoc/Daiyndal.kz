@@ -19,7 +19,7 @@ export function dailyVocabKind(groupName: string | undefined | null): DailyVocab
   const n = groupName ?? ''
   if (/^\s*[aа]0\s*(топ|тобы)?\s*$/i.test(n)) return 'pic'
   if (/^\s*[aа]1\s*[-–—]\s*3\s*(топ|тобы)?\s*$/i.test(n)) return 'kids' // А кирилше не латынша
-  if (/(^|[^0-9])4\s*[-–—·]?\s*сынып/i.test(n)) return 'kids' // барлық 4 сынып топтары: A1 деңгейіндегі 100 сөз
+  if (/(^|[^0-9])4\s*[-–—·]?\s*(сынып|class|класс|кл\b|grade)/i.test(n)) return 'kids' // барлық 4 сынып топтары: A1 деңгейіндегі 100 сөз
   if (/english[\s-]*adults|pre[\s-]*ielts/i.test(n)) return 'std'
   return null
 }
