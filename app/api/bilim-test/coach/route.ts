@@ -4,7 +4,7 @@ import { listGroups } from '@/lib/bilimTestStore'
 import { countdown, seasonFor } from '@/lib/bilimSeason'
 import { cleanMessages, coachAllowed, coachContext, coachSystem, firstName } from '@/lib/coach'
 import { computeLevelUp, loadState } from '@/lib/levelUpServer'
-import { askLLM, provider } from '@/lib/llm'
+import { askLLM, friendlyError, provider } from '@/lib/llm'
 import { throttleCheck, throttleFail } from '@/lib/security'
 import { logServerError } from '@/lib/serverLog'
 
@@ -40,19 +40,29 @@ export async function POST(req: NextRequest) {
   if (!messages.length) return NextResponse.json({ error: 'Сұрағыңды жаз' }, { status: 400 })
   await throttleFail(key) // әр хабарлама санауышқа қосылады
 
-  try {
-    let ctx = ctxCache.get(me.id)
-    if (!ctx || Date.now() - ctx.at > 5 * 60_000) {
+  // 1) Оқушы туралы анықтама. Есептеу сәтсіз болса да көмекші жауап береді (тек аты мен емтихан күнімен).
+  let ctx = ctxCache.get(me.id)
+  if (!ctx || Date.now() - ctx.at > 5 * 60_000) {
+    const season = seasonFor(me.group_id, a.group?.name)
+    const left = season ? countdown(new Date(), new Date(season.examDate)) : null
+    const base = { name: me.full_name, examLabel: season?.examLabel, daysLeft: left && !left.done ? left.totalDays : null }
+    try {
       const { data, week } = await computeLevelUp(me, await loadState(me.id))
-      const season = seasonFor(me.group_id, a.group?.name)
-      const left = season ? countdown(new Date(), new Date(season.examDate)) : null
-      ctx = { at: Date.now(), text: coachContext({ name: me.full_name, data, week, examLabel: season?.examLabel, daysLeft: left && !left.done ? left.totalDays : null }) }
-      ctxCache.set(me.id, ctx)
+      ctx = { at: Date.now(), text: coachContext({ ...base, data, week }) }
+    } catch (e) {
+      await logServerError('coach-context', e)
+      ctx = { at: Date.now() - 4 * 60_000, text: coachContext({ ...base, data: null, week: [] }) + '\nНәтижелерді қазір жүктеу мүмкін болмады — нақты балл сұраса, «Деңгей» бөлімін қарауға кеңес бер.' }
     }
+    ctxCache.set(me.id, ctx)
+  }
+
+  // 2) ИИ жауабы
+  try {
     const answer = (await askLLM({ system: [coachSystem(ctx.text)], messages, maxTokens: 700, model: { anthropic: process.env.CHAT_MODEL ?? 'claude-haiku-5-5' } })).trim()
+    if (!answer) throw new Error('бос жауап')
     return NextResponse.json({ answer })
   } catch (e) {
     await logServerError('coach', e)
-    return NextResponse.json({ error: 'Көмекші қазір жауап бере алмады. Сәлден кейін қайта жаз.' }, { status: 502 })
+    return NextResponse.json({ error: `Көмекші жауап бере алмады. ${friendlyError(e)}` }, { status: 502 })
   }
 }
