@@ -177,7 +177,7 @@ export default function ReportPages(props: ReportPagesInput) {
                   <div className="text-[10pt] text-slate-500">
                     {g ? (
                       <>
-                        <b className="text-[13pt] text-black">{g.score}</b> / {s.max} · {g.correct}/{s.questions} дұрыс · {fmtPct(pct(g.score, s.max))}
+                        <b className="text-[13pt] text-black">{g.score}</b> / {s.max} · {g.correct}/{s.questions} дұрыс{s.penalty ? ` · ${g.wrong.length} қате` : ''} · {fmtPct(pct(g.score, s.max))}
                       </>
                     ) : sub ? 'кілт енгізілмеген' : 'тапсырылмаған'}
                   </div>
@@ -195,6 +195,12 @@ export default function ReportPages(props: ReportPagesInput) {
                         )
                       })}
                     </div>
+                    {s.penalty ? (
+                      <p className="mt-[1.5mm] text-[8.5pt] text-slate-500">
+                        Есептеу: {+(s.max / s.questions).toFixed(2)} × {g.correct} дұрыс − {s.penalty} × {g.wrong.length} қате = <b className="text-black">{g.score}</b> балл
+                        {g.wrong.length > 0 && <> · қате жауаптар {+(g.wrong.length * s.penalty).toFixed(2)} балл алып кетті</>}
+                      </p>
+                    ) : null}
                     <div className="mt-[2mm] grid grid-cols-[18mm_1fr] gap-y-[0.8mm] text-[9pt]">
                       <span className="font-semibold text-red-600">Қате:</span>
                       <span>{g.wrong.length ? g.wrong.join(', ') : 'жоқ'}</span>

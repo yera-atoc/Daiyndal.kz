@@ -148,7 +148,7 @@ export default function ReportSheet({ exam, student, subs, prev, rank, groupName
               <div className="text-[10.5pt] font-semibold">{s.name}</div>
               {g && (
                 <div className="text-[8pt] text-slate-500">
-                  {g.correct}/{s.questions} дұрыс
+                  {g.correct}/{s.questions} дұрыс{s.penalty ? ` · ${g.wrong.length} қате (−${+(g.wrong.length * s.penalty).toFixed(2)})` : ''}
                 </div>
               )}
             </div>
