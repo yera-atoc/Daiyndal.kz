@@ -11,7 +11,9 @@ const START = Date.UTC(2026, 10, 27) // 2026-11-27 — 1-күн
 
 // Күнделікті тест қосылатын топтар (атауы бойынша)
 export function dailyVocabEnabled(groupName: string | undefined | null): boolean {
-  return /english[\s-]*adults|pre[\s-]*ielts/i.test(groupName ?? '')
+  const n = groupName ?? ''
+  // «A1-3» тобы (А кирилше не латынша)
+  return /english[\s-]*adults|pre[\s-]*ielts/i.test(n) || /^\s*[aа]1\s*[-–—]\s*3\s*(топ|тобы)?\s*$/i.test(n)
 }
 
 export const dailyVocabId = (groupId: string, day: string) => `${groupId}_vocab-day-${day}`
