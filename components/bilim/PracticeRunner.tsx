@@ -15,6 +15,9 @@ type Data = {
   review: { answers: string[]; key: string[]; at: string } | null
 }
 
+// Сұрақ тек сурет (эмодзи) болса — үлкен етіп көрсетеміз (A0 күнделікті сөздік)
+const isPic = (t?: string) => !!t && t.length <= 8 && (t.codePointAt(0) ?? 0) >= 0x2190 && !/[a-zа-яәіңғүұқөһ0-9]/i.test(t)
+
 const draftKey = (exam: string, subject: string) => `bt_practice:${exam}:${subject}`
 function load(k: string): string[] {
   try {
@@ -155,7 +158,7 @@ function Runner({ data, onSubmitted }: { data: Data; onSubmitted: () => Promise<
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex gap-2">
                   <span className="shrink-0 font-bold text-slate-400 tabular-nums">{i + 1}.</span>
-                  <p className="whitespace-pre-wrap font-medium leading-relaxed">{q.text || `${i + 1}-сұрақ`}</p>
+                  <p className={`whitespace-pre-wrap font-medium leading-relaxed ${isPic(q.text) ? 'text-6xl leading-none' : ''}`}>{q.text || `${i + 1}-сұрақ`}</p>
                 </div>
                 {q.image && <img src={fileSrc(q.image)} alt="" className="mt-3 max-h-80 w-full rounded-lg object-contain" />}
                 <div className="mt-3 space-y-2">
@@ -290,7 +293,7 @@ function Review({ data, onRetake }: { data: Data; onRetake: () => void }) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex gap-2">
                     <span className="shrink-0 font-bold text-slate-400 tabular-nums">{i + 1}.</span>
-                    <p className="whitespace-pre-wrap font-medium leading-relaxed">{q.text || `${i + 1}-сұрақ`}</p>
+                    <p className={`whitespace-pre-wrap font-medium leading-relaxed ${isPic(q.text) ? 'text-6xl leading-none' : ''}`}>{q.text || `${i + 1}-сұрақ`}</p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${ok ? 'bg-emerald-100 text-emerald-700' : a ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>{ok ? 'дұрыс' : a ? 'қате' : 'бос'}</span>
                 </div>

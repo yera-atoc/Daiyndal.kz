@@ -1,6 +1,7 @@
 import type { Exam } from './bilimTest'
 import { VOCAB_BANK } from './vocabBank'
 import { VOCAB_BANK_KIDS } from './vocabBankKids'
+import { VOCAB_BANK_PIC } from './vocabBankPic'
 
 // Күнделікті сөздік тест: әр күні сөз қорынан жаңа 100 сөз (A1–A2).
 // Сұрақ: ағылшын сөзі → дұрыс аударма (қазақша — орысша), 4 нұсқа.
@@ -12,9 +13,11 @@ const START = Date.UTC(2026, 10, 27) // 2026-11-27 — 1-күн
 
 // Күнделікті тест қосылатын топтар (атауы бойынша)
 // 'std' — A1–A2 сөздер (ересектер, Pre-IELTS); 'kids' — A0–A1 сөздер (кіші сыныптар, «A1-3»)
-export type DailyVocabKind = 'std' | 'kids'
+// 'pic' — A0: суретке қарап ағылшын сөзін таңдау (күніне 30)
+export type DailyVocabKind = 'std' | 'kids' | 'pic'
 export function dailyVocabKind(groupName: string | undefined | null): DailyVocabKind | null {
   const n = groupName ?? ''
+  if (/^\s*[aа]0\s*(топ|тобы)?\s*$/i.test(n)) return 'pic'
   if (/^\s*[aа]1\s*[-–—]\s*3\s*(топ|тобы)?\s*$/i.test(n)) return 'kids' // А кирилше не латынша
   if (/english[\s-]*adults|pre[\s-]*ielts/i.test(n)) return 'std'
   return null
@@ -22,8 +25,8 @@ export function dailyVocabKind(groupName: string | undefined | null): DailyVocab
 export const dailyVocabEnabled = (groupName: string | undefined | null) => dailyVocabKind(groupName) !== null
 
 export const dailyVocabId = (groupId: string, day: string, kind: DailyVocabKind = 'std') =>
-  `${groupId}_vocab-${kind === 'kids' ? 'dayk' : 'day'}-${day}`
-export const isDailyVocabId = (id: string) => /_vocab-dayk?-\d{4}-\d{2}-\d{2}$/.test(id)
+  `${groupId}_vocab-${kind === 'kids' ? 'dayk' : kind === 'pic' ? 'dayp' : 'day'}-${day}`
+export const isDailyVocabId = (id: string) => /_vocab-day[kp]?-\d{4}-\d{2}-\d{2}$/.test(id)
 
 // Алматы уақыты бойынша бүгінгі күн: YYYY-MM-DD
 export function almatyDay(now = Date.now()): string {
@@ -61,7 +64,40 @@ const clash = (a: Word, b: Word) => {
 const MONTHS = ['қаңтар', 'ақпан', 'наурыз', 'сәуір', 'мамыр', 'маусым', 'шілде', 'тамыз', 'қыркүйек', 'қазан', 'қараша', 'желтоқсан']
 export const dayLabel = (day: string) => `${Number(day.slice(8, 10))} ${MONTHS[Number(day.slice(5, 7)) - 1]}`
 
+// A0: сурет (эмодзи) → ағылшын сөзі, 4 нұсқа. Дистракторлар — мүмкіндігінше сол топтан (жануар, тамақ…)
+export const PIC_SIZE = 30
+function dailyPic(day: string) {
+  const B = VOCAB_BANK_PIC
+  const n = Math.max(0, Math.round((Date.parse(day + 'T00:00:00Z') - START) / 86400000))
+  const perCycle = Math.floor(B.length / PIC_SIZE)
+  const order = shuffle(B, rng(`vocab-pic-cycle-${Math.floor(n / perCycle)}`))
+  const today = order.slice((n % perCycle) * PIC_SIZE, (n % perCycle + 1) * PIC_SIZE)
+  const r = rng(`vocab-pic-day-${day}`)
+  const key = balancedKey(today.length, r)
+  const questions = today.map((w, i) => {
+    const same = shuffle(B.filter((x) => x[4] === w[4] && x[1] !== w[1]), r)
+    const other = shuffle(B.filter((x) => x[4] !== w[4]), r)
+    const opts = [...same, ...other].slice(0, 3).map((x) => x[1])
+    opts.splice('ABCD'.indexOf(key[i]), 0, w[1])
+    return { text: w[0], options: opts }
+  })
+  return { words: today.map((w) => w[1]), questions, key }
+}
+
+function balancedKey(len: number, r: () => number): string[] {
+  const key: string[] = []
+  const cnt: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 }
+  for (let i = 0; i < len; i++) {
+    const o = shuffle(['A', 'B', 'C', 'D'], r).sort((a, b) => cnt[a] - cnt[b])
+    const pick = o.find((l) => !(key.length >= 2 && key[key.length - 1] === l && key[key.length - 2] === l)) ?? o[0]
+    key.push(pick)
+    cnt[pick]++
+  }
+  return key
+}
+
 export function dailyVocab(day: string, kind: DailyVocabKind = 'std'): { words: string[]; questions: { text: string; options: string[] }[]; key: string[] } {
+  if (kind === 'pic') return dailyPic(day)
   const BANK: Word[] = kind === 'kids' ? VOCAB_BANK_KIDS : VOCAB_BANK
   const tag = kind === 'kids' ? 'kids-' : ''
   const n = Math.max(0, Math.round((Date.parse(day + 'T00:00:00Z') - START) / 86400000))
@@ -96,13 +132,13 @@ export function dailyVocab(day: string, kind: DailyVocabKind = 'std'): { words: 
 
 export function dailyVocabExam(groupId: string, day: string, kind: DailyVocabKind = 'std'): Exam {
   const { questions, key } = dailyVocab(day, kind)
-  const lvl = kind === 'kids' ? ' (A0–A1)' : ''
+  const lvl = kind === 'kids' ? ' (A0–A1)' : kind === 'pic' ? ' (A0 · суретпен)' : ''
   return {
     id: dailyVocabId(groupId, day, kind),
     group_id: groupId,
     month: day.slice(0, 7),
     title: `Күнделікті сөздік${lvl} · ${dayLabel(day)}`,
-    subjects: [{ id: 'english', name: `Күнделікті 100 сөз · ${dayLabel(day)}`, short: 'Vocabulary', max: 100, questions: questions.length, options: 4 }],
+    subjects: [{ id: 'english', name: `Күнделікті ${questions.length} сөз · ${dayLabel(day)}`, short: 'Vocabulary', max: 100, questions: questions.length, options: 4 }],
     open_subjects: ['english'],
     answer_key: { english: key },
     questions: { english: questions },

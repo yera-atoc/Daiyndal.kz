@@ -34,7 +34,7 @@ export async function GET() {
         e.practice &&
         !(isDailyVocabId(e.id) && e.id.slice(-10) < weekAgo) &&
         // Кіші сыныптар тобында ересектердің (A1–A2) күнделікті тесті көрінбейді
-        !(vk === 'kids' && /_vocab-day-\d/.test(e.id))
+        !(vk !== 'std' && /_vocab-day-\d/.test(e.id))
     )
     const tests = all.filter((e) => !e.practice && !!e.standalone)
     const names = new Set(peers.map((p) => p.full_name))
