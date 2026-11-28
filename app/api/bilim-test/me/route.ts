@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { currentStudent } from '@/lib/bilimTestAuth'
 import { listExams, listGroups, listStudents, listSubmissions, saveExam } from '@/lib/bilimTestStore'
-import { almatyDay, dailyVocabEnabled, dailyVocabExam, dailyVocabId, isDailyVocabId } from '@/lib/vocabDaily'
+import { almatyDay, dailyVocabKind, dailyVocabExam, dailyVocabId, isDailyVocabId } from '@/lib/vocabDaily'
 import { DEFAULT_SUBJECTS, liveSubjects, opensLater, examTitle, gradeSubject, ranking, rowTotal, shortName } from '@/lib/bilimTest'
 import { resultSummary } from '@/lib/bilimTestResults'
 import { seasonView } from '@/lib/bilimSeasonServer'
@@ -21,14 +21,21 @@ export async function GET() {
     // Күнделікті сөздік (English-Adults, Pre-IELTS): бүгінгі 100 сөз жоқ болса — жасаймыз
     const groupName = groups.find((g) => g.id === me.group_id)?.name
     const today = almatyDay()
-    if (dailyVocabEnabled(groupName) && !all.some((e) => e.id === dailyVocabId(me.group_id, today))) {
-      const ex = dailyVocabExam(me.group_id, today)
+    const vk = dailyVocabKind(groupName)
+    if (vk && !all.some((e) => e.id === dailyVocabId(me.group_id, today, vk))) {
+      const ex = dailyVocabExam(me.group_id, today, vk)
       await saveExam(ex).catch(() => null)
       all.push({ ...ex, questions: {} })
     }
     // Күнделікті сөздіктің тек соңғы 7 күні көрінеді
     const weekAgo = almatyDay(Date.now() - 6 * 86400000)
-    const drills = all.filter((e) => e.practice && !(isDailyVocabId(e.id) && e.id.slice(-10) < weekAgo))
+    const drills = all.filter(
+      (e) =>
+        e.practice &&
+        !(isDailyVocabId(e.id) && e.id.slice(-10) < weekAgo) &&
+        // Кіші сыныптар тобында ересектердің (A1–A2) күнделікті тесті көрінбейді
+        !(vk === 'kids' && /_vocab-day-\d/.test(e.id))
+    )
     const tests = all.filter((e) => !e.practice && !!e.standalone)
     const names = new Set(peers.map((p) => p.full_name))
 
