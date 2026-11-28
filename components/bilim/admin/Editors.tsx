@@ -36,10 +36,10 @@ export function SubjectsEditor({ subjects, onChange }: { subjects: SubjectConfig
   return (
     <div className="space-y-2">
       <div className="hidden grid-cols-[3.5rem_1fr_5rem_5rem_6rem_2rem] gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500 sm:grid">
-        <span>Реті</span><span>Пән</span><span>Сұрақ</span><span>Нұсқа</span><span>Макс. балл</span><span />
+        <span>Реті</span><span>Пән</span><span>Сұрақ</span><span>Нұсқа</span><span>Макс. балл</span><span title="Қате жауап үшін алынатын ұпай (бос жауапқа айып жоқ)">Қате үшін −</span><span />
       </div>
       {subjects.map((s, i) => (
-        <div key={s.id} className="grid grid-cols-[3.5rem_1fr_auto] gap-2 rounded-lg border border-slate-200 p-2 sm:grid-cols-[3.5rem_1fr_5rem_5rem_6rem_2rem] sm:border-0 sm:p-0">
+        <div key={s.id} className="grid grid-cols-[3.5rem_1fr_auto] gap-2 rounded-lg border border-slate-200 p-2 sm:grid-cols-[3.5rem_1fr_5rem_5rem_6rem_5rem_2rem] sm:border-0 sm:p-0">
           <div className="flex items-center gap-0.5">
             <button disabled={i === 0} onClick={() => move(i, -1)} title="Жоғары" className="h-8 w-6 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-25">↑</button>
             <button disabled={i === subjects.length - 1} onClick={() => move(i, 1)} title="Төмен" className="h-8 w-6 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-25">↓</button>
@@ -53,6 +53,7 @@ export function SubjectsEditor({ subjects, onChange }: { subjects: SubjectConfig
             <option value={5}>A–E</option>
           </select>
           <input type="number" min={1} value={s.max} onChange={(e) => upd(i, { max: Number(e.target.value) })} className="rounded border border-slate-300 px-2 py-1.5" />
+          <input type="number" min={0} step={0.25} value={s.penalty ?? 0} title="Қате жауап үшін алынатын ұпай (мыс. БИЛ: 1). 0 — айып жоқ" onChange={(e) => upd(i, { penalty: Number(e.target.value) > 0 ? Number(e.target.value) : undefined })} className="rounded border border-slate-300 px-2 py-1.5" />
         </div>
       ))}
       <button

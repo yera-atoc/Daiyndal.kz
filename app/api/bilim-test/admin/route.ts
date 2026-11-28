@@ -77,6 +77,7 @@ function cleanSubjects(list: any): SubjectConfig[] {
       options: Math.min(5, Math.max(2, Math.round(Number(s?.options) || 4))),
       // минут, секундқа дейінгі дәлдікпен (6 мин 7 сек = 367/60)
       ...(Number(s?.minutes) > 0 ? { minutes: Math.min(300, Math.round(Number(s.minutes) * 60) / 60) } : {}),
+      ...(Number(s?.penalty) > 0 ? { penalty: Math.min(100, Number(s.penalty)) } : {}),
     }))
     .filter((s) => SUBJ_ID_RE.test(s.id) && s.name && !seen.has(s.id) && seen.add(s.id))
 }

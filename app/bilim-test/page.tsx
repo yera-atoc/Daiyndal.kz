@@ -419,6 +419,7 @@ function StartGate({ examId, subject, onCancel, onStart }: { examId: string; sub
             <li>• Бұл пәнге <b>{m} минут</b> беріледі ({subject.questions} сұрақ).</li>
             <li>• <b>«Бастау»</b> басқан сәттен таймер қосылады. Оны тоқтату не қайта бастау мүмкін емес — бетті жапсаң да, уақыт жүре береді.</li>
             <li>• Уақыт біткенде белгілеген жауаптарың <b>автоматты түрде тапсырылады</b>.</li>
+            {subject.penalty ? <li>• Бағалау: дұрыс жауап <b>+{+(subject.per ?? 0).toFixed(2)}</b>, қате жауап <b>−{subject.penalty}</b>, бос қалдырылса <b>0</b>. Білмесең — бос қалдырған тиімді.</li> : null}
             <li>• Дайын болсаң ғана баста: телефон қуатын, интернетті тексер.</li>
           </ul>
         )}
@@ -533,7 +534,7 @@ function Tests({
                 >
                   <div>
                     <div className={`text-lg font-semibold ${can ? '' : 'text-slate-500'}`}>{s.name}</div>
-                    <div className="text-sm text-slate-500">{s.questions} сұрақ{s.minutes ? ` · ⏱ ${s.minutes} мин` : ""}</div>
+                    <div className="text-sm text-slate-500">{s.questions} сұрақ{s.minutes ? ` · ⏱ ${s.minutes} мин` : ""}{s.penalty ? ` · дұрыс +${+(s.per ?? 0).toFixed(2)}, қате −${s.penalty}` : ""}</div>
                   </div>
                   {s.done ? (
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Тапсырылды ✓</span>
@@ -632,7 +633,7 @@ function Vocab({
                 >
                   <div>
                     <div className={`text-lg font-semibold ${can ? '' : 'text-slate-500'}`}>{s.name}</div>
-                    <div className="text-sm text-slate-500">{s.questions} сұрақ{s.minutes ? ` · ⏱ ${s.minutes} мин` : ""}</div>
+                    <div className="text-sm text-slate-500">{s.questions} сұрақ{s.minutes ? ` · ⏱ ${s.minutes} мин` : ""}{s.penalty ? ` · дұрыс +${+(s.per ?? 0).toFixed(2)}, қате −${s.penalty}` : ""}</div>
                   </div>
                   {s.done ? (
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Тапсырылды ✓</span>

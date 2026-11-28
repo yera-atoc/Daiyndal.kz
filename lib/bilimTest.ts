@@ -12,6 +12,8 @@ export type SubjectConfig = {
   options: number // жауап нұсқалары (4 = A–D, 5 = A–E)
   // Әр оқушыға уақыт шегі (минут): бланкті алғаш ашқан сәттен басталады, біткенде жауаптар өзі жіберіледі
   minutes?: number
+  // Қате жауап үшін алынатын ұпай (мыс. БИЛ: дұрыс +4, қате −1 → penalty: 1). Бос жауапқа айып жоқ.
+  penalty?: number
 }
 
 // Бір сұрақтың мазмұны (міндетті емес): мәтіні, суреті, тақырыбы.
@@ -225,7 +227,8 @@ export function gradeSubject(
     else if (a === k) correct++
     else wrong.push(i + 1)
   }
-  return { correct, wrong, blank, score: Math.round(correct * pointsPerQuestion(s)) }
+  const raw = correct * pointsPerQuestion(s) - (s.penalty ? wrong.length * s.penalty : 0)
+  return { correct, wrong, blank, score: Math.max(0, Math.round(raw)) }
 }
 
 // Бір емтихан бойынша барлық оқушының баллдары

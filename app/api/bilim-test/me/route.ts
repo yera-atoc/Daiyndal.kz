@@ -66,6 +66,7 @@ export async function GET() {
             questions: s.questions,
             options: s.options,
             ...(s.minutes ? { minutes: s.minutes } : {}),
+            ...(s.penalty ? { penalty: s.penalty, per: s.max / s.questions } : {}),
             open: live.includes(s.id),
             done: mine.some((m) => m.subject === s.id),
           })),
