@@ -12,13 +12,14 @@ export const DAILY_VOCAB_SIZE = 100
 const START = Date.UTC(2026, 10, 27) // 2026-11-27 — 1-күн
 
 // Күнделікті тест қосылатын топтар (атауы бойынша)
-// 'std' — A1–A2 сөздер (ересектер, Pre-IELTS); 'kids' — A0–A1 сөздер (кіші сыныптар, «A1-3»)
+// 'std' — A1–A2 сөздер (ересектер, Pre-IELTS); 'kids' — A0–A1 сөздер (кіші сыныптар, «A1-3», барлық 4 сынып)
 // 'pic' — A0: суретке қарап ағылшын сөзін таңдау (күніне 30)
 export type DailyVocabKind = 'std' | 'kids' | 'pic'
 export function dailyVocabKind(groupName: string | undefined | null): DailyVocabKind | null {
   const n = groupName ?? ''
   if (/^\s*[aа]0\s*(топ|тобы)?\s*$/i.test(n)) return 'pic'
   if (/^\s*[aа]1\s*[-–—]\s*3\s*(топ|тобы)?\s*$/i.test(n)) return 'kids' // А кирилше не латынша
+  if (/(^|[^0-9])4\s*[-–—·]?\s*сынып/i.test(n)) return 'kids' // барлық 4 сынып топтары: A1 деңгейіндегі 100 сөз
   if (/english[\s-]*adults|pre[\s-]*ielts/i.test(n)) return 'std'
   return null
 }
