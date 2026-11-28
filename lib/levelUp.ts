@@ -2,6 +2,7 @@
 import { NIS_GRANT_2026, NIS_TOTAL } from './nisGrant'
 import { DEFAULT_SUBJECTS } from './bilimTest'
 import { NIS_TIPS } from './nisTips'
+import { XP, xpLevel } from './xp'
 
 export const LEVEL_STEP = 50 // әр 50 балл — бір деңгей
 export const MAX_LEVEL = NIS_TOTAL / LEVEL_STEP
@@ -30,6 +31,7 @@ export type LevelUpInput = {
   today: string
   points?: Record<string, number> // стат ұпайлары: пән → салынған ұпай
   practiceToday?: string[] // бүгін дайындық сынағын тапсырған пәндер
+  xp?: { total: number; today: number } // күнделікті еңбектен жиналған XP (lib/xp)
 }
 
 export type SubjectStat = { id: string; name: string; score: number; max: number; pct: number; delta: number | null }
@@ -43,8 +45,10 @@ export type LevelUp = {
   monthName: string
   total: number
   max: number
-  level: number
-  toNext: number
+  level: number // XP бойынша
+  toNext: number // келесі деңгейге керек XP
+  xpBar: { total: number; into: number; need: number; today: number }
+  hasExam: boolean
   rank: { id: string; title: string; next: { id: string; need: number } | null }
   target: { name: string; min: number; gap: number }
   efficiency: number
@@ -96,8 +100,8 @@ function daySeed(day: string) {
 
 export function buildLevelUp(input: LevelUpInput): LevelUp | null {
   const filled = input.months.filter((m) => ORDER.some((id) => typeof m.scores[id] === 'number'))
-  const cur = filled[filled.length - 1]
-  if (!cur) return null
+  // Сынақ нәтижесі әлі жоқ болса да экран ашылады: XP, квесттер, серия
+  const cur: MonthScores = filled[filled.length - 1] ?? { month: '', name: '', scores: {}, maxes: {} }
   const prev = filled.length > 1 ? filled[filled.length - 2] : null
 
   const subjects: SubjectStat[] = ORDER.filter((id) => cur.maxes[id]).map((id) => {
@@ -155,7 +159,9 @@ export function buildLevelUp(input: LevelUpInput): LevelUp | null {
   const accuracy = rt ? Math.round((rc / rt) * 100) : null
 
   const todayShare = todayRow && todayRow.total > 0 ? todayRow.correct / todayRow.total : 0
-  const { level, toNext } = levelOf(total)
+  const lv = xpLevel(input.xp?.total ?? 0)
+  const level = lv.level
+  const toNext = lv.need - lv.into
 
   // Стат ұпайлары: әр деңгей сайын 1 ұпай (Lv 1-де — 0). Ең көп ұпай салынған пән — фокус.
   const spent = Object.fromEntries(Object.entries(input.points ?? {}).filter(([id, n]) => ORDER.includes(id) && n > 0))
@@ -167,14 +173,16 @@ export function buildLevelUp(input: LevelUpInput): LevelUp | null {
   const yesterday = new Date(new Date(input.today + 'T00:00:00Z').getTime() - 864e5).toISOString().slice(0, 10)
   const penalty = input.daily.some((d) => d.day < yesterday) && !input.daily.some((d) => d.day === yesterday)
 
+  // Квесттер шын XP ережесімен (lib/xp): тапсыру +10, әр дұрыс +2, серия +10, дайындық сынағы +40
   const quests: Quest[] = [
     ...(penalty ? [{ id: 'penalty', title: 'Айыппұл квесті: кеше квест орындалмады. Бүгін күннің сұрақтарын 90 %-дан жоғары орында', xp: 0, done: todayShare >= 0.9, kind: 'penalty' as const }] : []),
-    { id: 'daily', title: 'Күннің сұрақтарын тапсыр', xp: 50, done: !!todayRow },
-    { id: 'accuracy', title: 'Бүгін 80 %-дан жоғары дұрыс', xp: 30, done: todayShare >= 0.8 },
-    { id: 'streak', title: 'Серияны үзбе: 3 күн қатарынан', xp: 20, done: input.streak >= 3 },
-    ...(focus ? [{ id: 'focus', title: `Фокус-квест: ${NAMES[focus] ?? focus} бойынша дайындық сынағын тапсыр`, xp: 40, done: (input.practiceToday ?? []).includes(focus), kind: 'focus' as const }] : []),
+    { id: 'daily', title: 'Күннің сұрақтарын тапсыр (әр дұрыс жауап +2 XP)', xp: XP.dailyBase + XP.perCorrect * 35, done: !!todayRow },
+    { id: 'streak', title: 'Серияны үзбе: 3 күн қатарынан', xp: XP.streakBonus, done: input.streak >= 3 },
+    ...(focus
+      ? [{ id: 'focus', title: `Фокус-квест: ${NAMES[focus] ?? focus} бойынша дайындық сынағын тапсыр`, xp: XP.drill, done: (input.practiceToday ?? []).includes(focus), kind: 'focus' as const }]
+      : [{ id: 'drill', title: 'Кез келген дайындық сынағын тапсыр', xp: XP.drill, done: (input.practiceToday ?? []).length > 0 }]),
   ]
-  const xp = { got: quests.filter((q) => q.done).reduce((a, q) => a + q.xp, 0), of: quests.reduce((a, q) => a + q.xp, 0) }
+  const xp = { got: input.xp?.today ?? 0, of: quests.reduce((a, q) => a + q.xp, 0) }
 
   // Бүгінгі лайфхак: ең әлсіз пәннен, күн сайын басқасы
   const weakest = [...subjects].sort((a, b) => a.pct - b.pct)[0]
@@ -188,6 +196,8 @@ export function buildLevelUp(input: LevelUpInput): LevelUp | null {
     max,
     level,
     toNext,
+    xpBar: { total: input.xp?.total ?? 0, into: lv.into, need: lv.need, today: input.xp?.today ?? 0 },
+    hasExam: subjects.length > 0,
     rank: rankOf(total),
     target: targetOf(total),
     efficiency,

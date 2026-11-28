@@ -26,8 +26,10 @@ import { GrantPanel } from '@/components/bilim/Grant'
 import InstallApp from '@/components/pwa/InstallApp'
 import MistakeDrill, { mistakeCount } from '@/components/bilim/MistakeDrill'
 import { DailyCard, DailyRunner, useDaily } from '@/components/bilim/Daily'
-import { LevelUpTab } from '@/components/bilim/LevelUp'
+import { LevelBanner, LevelUpTab, invalidateLevelUp } from '@/components/bilim/LevelUp'
 import { isNishGroup } from '@/lib/levelUp'
+import { coachAllowed } from '@/lib/coach'
+import Coach from '@/components/bilim/Coach'
 import { dailyTrack } from '@/lib/daily'
 import { grantGroup } from '@/lib/nisGrant'
 import { fileSrc } from '@/lib/fileUrl'
@@ -62,7 +64,7 @@ type Practice = {
 }
 type Upcoming = { id: string; title: string; opens_at: string; subjects: string[] }
 type Me = { student: { id: string; name: string }; group: { id: string; name: string }; open: OpenExam[]; upcoming?: Upcoming[]; now?: number; results: Summary[]; practice?: Practice[]; season?: SeasonView | null }
-type Tab = 'tests' | 'level' | 'english' | 'results' | 'rating'
+type Tab = 'tests' | 'level' | 'coach' | 'english' | 'results' | 'rating'
 // Сөздік тесттер «Ағылшын тілі» бөліміне шығады
 const isVocab = (e: { id: string; title: string }) => /сөздік/i.test(e.title) || /_sozdik-v|vocab/i.test(e.id)
 
@@ -245,11 +247,13 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
   const [daily, setDaily] = useState(false)
   const dq = useDaily(!!dailyTrack(me.group.id, me.group.name))
   const nish = isNishGroup(me.group.id, me.group.name)
+  const coach = coachAllowed(me.group.id, me.group.name)
 
   const hasVocab = !!me && ((me.practice ?? []).some(isVocab) || me.open.some(isVocab))
   const go = (t: Tab) => {
     setTab(t)
     setSheet(null)
+    invalidateLevelUp()
     setDrill(null)
     setDaily(false)
     setDetail(null)
@@ -280,6 +284,7 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
             {([
               ['tests', 'Сынақ'],
               ...(nish ? [['level', 'Деңгей']] : []),
+              ...(coach ? [['coach', 'Көмекші']] : []),
               ...(hasVocab ? [['english', 'Ағылшын тілі']] : []),
               ['results', 'Нәтижелерім'],
               ['rating', 'Рейтинг'],
@@ -298,6 +303,11 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-32 pt-5">
+        {!sheet && !drill && !daily && !detail && !gate && tab === 'tests' && nish && (
+          <div className="mb-4">
+            <LevelBanner onOpen={() => { setTab('level'); window.scrollTo({ top: 0 }) }} />
+          </div>
+        )}
         {!sheet && !drill && !daily && !detail && seasonFor(me.group.id, me.group.name) && (
           <div className="mb-5">
             <ExamCountdown cfg={seasonFor(me.group.id, me.group.name)!} compact />
@@ -336,13 +346,13 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
             <PracticeRunner
               examId={drill.examId}
               subjectId={drill.subjectId}
-              onBack={() => { setDrill(null); window.scrollTo({ top: 0 }) }}
+              onBack={() => { invalidateLevelUp(); setDrill(null); window.scrollTo({ top: 0 }) }}
               onChanged={refresh}
             />
           </div>
         ) : daily && dq.data ? (
           <div className="mx-auto max-w-xl">
-            <DailyRunner data={dq.data} onBack={() => { setDaily(false); window.scrollTo({ top: 0 }) }} onDone={dq.setData} />
+            <DailyRunner data={dq.data} onBack={() => { invalidateLevelUp(); setDaily(false); window.scrollTo({ top: 0 }) }} onDone={dq.setData} />
           </div>
         ) : tab === 'tests' ? (
           <>
@@ -357,6 +367,8 @@ function Cabinet({ me, refresh, onLogout }: { me: Me; refresh: () => Promise<voi
           </>
         ) : tab === 'level' ? (
           <LevelUpTab name={me.student.name} />
+        ) : tab === 'coach' ? (
+          <Coach name={me.student.name} />
         ) : tab === 'english' ? (
           <Tests
             me={me}

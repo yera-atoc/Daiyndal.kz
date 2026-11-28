@@ -2,6 +2,7 @@
 // НИШ «Менің деңгейім»: деңгей, ранг, пән статтары, өсім нүктелері, квесттер, лайфхак және толық дайындық жоспары.
 import { useEffect, useState } from 'react'
 import type { BoardRow, LevelUp as LU } from '@/lib/levelUp'
+import type { WeekRow } from '@/lib/xp'
 
 type LevelEvent = { from: number; to: number; rankFrom: string; rankTo: string; rankUp: boolean }
 import { NIS_TACTICS, NIS_TIPS, NIS_WEEK } from '@/lib/nisTips'
@@ -33,7 +34,7 @@ function Board({ rows }: { rows: BoardRow[] }) {
   const shown = all ? rows : rows.filter((r, i) => i < 5 || r.me)
   return (
     <Card>
-      <Label>Ранг рейтингі · топ ішінде</Label>
+      <Label>Сынақ рейтингі · ранг бойынша</Label>
       <div className="space-y-1">
         {shown.map((r, i) => (
           <div key={r.name + i}>
@@ -42,7 +43,6 @@ function Board({ rows }: { rows: BoardRow[] }) {
               <span className="w-6 text-right tabular-nums text-slate-500">{r.place}</span>
               <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ${RANK_CLS[r.rank]}`}>{r.rank}</span>
               <span className="min-w-0 flex-1 truncate">{r.name}{r.me ? ' (сен)' : ''}</span>
-              <span className="shrink-0 text-xs text-slate-500">Lv {r.level}</span>
               <span className="w-12 shrink-0 text-right tabular-nums">{r.total}</span>
             </div>
           </div>
@@ -60,24 +60,24 @@ function SystemWindow({ ev, onClose }: { ev: LevelEvent; onClose: () => void }) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" role="dialog" aria-modal="true">
       <style dangerouslySetInnerHTML={{ __html: '@keyframes sysIn{0%{opacity:0;transform:scale(.85)}100%{opacity:1;transform:scale(1)}}@keyframes rankIn{0%{opacity:0;transform:scale(2.4)}60%{opacity:1;transform:scale(.9)}100%{transform:scale(1)}}' }} />
-      <div className="w-full max-w-sm rounded-xl border-2 border-sky-400 bg-slate-950 p-5 text-center text-white" style={{ animation: 'sysIn .35s ease-out' }}>
-        <div className="text-[11px] font-semibold tracking-[.3em] text-sky-300">ЖҮЙЕ ХАБАРЛАМАСЫ</div>
-        <div className="mx-auto my-3 h-px w-2/3 bg-sky-400/50" />
+      <div className="w-full max-w-sm rounded-xl border-2 border-cyan-400 bg-slate-950 p-5 text-center text-white" style={{ animation: 'sysIn .35s ease-out' }}>
+        <div className="text-[11px] font-semibold tracking-[.3em] text-cyan-300">ЖҮЙЕ ХАБАРЛАМАСЫ</div>
+        <div className="mx-auto my-3 h-px w-2/3 bg-cyan-400/50" />
         {ev.rankUp ? (
           <>
             <div className="text-lg font-semibold">Жаңа ранг алдың!</div>
             <div className="mt-4 flex items-center justify-center gap-4">
               <span className="text-3xl font-bold text-slate-500">{ev.rankFrom}</span>
-              <span className="text-sky-300">→</span>
-              <span className="inline-flex h-20 w-20 items-center justify-center rounded-xl border-2 border-sky-300 text-5xl font-black text-sky-200" style={{ animation: 'rankIn .9s ease-out' }}>{ev.rankTo}</span>
+              <span className="text-cyan-300">→</span>
+              <span className="inline-flex h-20 w-20 items-center justify-center rounded-xl border-2 border-cyan-300 text-5xl font-black text-cyan-200" style={{ animation: 'rankIn .9s ease-out' }}>{ev.rankTo}</span>
             </div>
           </>
         ) : (
           <div className="text-lg font-semibold">Деңгей көтерілді!</div>
         )}
-        <div className="mt-4 text-2xl font-bold">Lv {ev.from} <span className="text-sky-300">→</span> Lv {ev.to}</div>
-        {ev.to > ev.from && <div className="mt-2 text-sm text-sky-200">+{ev.to - ev.from} стат ұпайы берілді. Оны пәнге сал.</div>}
-        <button onClick={onClose} className="mt-5 w-full rounded-lg border border-sky-400 py-2.5 text-sm font-semibold text-sky-100 active:bg-sky-900">Қабылдау</button>
+        <div className="mt-4 text-2xl font-bold">Lv {ev.from} <span className="text-cyan-300">→</span> Lv {ev.to}</div>
+        {ev.to > ev.from && <div className="mt-2 text-sm text-cyan-200">+{ev.to - ev.from} стат ұпайы берілді. Оны пәнге сал.</div>}
+        <button onClick={onClose} className="mt-5 w-full rounded-lg border border-cyan-400 py-2.5 text-sm font-semibold text-cyan-100 active:bg-cyan-900">Қабылдау</button>
       </div>
     </div>
   )
@@ -139,11 +139,98 @@ const Label = ({ children }: { children: React.ReactNode }) => (
   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{children}</div>
 )
 
+type Resp = { data: LU | null; board: BoardRow[]; week: WeekRow[]; event: LevelEvent | null; stored: boolean }
+let cache: { at: number; p: Promise<Resp> } | null = null
+/** Кабинеттегі жолақ пен «Деңгей» бөлімі бір сұраумен (1 минут кэш) */
+export function loadLevelUp(fresh = false): Promise<Resp> {
+  if (!fresh && cache && Date.now() - cache.at < 60_000) return cache.p
+  const p = fetch('/api/bilim-test/levelup', { cache: 'no-store' }).then(async (r) => {
+    const j = await r.json()
+    if (!r.ok) throw new Error(j.error || 'Қате')
+    return { data: j.data ?? null, board: j.board ?? [], week: j.week ?? [], event: j.event ?? null, stored: j.stored !== false }
+  })
+  cache = { at: Date.now(), p }
+  p.catch(() => (cache = null))
+  return p
+}
+
+/** Сынақ/күннің сұрақтарынан қайтқанда — XP жаңадан есептелсін */
+export function invalidateLevelUp() {
+  cache = null
+}
+
+/** «Сынақ» бетінің басындағы шағын жолақ: деңгей, XP, бүгін, апталық орын */
+export function LevelBanner({ onOpen }: { onOpen: () => void }) {
+  const [r, setR] = useState<Resp | null>(null)
+  useEffect(() => {
+    loadLevelUp().then(setR).catch(() => setR(null))
+  }, [])
+  if (!r?.data) return null
+  const d = r.data
+  const me = r.week.find((w) => w.me)
+  const pct = Math.round((d.xpBar.into / d.xpBar.need) * 100)
+  const daily = d.quests.find((q) => q.id === 'daily')
+  return (
+    <button onClick={onOpen} className="w-full rounded-2xl bg-slate-950 p-4 text-left text-white active:opacity-90">
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-cyan-400">
+          <span className="text-[10px] leading-none text-cyan-300">Lv</span>
+          <span className="text-lg font-black leading-none">{d.level}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between text-xs">
+            <span className="font-semibold text-cyan-200">{d.xpBar.into} / {d.xpBar.need} XP</span>
+            <span className="text-slate-400">{me ? `Аптада #${me.place} · ${me.xp} XP` : ''}</span>
+          </div>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-800">
+            <div className="h-full rounded-full bg-cyan-400 transition-[width] duration-1000" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="mt-1.5 truncate text-xs text-slate-300">
+            {daily && !daily.done ? `Бүгінгі квест: күннің сұрақтары → +${daily.xp} XP-ға дейін` : `Бүгін +${d.xpBar.today} XP · ${d.streak > 0 ? `${d.streak} күн қатарынан` : 'серияны баста'}`}
+          </div>
+        </div>
+        <span className="text-cyan-300">›</span>
+      </div>
+    </button>
+  )
+}
+
+function WeekBoard({ rows }: { rows: WeekRow[] }) {
+  const [all, setAll] = useState(false)
+  if (rows.length < 2) return null
+  const shown = all ? rows : rows.filter((r, i) => i < 5 || r.me)
+  const me = rows.find((r) => r.me)
+  const ahead = me && me.place > 1 ? rows.filter((r) => r.xp > me.xp).slice(-1)[0] : null
+  return (
+    <Card>
+      <div className="mb-1 flex items-center justify-between">
+        <Label>Апта чемпионы · XP</Label>
+        <span className="text-[11px] text-slate-400">дүйсенбіде нөлден</span>
+      </div>
+      <div className="space-y-1">
+        {shown.map((r, i) => (
+          <div key={r.name + i} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${r.me ? 'bg-cyan-50 font-semibold' : ''}`}>
+            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${r.place === 1 ? 'bg-amber-400 text-white' : r.place === 2 ? 'bg-slate-300 text-slate-800' : r.place === 3 ? 'bg-orange-300 text-white' : 'text-slate-500'}`}>{r.place}</span>
+            <span className="min-w-0 flex-1 truncate">{r.name}{r.me ? ' (сен)' : ''}</span>
+            <span className="shrink-0 tabular-nums">{r.xp} XP</span>
+          </div>
+        ))}
+      </div>
+      {rows.length > shown.length || all ? (
+        <button onClick={() => setAll(!all)} className="mt-2 w-full text-xs font-semibold text-blue-600">{all ? 'Қысқарту' : `Барлығы (${rows.length})`}</button>
+      ) : null}
+      {ahead && me && <p className="mt-2 text-xs text-slate-500">#{ahead.place} орынға тағы <b>{ahead.xp - me.xp + 1} XP</b> — бұл шамамен {Math.ceil((ahead.xp - me.xp + 1) / 60)} күннің сұрақтары.</p>}
+      {me && me.place === 1 && me.xp > 0 && <p className="mt-2 text-xs font-semibold text-amber-600">Сен осы аптаның көшбасшысысың! Орныңды жексенбіге дейін сақта.</p>}
+    </Card>
+  )
+}
+
 export function LevelUpTab({ name }: { name: string }) {
   const [data, setData] = useState<LU | null | undefined>(undefined)
   const [err, setErr] = useState('')
   const [plan, setPlan] = useState(false)
   const [board, setBoard] = useState<BoardRow[]>([])
+  const [week, setWeek] = useState<WeekRow[]>([])
   const [event, setEvent] = useState<LevelEvent | null>(null)
   const [stored, setStored] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -158,6 +245,8 @@ export function LevelUpTab({ name }: { name: string }) {
       if (!r.ok) throw new Error(j.error || 'Қате')
       setData(j.data)
       setBoard(j.board ?? [])
+      setWeek(j.week ?? [])
+      cache = null
     } catch (e: any) {
       setMsg(e.message)
     } finally {
@@ -166,14 +255,13 @@ export function LevelUpTab({ name }: { name: string }) {
   }
 
   useEffect(() => {
-    fetch('/api/bilim-test/levelup', { cache: 'no-store' })
-      .then(async (r) => {
-        const j = await r.json()
-        if (!r.ok) throw new Error(j.error || 'Қате')
+    loadLevelUp()
+      .then((j) => {
         setData(j.data)
-        setBoard(j.board ?? [])
-        setEvent(j.event ?? null)
-        setStored(j.stored !== false)
+        setBoard(j.board)
+        setWeek(j.week)
+        setEvent(j.event)
+        setStored(j.stored)
       })
       .catch((e) => setErr(e.message))
   }, [])
@@ -201,29 +289,52 @@ export function LevelUpTab({ name }: { name: string }) {
       {event && <SystemWindow ev={event} onClose={() => { setEvent(null); act({ action: 'seen' }) }} />}
       {!stored && <Card className="text-xs text-amber-700">Деңгей мен ұпайлар әлі сақталмайды: әкімші Supabase-те 20261104_03_levelup.sql іске қосуы керек.</Card>}
       {msg && <Card className="text-sm text-rose-600">{msg}</Card>}
-      <Card>
+      <div className="rounded-2xl bg-slate-950 p-4 text-white">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">{initials}</div>
+          <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-cyan-400">
+            <span className="text-[10px] leading-none text-cyan-300">Lv</span>
+            <span className="text-2xl font-black leading-none">{data.level}</span>
+          </div>
           <div className="min-w-0 flex-1">
             <div className="truncate font-semibold">{name}</div>
-            {myTitle && <div className="truncate text-xs font-semibold text-amber-700">★ {myTitle.name}</div>}
-            <div className="text-xs text-slate-500">{data.monthName} сынағы бойынша{data.streak > 0 ? ` · ${data.streak} күн қатарынан` : ''}</div>
+            {myTitle && <div className="truncate text-xs font-semibold text-amber-300">★ {myTitle.name}</div>}
+            <div className="text-xs text-slate-400">{data.streak > 0 ? `${data.streak} күн қатарынан` : 'Серияны бүгін баста'} · барлығы {data.xpBar.total} XP</div>
           </div>
-          <div className="rounded-xl border-2 border-blue-500 px-3 py-1 text-center">
-            <div className="text-xl font-bold leading-none text-blue-600">{data.rank.id}</div>
-            <div className="text-[11px] text-slate-500">ранг</div>
-          </div>
+          {data.hasExam && (
+            <div className="rounded-xl border-2 border-cyan-400 px-3 py-1 text-center">
+              <div className="text-xl font-black leading-none text-cyan-200">{data.rank.id}</div>
+              <div className="text-[11px] text-slate-400">ранг</div>
+            </div>
+          )}
         </div>
-        <div className="mt-4 flex items-baseline justify-between text-sm">
-          <span className="text-base font-bold">Lv {data.level}</span>
+        <div className="mt-4 flex items-baseline justify-between text-xs">
+          <span className="font-semibold text-cyan-200">{data.xpBar.into} / {data.xpBar.need} XP</span>
+          <span className="text-slate-400">Lv {data.level + 1}-ге дейін +{data.toNext} XP</span>
+        </div>
+        <div className="mt-1.5 h-3 overflow-hidden rounded-full bg-slate-800">
+          <div className="h-full rounded-full bg-cyan-400 transition-[width] duration-1000" style={{ width: `${Math.round((data.xpBar.into / data.xpBar.need) * 100)}%` }} />
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-lg bg-slate-900 py-2"><div className="text-lg font-bold text-cyan-200">+{data.xpBar.today}</div><div className="text-[10px] text-slate-400">бүгін XP</div></div>
+          <div className="rounded-lg bg-slate-900 py-2"><div className="text-lg font-bold text-cyan-200">{week.find((w) => w.me)?.xp ?? 0}</div><div className="text-[10px] text-slate-400">аптада XP</div></div>
+          <div className="rounded-lg bg-slate-900 py-2"><div className="text-lg font-bold text-cyan-200">#{week.find((w) => w.me)?.place ?? '—'}</div><div className="text-[10px] text-slate-400">топта</div></div>
+        </div>
+        <p className="mt-3 text-[11px] leading-snug text-slate-400">XP: күннің сұрақтары +10, әр дұрыс жауап +2, 3+ күн серия +10, дайындық сынағы +40, айлық сынақ — әр 10 балл +1.</p>
+      </div>
+
+      <WeekBoard rows={week} />
+
+      {data.hasExam && (
+      <Card>
+        <div className="flex items-baseline justify-between text-sm">
+          <span className="font-semibold">{data.monthName} сынағы</span>
           <span className="text-slate-500">{data.total} / {data.max} балл</span>
         </div>
         <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-slate-100">
           <div className="h-full rounded-full bg-blue-600" style={{ width: `${fill}%` }} />
         </div>
         <div className="mt-2 text-xs text-slate-500">
-          {data.toNext > 0 ? `Lv ${data.level + 1}-ге дейін +${data.toNext} балл` : 'Ең жоғарғы деңгей'}
-          {data.rank.next ? ` · ${data.rank.next.id} рангқа +${data.rank.next.need}` : ''}
+          Ранг {data.rank.id} · {data.rank.title}{data.rank.next ? ` · ${data.rank.next.id} рангқа +${data.rank.next.need} балл` : ''}
         </div>
         <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
           {data.target.gap > 0
@@ -231,8 +342,9 @@ export function LevelUpTab({ name }: { name: string }) {
             : <>НЗМ {data.target.name} грант шегінен ({data.target.min}) асып тұрсың. Енді 1500-ге!</>}
         </div>
       </Card>
+      )}
 
-      <div className="grid grid-cols-2 gap-3">
+      {data.hasExam && <div className="grid grid-cols-2 gap-3">
         <Card className="!p-3">
           <div className="text-xs text-slate-500">Тиімділік</div>
           <div className="text-2xl font-bold">{data.efficiency}%</div>
@@ -243,9 +355,9 @@ export function LevelUpTab({ name }: { name: string }) {
           <div className="text-2xl font-bold">{data.accuracy === null ? '—' : `${data.accuracy}%`}</div>
           <span className="text-xs text-slate-400">соңғы 30 күн</span>
         </Card>
-      </div>
+      </div>}
 
-      <Card>
+      {data.hasExam && <Card>
         <Label>Пән статтары</Label>
         <div className="space-y-3">
           {data.subjects.map((s) => (
@@ -260,7 +372,7 @@ export function LevelUpTab({ name }: { name: string }) {
             </div>
           ))}
         </div>
-      </Card>
+      </Card>}
 
       <Board rows={board} />
 

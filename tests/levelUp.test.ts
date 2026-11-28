@@ -45,14 +45,22 @@ describe('levelUp', () => {
     expect(d.subjects.find((s) => s.id === 'math')!.delta).toBe(20)
     expect(d.growth[0]).toMatchObject({ id: 'russian', gain: 40, topic: 'Падеждер' })
     expect(d.skills[0]).toMatchObject({ topic: 'Падеждер', level: 1 })
-    expect(d.quests.every((q) => q.done)).toBe(true)
-    expect(d.xp).toEqual({ got: 100, of: 100 })
+    expect(d.quests.filter((q) => q.id === 'daily' || q.id === 'streak').every((q) => q.done)).toBe(true)
+    expect(d.quests.find((q) => q.id === 'drill')?.done).toBe(false)
+    expect(d.xp).toEqual({ got: 0, of: 80 + 10 + 40 })
+    expect(d.hasExam).toBe(true)
     expect(d.accuracy).toBe(86)
     expect(d.tip.subject).toBe('russian')
     expect(NIS_TIPS.find((t) => t.id === 'russian')!.hacks).toContain(d.tip.text)
   })
-  it('null without results', () => {
-    expect(buildLevelUp({ months: [], topics: [], daily: [], streak: 0, today: '2026-11-04' })).toBeNull()
+  it('opens without exam results: XP level, quests', () => {
+    const d = buildLevelUp({ months: [], topics: [], daily: [{ day: '2026-11-04', correct: 30, total: 35 }], streak: 1, today: '2026-11-04', xp: { total: 230, today: 70 } })!
+    expect(d.hasExam).toBe(false)
+    expect(d.subjects).toEqual([])
+    expect(d.level).toBe(3)
+    expect(d.xpBar).toEqual({ total: 230, into: 10, need: 140, today: 70 })
+    expect(d.toNext).toBe(130)
+    expect(d.quests.find((q) => q.id === 'daily')?.done).toBe(true)
   })
 })
 
@@ -95,6 +103,7 @@ describe('system: points, penalty, focus, titles, events', () => {
       today: '2026-11-04',
       points: { russian: 3, math: 1, bogus: 5 },
       practiceToday: ['russian'],
+      xp: { total: 8500, today: 0 }, // Lv 26 → 25 ұпай
     })!
     expect(d.total).toBe(1250)
     expect(d.points).toEqual({ total: 25, free: 21, spent: { russian: 3, math: 1 }, focus: 'russian' })
